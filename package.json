@@ -1,0 +1,22 @@
+{
+  "name": "astralib",
+  "private": true,
+  "packageManager": "npm@11.4.2",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "publish-packages": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.0",
+    "ts-node": "^10.9.2",
+    "turbo": "^2.4.0"
+  }
+}

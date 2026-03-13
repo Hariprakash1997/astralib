@@ -1,0 +1,517 @@
+import { RuleRunnerService } from '../services/rule-runner.service';
+import { EmailType, RunTrigger } from '../types/enums';
+
+jest.mock('../utils/redis-lock', () => ({
+  RedisLock: jest.fn().mockImplementation(() => ({
+    acquire: jest.fn().mockResolvedValue(true),
+    release: jest.fn().mockResolvedValue(undefined),
+  })),
+}));
+
+jest.mock('../services/template-render.service', () => ({
+  TemplateRenderService: jest.fn().mockImplementation(() => ({
+    compileBatch: jest.fn().mockReturnValue({
+      subjectFn: jest.fn(),
+      bodyFn: jest.fn(),
+      textBodyFn: jest.fn(),
+    }),
+    renderFromCompiled: jest.fn().mockReturnValue({
+      subject: 'Rendered Subject',
+      html: '<p>Rendered HTML</p>',
+      text: 'Rendered Text',
+    }),
+  })),
+}));
+
+function createChainableMock(resolvedValue: any[] = []) {
+  const mock: any = {
+    lean: jest.fn().mockResolvedValue(resolvedValue),
+    sort: jest.fn().mockReturnThis(),
+  };
+  return mock;
+}
+
+function createMockModels() {
+  return {
+    EmailRule: {
+      findActive: jest.fn().mockResolvedValue([]),
+      findByIdAndUpdate: jest.fn().mockResolvedValue(null),
+    },
+    EmailTemplate: {
+      findById: jest.fn().mockResolvedValue(null),
+    },
+    EmailRuleSend: {
+      find: jest.fn().mockImplementation(() => createChainableMock([])),
+      logSend: jest.fn().mockResolvedValue(undefined),
+    },
+    EmailRuleRunLog: {
+      create: jest.fn().mockResolvedValue(undefined),
+    },
+    EmailThrottleConfig: {
+      getConfig: jest.fn().mockResolvedValue({
+        maxPerUserPerDay: 3,
+        maxPerUserPerWeek: 10,
+        minGapDays: 1,
+      }),
+    },
+  };
+}
+
+function createMockConfig(adapterOverrides: Record<string, any> = {}) {
+  return {
+    db: { connection: {} as any, collectionPrefix: '' },
+    redis: { connection: {} as any, keyPrefix: 'test:' },
+    adapters: {
+      queryUsers: jest.fn().mockResolvedValue([]),
+      resolveData: jest.fn().mockImplementation((user: any) => user),
+      sendEmail: jest.fn().mockResolvedValue(undefined),
+      selectAgent: jest.fn().mockResolvedValue({ accountId: 'acc-1' }),
+      findIdentifier: jest.fn().mockResolvedValue({ id: 'ident-1', contactId: 'contact-1' }),
+      ...adapterOverrides,
+    },
+    logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    options: { lockTTLMs: 30000 },
+  };
+}
+
+function createService(models = createMockModels(), config = createMockConfig()) {
+  return {
+    service: new RuleRunnerService(
+      models.EmailRule as any,
+      models.EmailTemplate as any,
+      models.EmailRuleSend as any,
+      models.EmailRuleRunLog as any,
+      models.EmailThrottleConfig as any,
+      config as any
+    ),
+    models,
+    config,
+  };
+}
+
+function makeRule(overrides: Record<string, any> = {}) {
+  return {
+    _id: 'rule-1',
+    name: 'Test Rule',
+    templateId: 'template-1',
+    isActive: true,
+    sendOnce: false,
+    autoApprove: true,
+    bypassThrottle: false,
+    emailType: EmailType.Automated,
+    target: { role: 'customer', platform: 'w1', conditions: [] },
+    ...overrides,
+  };
+}
+
+function makeUser(overrides: Record<string, any> = {}) {
+  return {
+    _id: 'user-1',
+    email: 'alice@example.com',
+    name: 'Alice',
+    ...overrides,
+  };
+}
+
+describe('RuleRunnerService', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('runAllRules', () => {
+    it('skips when lock cannot be acquired', async () => {
+      const { RedisLock } = require('../utils/redis-lock');
+      RedisLock.mockImplementation(() => ({
+        acquire: jest.fn().mockResolvedValue(false),
+        release: jest.fn().mockResolvedValue(undefined),
+      }));
+
+      const { service, models, config } = createService();
+      await service.runAllRules();
+
+      expect(models.EmailRule.findActive).not.toHaveBeenCalled();
+      expect(config.logger.warn).toHaveBeenCalledWith(expect.stringContaining('already executing'));
+
+      RedisLock.mockImplementation(() => ({
+        acquire: jest.fn().mockResolvedValue(true),
+        release: jest.fn().mockResolvedValue(undefined),
+      }));
+    });
+
+    it('creates empty run log when no active rules', async () => {
+      const { service, models } = createService();
+      models.EmailRule.findActive.mockResolvedValue([]);
+
+      await service.runAllRules();
+
+      expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rulesProcessed: 0,
+          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 },
+        })
+      );
+    });
+
+    it('processes active rules and creates run log with stats', async () => {
+      const models = createMockModels();
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+      });
+
+      models.EmailRule.findActive.mockResolvedValue([makeRule()]);
+      models.EmailTemplate.findById.mockResolvedValue({
+        subject: 'Hi {{name}}',
+        body: '<p>Hello</p>',
+        textBody: undefined,
+      });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+
+      const { service } = createService(models, config);
+      await service.runAllRules();
+
+      expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rulesProcessed: 1,
+          perRuleStats: expect.arrayContaining([
+            expect.objectContaining({ ruleId: 'rule-1', ruleName: 'Test Rule' }),
+          ]),
+        })
+      );
+    });
+
+    it('releases lock even when error occurs (finally block)', async () => {
+      const { RedisLock } = require('../utils/redis-lock');
+      const mockRelease = jest.fn().mockResolvedValue(undefined);
+      RedisLock.mockImplementation(() => ({
+        acquire: jest.fn().mockResolvedValue(true),
+        release: mockRelease,
+      }));
+
+      const models = createMockModels();
+      models.EmailThrottleConfig.getConfig.mockRejectedValue(new Error('DB down'));
+
+      const config = createMockConfig();
+      const service = new RuleRunnerService(
+        models.EmailRule as any,
+        models.EmailTemplate as any,
+        models.EmailRuleSend as any,
+        models.EmailRuleRunLog as any,
+        models.EmailThrottleConfig as any,
+        config as any
+      );
+
+      await expect(service.runAllRules()).rejects.toThrow('DB down');
+      expect(mockRelease).toHaveBeenCalled();
+    });
+  });
+
+  describe('executeRule', () => {
+    it('returns error stats when template not found', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue(null);
+      const { service } = createService(models);
+
+      const stats = await service.executeRule(makeRule(), new Map(), {});
+      expect(stats).toEqual({ matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 1 });
+    });
+
+    it('returns error stats when queryUsers fails', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockRejectedValue(new Error('query failed')),
+      });
+      const { service } = createService(models, config);
+
+      const stats = await service.executeRule(makeRule(), new Map(), {});
+      expect(stats.errors).toBe(1);
+    });
+
+    it('returns {matched:0} when no users match', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([]),
+      });
+      const { service } = createService(models, config);
+
+      const stats = await service.executeRule(makeRule(), new Map(), {});
+      expect(stats.matched).toBe(0);
+      expect(stats.sent).toBe(0);
+    });
+
+    it('skips users without email or userId', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([
+          { _id: null, email: 'a@b.com' },
+          { _id: 'u1', email: '' },
+          { _id: undefined, email: undefined },
+        ]),
+      });
+      const { service } = createService(models, config);
+
+      const stats = await service.executeRule(makeRule(), new Map(), {});
+      expect(stats.matched).toBe(3);
+      expect(stats.skipped).toBe(3);
+      expect(stats.sent).toBe(0);
+    });
+
+    it('skips users already sent (sendOnce=true)', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([
+        { userId: 'user-1', ruleId: 'rule-1', sentAt: new Date() },
+      ]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const rule = makeRule({ sendOnce: true });
+      const stats = await service.executeRule(rule, new Map(), {});
+      expect(stats.skipped).toBe(1);
+      expect(stats.sent).toBe(0);
+    });
+
+    it('allows resend when resendAfterDays has elapsed', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+
+      const oldDate = new Date(Date.now() - 10 * 86400000);
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([
+        { userId: 'user-1', ruleId: 'rule-1', sentAt: oldDate },
+      ]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const rule = makeRule({ sendOnce: true, resendAfterDays: 5 });
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      const stats = await service.executeRule(rule, new Map(), throttleConfig);
+      expect(stats.sent).toBe(1);
+    });
+
+    it('skips users without identifier', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        findIdentifier: jest.fn().mockResolvedValue(null),
+      });
+      const { service } = createService(models, config);
+
+      const stats = await service.executeRule(makeRule(), new Map(), {});
+      expect(stats.skipped).toBe(1);
+      expect(stats.sent).toBe(0);
+    });
+
+    it('skips users when selectAgent returns null', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        selectAgent: jest.fn().mockResolvedValue(null),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      const stats = await service.executeRule(makeRule(), new Map(), throttleConfig);
+      expect(stats.skipped).toBe(1);
+      expect(stats.sent).toBe(0);
+    });
+
+    it('calls sendEmail with correct params for successful send', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(config.adapters.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          identifierId: 'ident-1',
+          contactId: 'contact-1',
+          accountId: 'acc-1',
+          subject: 'Rendered Subject',
+          htmlBody: '<p>Rendered HTML</p>',
+          textBody: 'Rendered Text',
+          ruleId: 'rule-1',
+          autoApprove: true,
+        })
+      );
+    });
+
+    it('logs send after successful email', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(models.EmailRuleSend.logSend).toHaveBeenCalledWith('rule-1', 'user-1', 'ident-1');
+    });
+
+    it('increments throttle map after send', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleMap = new Map();
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), throttleMap, throttleConfig);
+
+      const userThrottle = throttleMap.get('user-1');
+      expect(userThrottle).toBeDefined();
+      expect(userThrottle.today).toBe(1);
+      expect(userThrottle.thisWeek).toBe(1);
+      expect(userThrottle.lastSentDate).toBeInstanceOf(Date);
+    });
+
+    it('updates rule stats after execution', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(models.EmailRule.findByIdAndUpdate).toHaveBeenCalledWith(
+        'rule-1',
+        expect.objectContaining({
+          $set: expect.objectContaining({ lastRunStats: expect.any(Object) }),
+          $inc: expect.objectContaining({ totalSent: 1 }),
+        })
+      );
+    });
+  });
+
+  describe('buildThrottleMap', () => {
+    it('builds correct today/thisWeek/lastSentDate from recent sends', () => {
+      const { service } = createService();
+      const now = new Date();
+      const todayEarlier = new Date();
+      todayEarlier.setHours(todayEarlier.getHours() - 1);
+      const yesterday = new Date(Date.now() - 86400000);
+
+      const recentSends = [
+        { userId: 'u1', sentAt: todayEarlier },
+        { userId: 'u1', sentAt: yesterday },
+        { userId: 'u2', sentAt: now },
+      ];
+
+      const map = service.buildThrottleMap(recentSends);
+
+      const u1 = map.get('u1')!;
+      expect(u1.thisWeek).toBe(2);
+      expect(u1.today).toBe(1);
+      expect(u1.lastSentDate!.getTime()).toBe(todayEarlier.getTime());
+
+      const u2 = map.get('u2')!;
+      expect(u2.thisWeek).toBe(1);
+      expect(u2.today).toBe(1);
+      expect(u2.lastSentDate).toEqual(now);
+    });
+  });
+
+  describe('checkThrottle (via executeRule)', () => {
+    function setupForThrottle(
+      ruleOverrides: Record<string, any> = {},
+      throttleMapEntries: [string, any][] = [],
+      throttleConfig: any = { maxPerUserPerDay: 3, maxPerUserPerWeek: 10, minGapDays: 1 }
+    ) {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleMap = new Map(throttleMapEntries);
+      const rule = makeRule(ruleOverrides);
+
+      return { service, rule, throttleMap, throttleConfig, config };
+    }
+
+    it('bypasses for transactional emails', async () => {
+      const { service, rule, throttleMap, config } = setupForThrottle(
+        { emailType: EmailType.Transactional },
+        [['user-1', { today: 100, thisWeek: 200, lastSentDate: new Date() }]],
+        { maxPerUserPerDay: 1, maxPerUserPerWeek: 1, minGapDays: 100 }
+      );
+
+      const stats = await service.executeRule(rule, throttleMap, { maxPerUserPerDay: 1, maxPerUserPerWeek: 1, minGapDays: 100 });
+      expect(stats.sent).toBe(1);
+      expect(stats.skippedByThrottle).toBe(0);
+    });
+
+    it('bypasses when bypassThrottle is true', async () => {
+      const { service, rule, throttleMap } = setupForThrottle(
+        { bypassThrottle: true },
+        [['user-1', { today: 100, thisWeek: 200, lastSentDate: new Date() }]]
+      );
+
+      const stats = await service.executeRule(rule, throttleMap, { maxPerUserPerDay: 1, maxPerUserPerWeek: 1, minGapDays: 100 });
+      expect(stats.sent).toBe(1);
+      expect(stats.skippedByThrottle).toBe(0);
+    });
+
+    it('blocks when daily limit reached', async () => {
+      const { service, rule, throttleMap } = setupForThrottle(
+        {},
+        [['user-1', { today: 3, thisWeek: 3, lastSentDate: new Date(Date.now() - 2 * 86400000) }]]
+      );
+
+      const stats = await service.executeRule(rule, throttleMap, { maxPerUserPerDay: 3, maxPerUserPerWeek: 50, minGapDays: 0 });
+      expect(stats.skippedByThrottle).toBe(1);
+      expect(stats.sent).toBe(0);
+    });
+
+    it('blocks when weekly limit reached', async () => {
+      const { service, rule, throttleMap } = setupForThrottle(
+        {},
+        [['user-1', { today: 0, thisWeek: 10, lastSentDate: new Date(Date.now() - 2 * 86400000) }]]
+      );
+
+      const stats = await service.executeRule(rule, throttleMap, { maxPerUserPerDay: 50, maxPerUserPerWeek: 10, minGapDays: 0 });
+      expect(stats.skippedByThrottle).toBe(1);
+      expect(stats.sent).toBe(0);
+    });
+
+    it('blocks when min gap days not met', async () => {
+      const recentDate = new Date(Date.now() - 0.5 * 86400000);
+      const { service, rule, throttleMap } = setupForThrottle(
+        {},
+        [['user-1', { today: 0, thisWeek: 0, lastSentDate: recentDate }]]
+      );
+
+      const stats = await service.executeRule(rule, throttleMap, { maxPerUserPerDay: 50, maxPerUserPerWeek: 50, minGapDays: 2 });
+      expect(stats.skippedByThrottle).toBe(1);
+      expect(stats.sent).toBe(0);
+    });
+  });
+});
