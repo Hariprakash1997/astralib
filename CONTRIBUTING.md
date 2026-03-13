@@ -16,7 +16,7 @@ cp _template/src/index.ts packages/my-package/src/index.ts
 ```
 
 3. Update `package.json`:
-   - Change `name` to `@astralib/my-package`
+   - Change `name` to `@astralibx/my-package`
    - Update `description`
    - Add peer dependencies specific to your package
 
@@ -24,8 +24,8 @@ cp _template/src/index.ts packages/my-package/src/index.ts
 
 5. Build and test:
 ```bash
-npx turbo run build --filter=@astralib/my-package
-npx turbo run test --filter=@astralib/my-package
+npx turbo run build --filter=@astralibx/my-package
+npx turbo run test --filter=@astralibx/my-package
 ```
 
 ## Making Changes
@@ -62,7 +62,7 @@ Use `workspace:*` for internal deps:
 ```json
 {
   "dependencies": {
-    "@astralib/logger": "workspace:*"
+    "@astralibx/logger": "workspace:*"
   }
 }
 ```

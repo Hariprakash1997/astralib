@@ -6,12 +6,12 @@ Reusable utility packages for Node.js applications.
 
 | Package | Description | Version |
 |---------|-------------|---------|
-| [@astralib/email-rule-engine](./packages/email-rule-engine) | Rule-based email automation with MJML + Handlebars templates, throttling, and distributed locking | `1.0.0` |
+| [@astralibx/email-rule-engine](./packages/email-rule-engine) | Rule-based email automation with MJML + Handlebars templates, throttling, and distributed locking | `1.0.0` |
 
 ## Installation
 
 ```bash
-npm install @astralib/<package-name>
+npm install @astralibx/<package-name>
 ```
 
 ## Development

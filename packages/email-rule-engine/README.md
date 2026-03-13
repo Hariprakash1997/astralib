@@ -1,4 +1,4 @@
-# @astralib/email-rule-engine
+# @astralibx/email-rule-engine
 
 Rule-based email automation engine with MJML + Handlebars templates, per-user throttling, and Redis distributed locking.
 
@@ -14,11 +14,11 @@ Rule-based email automation engine with MJML + Handlebars templates, per-user th
 ## Quick Start
 
 ```bash
-npm install @astralib/email-rule-engine
+npm install @astralibx/email-rule-engine
 ```
 
 ```typescript
-import { createEmailRuleEngine } from '@astralib/email-rule-engine';
+import { createEmailRuleEngine } from '@astralibx/email-rule-engine';
 import mongoose from 'mongoose';
 import Redis from 'ioredis';
 
