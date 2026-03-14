@@ -1,5 +1,13 @@
 # @astralibx/email-analytics
 
+## 2.0.1
+
+### Patch Changes
+
+- c74e219: fix README doc links to use absolute GitHub URLs for npm
+- Updated dependencies [c74e219]
+  - @astralibx/core@1.1.1
+
 ## 2.0.0
 
 ### Major Changes
