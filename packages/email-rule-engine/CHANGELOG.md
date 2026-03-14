@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 1.2.1
+
+### Patch Changes
+
+- 874d0fb: fix doc links to use absolute GitHub URLs in README
+
 ## 1.2.0
 
 ### Minor Changes
