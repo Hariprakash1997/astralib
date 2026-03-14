@@ -1,0 +1,433 @@
+import { LitElement, html, css } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
+import { alxBaseStyles } from '../../styles/theme.js';
+import {
+  alxButtonStyles,
+  alxInputStyles,
+  alxCardStyles,
+  alxLoadingStyles,
+} from '../../styles/shared.js';
+import { AccountAPI } from '../../api/account.api.js';
+
+interface Settings {
+  timezone?: string;
+  devMode?: boolean;
+  imap?: {
+    enabled?: boolean;
+    pollIntervalMinutes?: number;
+  };
+  approval?: {
+    enabled?: boolean;
+    autoApproveAfterMinutes?: number;
+  };
+  queue?: {
+    concurrency?: number;
+    retryAttempts?: number;
+    retryDelayMs?: number;
+  };
+}
+
+@customElement('alx-global-settings')
+export class AlxGlobalSettings extends LitElement {
+  static override styles = [
+    alxBaseStyles,
+    alxButtonStyles,
+    alxInputStyles,
+    alxCardStyles,
+    alxLoadingStyles,
+    css`
+      .section {
+        border: 1px solid var(--alx-border);
+        border-radius: var(--alx-radius);
+        margin-bottom: 0.75rem;
+        overflow: hidden;
+      }
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.75rem 1rem;
+        background: var(--alx-surface);
+        cursor: pointer;
+        user-select: none;
+      }
+      .section-header:hover {
+        background: var(--alx-bg);
+      }
+      .section-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+      .section-toggle {
+        font-size: 0.75rem;
+        color: var(--alx-text-muted);
+      }
+      .section-body {
+        padding: 1rem;
+        display: none;
+      }
+      .section-body.open {
+        display: block;
+      }
+      .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+      }
+      .field-group {
+        display: flex;
+        flex-direction: column;
+      }
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+      }
+      .toggle-label {
+        font-size: 0.85rem;
+      }
+      .toggle-switch {
+        position: relative;
+        width: 44px;
+        height: 24px;
+        cursor: pointer;
+      }
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+      }
+      .toggle-slider {
+        position: absolute;
+        inset: 0;
+        background: var(--alx-border);
+        border-radius: 12px;
+        transition: background 0.2s;
+      }
+      .toggle-slider::before {
+        content: '';
+        position: absolute;
+        left: 3px;
+        top: 3px;
+        width: 18px;
+        height: 18px;
+        background: var(--alx-text);
+        border-radius: 50%;
+        transition: transform 0.2s;
+      }
+      .toggle-switch input:checked + .toggle-slider {
+        background: var(--alx-primary);
+      }
+      .toggle-switch input:checked + .toggle-slider::before {
+        transform: translateX(20px);
+      }
+      .section-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 0.75rem;
+      }
+      input[type='number'] {
+        width: 100%;
+      }
+    `,
+  ];
+
+  @state() private settings: Settings = {};
+  @state() private loading = false;
+  @state() private error = '';
+  @state() private saving: Record<string, boolean> = {};
+  @state() private openSections = new Set<string>(['timezone']);
+
+  private _api?: AccountAPI;
+  private get api(): AccountAPI {
+    if (!this._api) this._api = new AccountAPI();
+    return this._api;
+  }
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    this.load();
+  }
+
+  async load(): Promise<void> {
+    this.loading = true;
+    this.error = '';
+    try {
+      this.settings = ((await this.api.getSettings()) as Settings) ?? {};
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : 'Failed to load settings';
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  private toggleSection(name: string): void {
+    const next = new Set(this.openSections);
+    if (next.has(name)) next.delete(name);
+    else next.add(name);
+    this.openSections = next;
+  }
+
+  private async saveSection(section: string, data: Record<string, unknown>): Promise<void> {
+    this.saving = { ...this.saving, [section]: true };
+    try {
+      await this.api.updateSettings(data);
+      this.dispatchEvent(
+        new CustomEvent('alx-settings-saved', {
+          detail: { section, data },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+      await this.load();
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : 'Failed to save settings';
+    } finally {
+      this.saving = { ...this.saving, [section]: false };
+    }
+  }
+
+  private renderSection(name: string, title: string, content: unknown) {
+    const isOpen = this.openSections.has(name);
+    return html`
+      <div class="section">
+        <div class="section-header" @click=${() => this.toggleSection(name)}>
+          <span class="section-title">${title}</span>
+          <span class="section-toggle">${isOpen ? '\u25B2' : '\u25BC'}</span>
+        </div>
+        <div class="section-body ${isOpen ? 'open' : ''}">
+          ${content}
+        </div>
+      </div>
+    `;
+  }
+
+  override render() {
+    if (this.loading) {
+      return html`<div class="alx-loading"><div class="alx-spinner"></div></div>`;
+    }
+
+    return html`
+      <div class="alx-card">
+        <div class="alx-card-header">
+          <h3>Global Settings</h3>
+        </div>
+
+        ${this.error ? html`<div class="alx-error">${this.error}</div>` : ''}
+
+        ${this.renderSection(
+          'timezone',
+          'Timezone & General',
+          html`
+            <div class="field-row">
+              <div class="field-group">
+                <label>Timezone</label>
+                <input
+                  type="text"
+                  .value=${this.settings.timezone ?? 'UTC'}
+                  @input=${(e: Event) => {
+                    this.settings = { ...this.settings, timezone: (e.target as HTMLInputElement).value };
+                  }}
+                  placeholder="e.g. America/New_York"
+                />
+              </div>
+            </div>
+            <div class="toggle-row">
+              <span class="toggle-label">Dev Mode</span>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  .checked=${this.settings.devMode ?? false}
+                  @change=${(e: Event) => {
+                    this.settings = { ...this.settings, devMode: (e.target as HTMLInputElement).checked };
+                  }}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="section-actions">
+              <button
+                class="alx-btn-primary alx-btn-sm"
+                ?disabled=${this.saving['timezone']}
+                @click=${() => this.saveSection('timezone', { timezone: this.settings.timezone, devMode: this.settings.devMode })}
+              >
+                ${this.saving['timezone'] ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          `,
+        )}
+
+        ${this.renderSection(
+          'imap',
+          'IMAP Configuration',
+          html`
+            <div class="toggle-row">
+              <span class="toggle-label">IMAP Bounce Checking</span>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  .checked=${this.settings.imap?.enabled ?? false}
+                  @change=${(e: Event) => {
+                    this.settings = {
+                      ...this.settings,
+                      imap: { ...this.settings.imap, enabled: (e.target as HTMLInputElement).checked },
+                    };
+                  }}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label>Poll Interval (minutes)</label>
+                <input
+                  type="number"
+                  .value=${String(this.settings.imap?.pollIntervalMinutes ?? 15)}
+                  @input=${(e: Event) => {
+                    this.settings = {
+                      ...this.settings,
+                      imap: { ...this.settings.imap, pollIntervalMinutes: Number((e.target as HTMLInputElement).value) },
+                    };
+                  }}
+                  min="1"
+                />
+              </div>
+            </div>
+            <div class="section-actions">
+              <button
+                class="alx-btn-primary alx-btn-sm"
+                ?disabled=${this.saving['imap']}
+                @click=${() => this.saveSection('imap', { imap: this.settings.imap })}
+              >
+                ${this.saving['imap'] ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          `,
+        )}
+
+        ${this.renderSection(
+          'approval',
+          'Approval Workflow',
+          html`
+            <div class="toggle-row">
+              <span class="toggle-label">Require Approval</span>
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  .checked=${this.settings.approval?.enabled ?? false}
+                  @change=${(e: Event) => {
+                    this.settings = {
+                      ...this.settings,
+                      approval: { ...this.settings.approval, enabled: (e.target as HTMLInputElement).checked },
+                    };
+                  }}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label>Auto-approve After (minutes, 0 = disabled)</label>
+                <input
+                  type="number"
+                  .value=${String(this.settings.approval?.autoApproveAfterMinutes ?? 0)}
+                  @input=${(e: Event) => {
+                    this.settings = {
+                      ...this.settings,
+                      approval: {
+                        ...this.settings.approval,
+                        autoApproveAfterMinutes: Number((e.target as HTMLInputElement).value),
+                      },
+                    };
+                  }}
+                  min="0"
+                />
+              </div>
+            </div>
+            <div class="section-actions">
+              <button
+                class="alx-btn-primary alx-btn-sm"
+                ?disabled=${this.saving['approval']}
+                @click=${() => this.saveSection('approval', { approval: this.settings.approval })}
+              >
+                ${this.saving['approval'] ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          `,
+        )}
+
+        ${this.renderSection(
+          'queue',
+          'Queue Tuning',
+          html`
+            <div class="field-row">
+              <div class="field-group">
+                <label>Concurrency</label>
+                <input
+                  type="number"
+                  .value=${String(this.settings.queue?.concurrency ?? 5)}
+                  @input=${(e: Event) => {
+                    this.settings = {
+                      ...this.settings,
+                      queue: { ...this.settings.queue, concurrency: Number((e.target as HTMLInputElement).value) },
+                    };
+                  }}
+                  min="1"
+                />
+              </div>
+              <div class="field-group">
+                <label>Retry Attempts</label>
+                <input
+                  type="number"
+                  .value=${String(this.settings.queue?.retryAttempts ?? 3)}
+                  @input=${(e: Event) => {
+                    this.settings = {
+                      ...this.settings,
+                      queue: { ...this.settings.queue, retryAttempts: Number((e.target as HTMLInputElement).value) },
+                    };
+                  }}
+                  min="0"
+                />
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field-group">
+                <label>Retry Delay (ms)</label>
+                <input
+                  type="number"
+                  .value=${String(this.settings.queue?.retryDelayMs ?? 5000)}
+                  @input=${(e: Event) => {
+                    this.settings = {
+                      ...this.settings,
+                      queue: { ...this.settings.queue, retryDelayMs: Number((e.target as HTMLInputElement).value) },
+                    };
+                  }}
+                  min="100"
+                  step="100"
+                />
+              </div>
+            </div>
+            <div class="section-actions">
+              <button
+                class="alx-btn-primary alx-btn-sm"
+                ?disabled=${this.saving['queue']}
+                @click=${() => this.saveSection('queue', { queue: this.settings.queue })}
+              >
+                ${this.saving['queue'] ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          `,
+        )}
+      </div>
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'alx-global-settings': AlxGlobalSettings;
+  }
+}

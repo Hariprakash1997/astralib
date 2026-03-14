@@ -1,0 +1,336 @@
+import { LitElement, html, css, nothing } from 'lit';
+import { customElement, state, property } from 'lit/decorators.js';
+import { alxBaseStyles } from '../../styles/theme.js';
+import {
+  alxResetStyles,
+  alxTypographyStyles,
+  alxButtonStyles,
+  alxInputStyles,
+  alxTableStyles,
+  alxBadgeStyles,
+  alxLoadingStyles,
+  alxCardStyles,
+} from '../../styles/shared.js';
+import { RuleAPI } from '../../api/rule.api.js';
+import type { PaginatedResponse } from '../../api/http-client.js';
+
+interface TemplateRow {
+  _id: string;
+  name: string;
+  slug: string;
+  category: string;
+  audience: string;
+  platform: string;
+  isActive: boolean;
+}
+
+@customElement('alx-template-list')
+export class AlxTemplateList extends LitElement {
+  static override styles = [
+    alxBaseStyles,
+    alxResetStyles,
+    alxTypographyStyles,
+    alxButtonStyles,
+    alxInputStyles,
+    alxTableStyles,
+    alxBadgeStyles,
+    alxLoadingStyles,
+    alxCardStyles,
+    css`
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+
+      .toolbar select {
+        width: auto;
+        min-width: 140px;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      tr[data-clickable] {
+        cursor: pointer;
+      }
+
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1rem;
+      }
+
+      .toggle {
+        position: relative;
+        display: inline-block;
+        width: 36px;
+        height: 20px;
+      }
+
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+      }
+
+      .toggle-slider {
+        position: absolute;
+        inset: 0;
+        background: var(--alx-border);
+        border-radius: 20px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .toggle-slider::before {
+        content: '';
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        left: 3px;
+        bottom: 3px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.2s;
+      }
+
+      .toggle input:checked + .toggle-slider {
+        background: var(--alx-success);
+      }
+
+      .toggle input:checked + .toggle-slider::before {
+        transform: translateX(16px);
+      }
+    `,
+  ];
+
+  @property({ type: String }) categories = '';
+  @property({ type: String }) audiences = '';
+  @property({ type: String }) platforms = '';
+
+  @state() private _templates: TemplateRow[] = [];
+  @state() private _loading = false;
+  @state() private _error = '';
+  @state() private _page = 1;
+  @state() private _totalPages = 1;
+  @state() private _total = 0;
+  @state() private _filterCategory = '';
+  @state() private _filterAudience = '';
+  @state() private _filterPlatform = '';
+
+  private __api?: RuleAPI;
+  private get _api(): RuleAPI {
+    if (!this.__api) this.__api = new RuleAPI();
+    return this.__api;
+  }
+  private readonly _limit = 20;
+  private _loadGeneration = 0;
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    this._loadTemplates();
+  }
+
+  private _parseJsonAttr(val: string): string[] {
+    if (!val) return [];
+    try {
+      return JSON.parse(val);
+    } catch {
+      return [];
+    }
+  }
+
+  private async _loadTemplates(): Promise<void> {
+    const gen = ++this._loadGeneration;
+    this._loading = true;
+    this._error = '';
+    try {
+      const params: Record<string, unknown> = {
+        page: this._page,
+        limit: this._limit,
+      };
+      if (this._filterCategory) params['category'] = this._filterCategory;
+      if (this._filterAudience) params['audience'] = this._filterAudience;
+      if (this._filterPlatform) params['platform'] = this._filterPlatform;
+
+      const res = await this._api.listTemplates(params) as PaginatedResponse<TemplateRow>;
+      if (gen !== this._loadGeneration) return;
+      this._templates = res.data;
+      this._totalPages = res.totalPages;
+      this._total = res.total;
+    } catch (err) {
+      if (gen !== this._loadGeneration) return;
+      this._error = err instanceof Error ? err.message : 'Failed to load templates';
+    } finally {
+      if (gen === this._loadGeneration) this._loading = false;
+    }
+  }
+
+  private _onRowClick(template: TemplateRow): void {
+    this.dispatchEvent(
+      new CustomEvent('alx-template-selected', {
+        detail: template,
+        bubbles: true,
+        composed: true,
+      }),
+    );
+  }
+
+  private async _onToggleActive(template: TemplateRow, e: Event): Promise<void> {
+    e.stopPropagation();
+    try {
+      await this._api.updateTemplate(template._id, { isActive: !template.isActive });
+      await this._loadTemplates();
+    } catch (err) {
+      this._error = err instanceof Error ? err.message : 'Failed to toggle template';
+    }
+  }
+
+  private _onCreateClick(): void {
+    this.dispatchEvent(
+      new CustomEvent('alx-template-create', { bubbles: true, composed: true }),
+    );
+  }
+
+  private _onFilterChange(): void {
+    this._page = 1;
+    this._loadTemplates();
+  }
+
+  private _goToPage(page: number): void {
+    this._page = page;
+    this._loadTemplates();
+  }
+
+  private _renderFilterSelect(
+    label: string,
+    value: string,
+    options: string[],
+    onChange: (val: string) => void,
+  ) {
+    if (options.length === 0) return nothing;
+    return html`
+      <select
+        aria-label=${label}
+        .value=${value}
+        @change=${(e: Event) => {
+          onChange((e.target as HTMLSelectElement).value);
+          this._onFilterChange();
+        }}
+      >
+        <option value="">All ${label}</option>
+        ${options.map((o) => html`<option value=${o} ?selected=${value === o}>${o}</option>`)}
+      </select>
+    `;
+  }
+
+  override render() {
+    return html`
+      <div class="alx-card">
+        <div class="alx-card-header">
+          <h3>Email Templates</h3>
+        </div>
+
+        <div class="toolbar">
+          ${this._renderFilterSelect(
+            'Categories',
+            this._filterCategory,
+            this._parseJsonAttr(this.categories),
+            (v) => (this._filterCategory = v),
+          )}
+          ${this._renderFilterSelect(
+            'Audiences',
+            this._filterAudience,
+            this._parseJsonAttr(this.audiences),
+            (v) => (this._filterAudience = v),
+          )}
+          ${this._renderFilterSelect(
+            'Platforms',
+            this._filterPlatform,
+            this._parseJsonAttr(this.platforms),
+            (v) => (this._filterPlatform = v),
+          )}
+          <span class="spacer"></span>
+          <button class="alx-btn-primary" @click=${this._onCreateClick}>+ Create Template</button>
+        </div>
+
+        ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
+
+        ${this._loading
+          ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
+          : this._templates.length === 0
+            ? html`<div class="alx-empty">No templates found</div>`
+            : html`
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Slug</th>
+                      <th>Category</th>
+                      <th>Audience</th>
+                      <th>Platform</th>
+                      <th>Active</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${this._templates.map(
+                      (t) => html`
+                        <tr data-clickable @click=${() => this._onRowClick(t)}>
+                          <td>${t.name}</td>
+                          <td><code>${t.slug}</code></td>
+                          <td>${t.category}</td>
+                          <td>${t.audience}</td>
+                          <td>${t.platform}</td>
+                          <td>
+                            <label class="toggle" @click=${(e: Event) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                .checked=${t.isActive}
+                                @change=${(e: Event) => this._onToggleActive(t, e)}
+                              />
+                              <span class="toggle-slider"></span>
+                            </label>
+                          </td>
+                        </tr>
+                      `,
+                    )}
+                  </tbody>
+                </table>
+
+                <div class="pagination">
+                  <button
+                    class="alx-btn-sm"
+                    ?disabled=${this._page <= 1}
+                    @click=${() => this._goToPage(this._page - 1)}
+                  >
+                    Prev
+                  </button>
+                  <span class="text-muted text-small">
+                    Page ${this._page} of ${this._totalPages} (${this._total} total)
+                  </span>
+                  <button
+                    class="alx-btn-sm"
+                    ?disabled=${this._page >= this._totalPages}
+                    @click=${() => this._goToPage(this._page + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              `}
+      </div>
+    `;
+  }
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    'alx-template-list': AlxTemplateList;
+  }
+}
