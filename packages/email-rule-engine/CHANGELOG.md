@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 1.1.0
+
+### Minor Changes
+
+- 7d1e528: Add configurable audiences, update README with full documentation
+
 ## 1.0.1
 
 ### Patch Changes
