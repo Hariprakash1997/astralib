@@ -30,12 +30,12 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleE
 
   const EmailTemplate = conn.model<any>(
     `${prefix}EmailTemplate`,
-    createEmailTemplateSchema(config.platforms)
+    createEmailTemplateSchema(config.platforms, config.audiences)
   ) as EmailTemplateModel;
 
   const EmailRule = conn.model<any>(
     `${prefix}EmailRule`,
-    createEmailRuleSchema(config.platforms)
+    createEmailRuleSchema(config.platforms, config.audiences)
   ) as EmailRuleModel;
 
   const EmailRuleSend = conn.model<any>(

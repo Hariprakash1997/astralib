@@ -16,7 +16,7 @@ export interface EmailRuleStatics {
 
 export type EmailRuleModel = Model<IEmailRule> & EmailRuleStatics;
 
-export function createEmailRuleSchema(platformValues?: string[]) {
+export function createEmailRuleSchema(platformValues?: string[], audienceValues?: string[]) {
   const RuleConditionSchema = new Schema({
     field: { type: String, required: true },
     operator: { type: String, enum: Object.values(RuleOperator), required: true },
@@ -24,7 +24,7 @@ export function createEmailRuleSchema(platformValues?: string[]) {
   }, { _id: false });
 
   const RuleTargetSchema = new Schema({
-    role: { type: String, enum: Object.values(TemplateAudience), required: true },
+    role: { type: String, enum: audienceValues || Object.values(TemplateAudience), required: true },
     platform: {
       type: String,
       required: true,

@@ -16,14 +16,14 @@ export interface EmailTemplateStatics {
 
 export type EmailTemplateModel = Model<IEmailTemplate> & EmailTemplateStatics;
 
-export function createEmailTemplateSchema(platformValues?: string[]) {
+export function createEmailTemplateSchema(platformValues?: string[], audienceValues?: string[]) {
   const schema = new Schema<IEmailTemplate>(
     {
       name: { type: String, required: true },
       slug: { type: String, required: true, unique: true },
       description: String,
       category: { type: String, enum: Object.values(TemplateCategory), required: true },
-      audience: { type: String, enum: Object.values(TemplateAudience), required: true },
+      audience: { type: String, enum: audienceValues || Object.values(TemplateAudience), required: true },
       platform: {
         type: String,
         required: true,

@@ -50,6 +50,8 @@ export interface EmailRuleEngineConfig {
 
   platforms?: string[];
 
+  audiences?: string[];
+
   logger?: LogAdapter;
 
   options?: {
