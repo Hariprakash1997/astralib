@@ -85,6 +85,18 @@ export class SesWebhookHandler {
       return { processed: false, error: 'No SubscribeURL provided' };
     }
 
+    try {
+      const url = new URL(message.SubscribeURL);
+      if (!url.hostname.endsWith('.amazonaws.com')) {
+        this.logger.warn('Rejected SubscribeURL with non-AWS hostname', {
+          hostname: url.hostname,
+        });
+        return { processed: false, error: 'SubscribeURL hostname is not from amazonaws.com' };
+      }
+    } catch {
+      return { processed: false, error: 'Invalid SubscribeURL' };
+    }
+
     return new Promise((resolve) => {
       https
         .get(message.SubscribeURL!, (res) => {

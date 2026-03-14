@@ -33,7 +33,7 @@ export interface EmailRuleRunLogStatics {
 
 export type EmailRuleRunLogModel = Model<IEmailRuleRunLog> & EmailRuleRunLogStatics;
 
-export function createEmailRuleRunLogSchema() {
+export function createEmailRuleRunLogSchema(collectionPrefix?: string) {
   const PerRuleStatsSchema = new Schema({
     ruleId: { type: Schema.Types.ObjectId, ref: 'EmailRule', required: true },
     ruleName: { type: String, required: true },
@@ -62,7 +62,7 @@ export function createEmailRuleRunLogSchema() {
       perRuleStats: [PerRuleStatsSchema]
     },
     {
-      collection: 'email_rule_run_logs',
+      collection: `${collectionPrefix || ''}email_rule_run_logs`,
 
       statics: {
         getRecent(limit = 20) {

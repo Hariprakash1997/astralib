@@ -5,11 +5,11 @@ export interface LogAdapter {
 }
 
 export interface BaseDbConfig {
-  connection: any;
+  connection: unknown;
   collectionPrefix?: string;
 }
 
 export interface BaseRedisConfig {
-  connection: any;
+  connection: unknown;
   keyPrefix?: string;
 }

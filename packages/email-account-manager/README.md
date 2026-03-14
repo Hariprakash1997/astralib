@@ -109,6 +109,10 @@ All services are also available programmatically via the returned `eam` object. 
 | [Programmatic API](docs/programmatic-api.md) | Using services directly via the EmailAccountManager interface |
 | [Error Handling](docs/error-handling.md) | All error classes with codes |
 
+## Security Notes
+
+**Credential storage**: SMTP and IMAP passwords (`smtp.pass`, `imap.pass`) are stored as plaintext in MongoDB. You should encrypt these values at the application layer before passing them to this library, and decrypt them after retrieval. A built-in encryption layer is planned for a future version.
+
 ## License
 
 MIT

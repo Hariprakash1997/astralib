@@ -58,9 +58,11 @@ export class SettingsService {
   }
 
   async update(partial: UpdateGlobalSettingsInput): Promise<GlobalSettings> {
+    const flattened = flattenObject({ ...partial, updatedAt: new Date() });
+
     const doc = await this.GlobalSettings.findByIdAndUpdate(
       'global',
-      { $set: { ...partial, updatedAt: new Date() } },
+      { $set: flattened },
       { new: true, upsert: true },
     ).lean<GlobalSettings>();
 
@@ -94,4 +96,17 @@ export class SettingsService {
   invalidateCache(): void {
     this.cache = null;
   }
+}
+
+function flattenObject(obj: Record<string, any>, prefix = ''): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    if (value && typeof value === 'object' && !Array.isArray(value) && !(value instanceof Date)) {
+      Object.assign(result, flattenObject(value, fullKey));
+    } else {
+      result[fullKey] = value;
+    }
+  }
+  return result;
 }

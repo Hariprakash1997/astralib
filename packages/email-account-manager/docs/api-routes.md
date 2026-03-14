@@ -13,6 +13,18 @@ app.use('/webhooks/ses', eam.webhookRoutes.ses);
 app.use('/unsubscribe', eam.unsubscribeRoutes);
 ```
 
+## Authentication
+
+This package does **not** include authentication. Routes are returned as bare Express routers — apply your own auth middleware when mounting:
+
+```typescript
+app.use('/api/email', authMiddleware, eam.routes);
+```
+
+> **Important:** Always protect admin routes with authentication. Only webhook and unsubscribe routes (if applicable) should be publicly accessible — they use signature verification or token-based validation respectively.
+
+Webhook routes (`eam.webhookRoutes.ses`) and unsubscribe routes (`eam.unsubscribeRoutes`) are intentionally public and have their own verification mechanisms — SES webhooks use SNS signature verification, and unsubscribe routes use token-based validation.
+
 ## Admin Routes (`eam.routes`)
 
 Mount behind your authentication middleware. All paths below are relative to the mount point.

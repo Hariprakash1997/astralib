@@ -27,6 +27,7 @@ export interface SmtpSendResult {
 
 export class SmtpService {
   private devRoundRobinIndex = 0;
+  private transporterPool = new Map<string, Transporter>();
 
   constructor(
     private EmailAccount: EmailAccountModel,
@@ -112,7 +113,7 @@ export class SmtpService {
         this.logger.info('Dev mode: email redirected', { original: to, redirected: recipientEmail });
       }
 
-      const transporter = this.createTransporter(acct);
+      const transporter = this.getOrCreateTransporter(accountId, acct);
 
       const headers: Record<string, string> = {};
 
@@ -135,7 +136,6 @@ export class SmtpService {
       };
 
       const info = await transporter.sendMail(mailOptions);
-      transporter.close();
 
       const messageId = info.messageId?.replace(/[<>]/g, '');
 
@@ -149,6 +149,8 @@ export class SmtpService {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Unknown error';
 
+      this.transporterPool.delete(accountId);
+
       await this.healthTracker.recordError(accountId, errorMsg);
 
       this.hooks?.onSendError?.({ accountId, email: to, error: errorMsg });
@@ -158,7 +160,27 @@ export class SmtpService {
     }
   }
 
-  private createTransporter(account: any): Transporter {
+  closeAll(): void {
+    for (const [id, transporter] of this.transporterPool) {
+      try {
+        transporter.close();
+      } catch {
+        // ignore close errors
+      }
+    }
+    this.transporterPool.clear();
+  }
+
+  private getOrCreateTransporter(accountId: string, account: any): Transporter {
+    const existing = this.transporterPool.get(accountId);
+    if (existing) return existing;
+
+    const transporter = this.createTransporter(account, true);
+    this.transporterPool.set(accountId, transporter);
+    return transporter;
+  }
+
+  private createTransporter(account: any, pooled = false): Transporter {
     return nodemailer.createTransport({
       host: account.smtp.host,
       port: account.smtp.port || 587,
@@ -167,6 +189,7 @@ export class SmtpService {
         user: account.smtp.user,
         pass: account.smtp.pass,
       },
+      ...(pooled ? { pool: true, maxConnections: 5, maxMessages: 100 } : {}),
     });
   }
 }

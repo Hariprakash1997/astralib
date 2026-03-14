@@ -4,6 +4,7 @@ import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
 import type { CreateEmailRuleInput, UpdateEmailRuleInput } from '../types/rule.types';
 import type { TemplateAudience } from '../constants';
 import type { EmailRuleEngineConfig } from '../types/config.types';
+import { TemplateNotFoundError, RuleNotFoundError, RuleTemplateIncompatibleError } from '../errors';
 
 const UPDATEABLE_FIELDS = new Set([
   'name', 'description', 'sortOrder', 'target', 'templateId',
@@ -61,7 +62,7 @@ export class RuleService {
   async create(input: CreateEmailRuleInput): Promise<EmailRuleDocument> {
     const template = await this.EmailTemplate.findById(input.templateId);
     if (!template) {
-      throw new Error(`Template not found: ${input.templateId}`);
+      throw new TemplateNotFoundError(input.templateId);
     }
 
     const compatError = validateRuleTemplateCompat(
@@ -70,7 +71,7 @@ export class RuleService {
       template
     );
     if (compatError) {
-      throw new Error(`Audience mismatch: ${compatError}`);
+      throw new RuleTemplateIncompatibleError(compatError);
     }
 
     return this.EmailRule.createRule(input);
@@ -87,12 +88,12 @@ export class RuleService {
     if (input.templateId || input.target) {
       const template = await this.EmailTemplate.findById(templateId);
       if (!template) {
-        throw new Error(`Template not found: ${templateId}`);
+        throw new TemplateNotFoundError(templateId);
       }
 
       const compatError = validateRuleTemplateCompat(targetRole, targetPlatform, template);
       if (compatError) {
-        throw new Error(`Audience mismatch: ${compatError}`);
+        throw new RuleTemplateIncompatibleError(compatError);
       }
     }
 
@@ -131,10 +132,10 @@ export class RuleService {
     if (!rule.isActive) {
       const template = await this.EmailTemplate.findById(rule.templateId);
       if (!template) {
-        throw new Error('Cannot activate rule: linked template not found');
+        throw new TemplateNotFoundError(rule.templateId.toString());
       }
       if (!template.isActive) {
-        throw new Error('Cannot activate rule: linked template is inactive');
+        throw new RuleTemplateIncompatibleError('Cannot activate rule: linked template is inactive');
       }
     }
 
@@ -146,7 +147,7 @@ export class RuleService {
   async dryRun(id: string): Promise<{ matchedCount: number; ruleId: string }> {
     const rule = await this.EmailRule.findById(id);
     if (!rule) {
-      throw new Error('Rule not found');
+      throw new RuleNotFoundError(id);
     }
 
     const users = await this.config.adapters.queryUsers(rule.target, 50000);

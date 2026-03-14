@@ -16,38 +16,46 @@ export class HealthTracker {
   ) {}
 
   async recordSuccess(accountId: string): Promise<void> {
-    const account = await this.EmailAccount.findById(accountId);
-    if (!account) return;
+    const updated = await this.EmailAccount.findByIdAndUpdate(
+      accountId,
+      [
+        {
+          $set: {
+            'health.score': { $min: [100, { $add: ['$health.score', 1] }] },
+            'health.consecutiveErrors': 0,
+            lastSuccessfulSendAt: new Date(),
+            totalEmailsSent: { $add: ['$totalEmailsSent', 1] },
+          },
+        },
+      ],
+      { new: true },
+    );
 
-    const newScore = Math.min(100, (account as any).health.score + 1);
-
-    await this.EmailAccount.findByIdAndUpdate(accountId, {
-      $set: {
-        'health.score': newScore,
-        'health.consecutiveErrors': 0,
-        lastSuccessfulSendAt: new Date(),
-      },
-      $inc: { totalEmailsSent: 1 },
-    });
+    if (!updated) return;
 
     const dateStr = await this.getTodayDateString();
     await this.incrementDailyStat(accountId, 'sent', 1, dateStr);
   }
 
   async recordError(accountId: string, error: string): Promise<void> {
-    const account = await this.EmailAccount.findById(accountId);
-    if (!account) return;
+    const updated = await this.EmailAccount.findByIdAndUpdate(
+      accountId,
+      [
+        {
+          $set: {
+            'health.score': { $max: [0, { $subtract: ['$health.score', 5] }] },
+            'health.consecutiveErrors': { $add: ['$health.consecutiveErrors', 1] },
+          },
+        },
+      ],
+      { new: true },
+    );
 
-    const health = (account as any).health;
-    const newScore = Math.max(0, health.score - 5);
-    const newErrors = health.consecutiveErrors + 1;
+    if (!updated) return;
 
-    await this.EmailAccount.findByIdAndUpdate(accountId, {
-      $set: {
-        'health.score': newScore,
-        'health.consecutiveErrors': newErrors,
-      },
-    });
+    const acct = updated as any;
+    const newScore = acct.health.score;
+    const newErrors = acct.health.consecutiveErrors;
 
     this.logger.warn('Account health degraded', {
       accountId,
@@ -58,7 +66,7 @@ export class HealthTracker {
 
     this.hooks?.onHealthDegraded?.({ accountId, healthScore: newScore });
 
-    const thresholds = health.thresholds;
+    const thresholds = acct.health.thresholds;
     const shouldDisable =
       newScore < thresholds.minScore ||
       newErrors > thresholds.maxConsecutiveErrors;
@@ -78,18 +86,26 @@ export class HealthTracker {
   }
 
   async recordBounce(accountId: string, email: string, bounceType: BounceType): Promise<void> {
-    const account = await this.EmailAccount.findById(accountId);
-    if (!account) return;
+    const updated = await this.EmailAccount.findByIdAndUpdate(
+      accountId,
+      [
+        {
+          $set: {
+            'health.score': { $max: [0, { $subtract: ['$health.score', 10] }] },
+            'health.bounceCount': { $add: ['$health.bounceCount', 1] },
+          },
+        },
+      ],
+      { new: true },
+    );
 
-    const health = (account as any).health;
-    const newScore = Math.max(0, health.score - 10);
-    const newBounceCount = health.bounceCount + 1;
-    const totalSent = (account as any).totalEmailsSent || 1;
+    if (!updated) return;
+
+    const acct = updated as any;
+    const newScore = acct.health.score;
+    const newBounceCount = acct.health.bounceCount;
+    const totalSent = acct.totalEmailsSent || 1;
     const bounceRate = (newBounceCount / totalSent) * 100;
-
-    await this.EmailAccount.findByIdAndUpdate(accountId, {
-      $set: { 'health.score': newScore, 'health.bounceCount': newBounceCount },
-    });
 
     const dateStr = await this.getTodayDateString();
     await this.incrementDailyStat(accountId, 'bounced', 1, dateStr);
@@ -99,11 +115,11 @@ export class HealthTracker {
       accountId,
       email,
       bounceType,
-      provider: (account as any).provider,
+      provider: acct.provider,
     });
 
-    if (bounceRate > health.thresholds.maxBounceRate) {
-      const reason = `Bounce rate ${bounceRate.toFixed(1)}% exceeds maximum ${health.thresholds.maxBounceRate}%`;
+    if (bounceRate > acct.health.thresholds.maxBounceRate) {
+      const reason = `Bounce rate ${bounceRate.toFixed(1)}% exceeds maximum ${acct.health.thresholds.maxBounceRate}%`;
       await this.EmailAccount.findByIdAndUpdate(accountId, {
         $set: { status: ACCOUNT_STATUS.Disabled },
       });

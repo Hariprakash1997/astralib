@@ -12,6 +12,17 @@ import type { EmailRuleEngineConfig, LogAdapter } from '../types/config.types';
 
 const MS_PER_DAY = 86400000;
 const DEFAULT_LOCK_TTL_MS = 30 * 60 * 1000;
+const IDENTIFIER_CHUNK_SIZE = 50;
+
+async function processInChunks<T, R>(items: T[], fn: (item: T) => Promise<R>, chunkSize: number): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize);
+    const chunkResults = await Promise.all(chunk.map(fn));
+    results.push(...chunkResults);
+  }
+  return results;
+}
 
 interface UserThrottle {
   today: number;
@@ -88,6 +99,13 @@ export class RuleRunnerService {
         return;
       }
 
+      const templateIds = [...new Set(activeRules.map(r => r.templateId.toString()))];
+      const templates = await this.EmailTemplate.find({ _id: { $in: templateIds } }).lean();
+      const templateMap = new Map<string, any>();
+      for (const t of templates) {
+        templateMap.set(t._id.toString(), t);
+      }
+
       const recentSends = await this.EmailRuleSend.find({
         sentAt: { $gte: new Date(Date.now() - 7 * MS_PER_DAY) }
       }).lean();
@@ -96,7 +114,7 @@ export class RuleRunnerService {
       const perRuleStats: PerRuleStats[] = [];
 
       for (const rule of activeRules) {
-        const stats = await this.executeRule(rule, throttleMap, throttleConfig);
+        const stats = await this.executeRule(rule, throttleMap, throttleConfig, templateMap);
         perRuleStats.push({
           ruleId: rule._id.toString(),
           ruleName: rule.name,
@@ -141,11 +159,12 @@ export class RuleRunnerService {
   async executeRule(
     rule: any,
     throttleMap: Map<string, UserThrottle>,
-    throttleConfig: any
+    throttleConfig: any,
+    templateMap?: Map<string, any>
   ): Promise<RuleRunStats> {
     const stats: RuleRunStats = { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 };
 
-    const template = await this.EmailTemplate.findById(rule.templateId);
+    const template = templateMap?.get(rule.templateId.toString()) ?? await this.EmailTemplate.findById(rule.templateId);
     if (!template) {
       this.logger.error(`Rule "${rule.name}": template ${rule.templateId} not found`);
       stats.errors = 1;
@@ -180,11 +199,14 @@ export class RuleRunnerService {
       }
     }
 
-    const identifierResults = await Promise.all(
-      [...new Set(emails.map(e => e.toLowerCase().trim()))].map(async email => {
+    const uniqueEmails = [...new Set(emails.map(e => e.toLowerCase().trim()))];
+    const identifierResults = await processInChunks(
+      uniqueEmails,
+      async email => {
         const result = await this.config.adapters.findIdentifier(email);
         return result ? { email, ...result } : null;
-      })
+      },
+      IDENTIFIER_CHUNK_SIZE
     );
 
     const identifierMap = new Map<string, { id: string; contactId: string }>();
@@ -342,10 +364,45 @@ export class RuleRunnerService {
     return true;
   }
 
-  buildThrottleMap(recentSends: any[]): Map<string, UserThrottle> {
-    const map = new Map<string, UserThrottle>();
+  private getTodayStart(): Date {
+    const timezone = this.config.options?.sendWindow?.timezone;
+    if (timezone) {
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).formatToParts(now);
+      const get = (type: string) => parts.find(p => p.type === type)?.value || '0';
+      const tzNowMs = Date.UTC(
+        parseInt(get('year')),
+        parseInt(get('month')) - 1,
+        parseInt(get('day')),
+        parseInt(get('hour')),
+        parseInt(get('minute')),
+        parseInt(get('second'))
+      );
+      const tzMidnightMs = Date.UTC(
+        parseInt(get('year')),
+        parseInt(get('month')) - 1,
+        parseInt(get('day'))
+      );
+      const offsetMs = now.getTime() - tzNowMs;
+      return new Date(tzMidnightMs + offsetMs);
+    }
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
+    return todayStart;
+  }
+
+  buildThrottleMap(recentSends: any[]): Map<string, UserThrottle> {
+    const map = new Map<string, UserThrottle>();
+    const todayStart = this.getTodayStart();
 
     for (const send of recentSends) {
       const key = send.userId.toString();

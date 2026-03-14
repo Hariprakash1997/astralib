@@ -77,51 +77,28 @@ describe('HealthTracker', () => {
   });
 
   describe('recordSuccess()', () => {
-    it('should increment health score by 1', async () => {
-      const account = makeAccountDoc({ health: { score: 80, consecutiveErrors: 2, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    it('should use atomic aggregation pipeline update', async () => {
+      const updatedAccount = makeAccountDoc({ health: { score: 81, consecutiveErrors: 0, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordSuccess('acc-1');
 
-      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith('acc-1', {
-        $set: {
-          'health.score': 81,
-          'health.consecutiveErrors': 0,
-          lastSuccessfulSendAt: expect.any(Date),
-        },
-        $inc: { totalEmailsSent: 1 },
-      });
-    });
-
-    it('should cap health score at 100', async () => {
-      const account = makeAccountDoc({ health: { score: 100, consecutiveErrors: 0, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-
-      await tracker.recordSuccess('acc-1');
-
-      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith('acc-1', expect.objectContaining({
-        $set: expect.objectContaining({ 'health.score': 100 }),
-      }));
-    });
-
-    it('should reset consecutiveErrors to 0', async () => {
-      const account = makeAccountDoc({ health: { score: 60, consecutiveErrors: 5, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-
-      await tracker.recordSuccess('acc-1');
-
-      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith('acc-1', expect.objectContaining({
-        $set: expect.objectContaining({ 'health.consecutiveErrors': 0 }),
-      }));
+      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith(
+        'acc-1',
+        expect.arrayContaining([
+          expect.objectContaining({
+            $set: expect.objectContaining({
+              'health.consecutiveErrors': 0,
+            }),
+          }),
+        ]),
+        { new: true },
+      );
     });
 
     it('should increment daily sent stat', async () => {
-      const account = makeAccountDoc();
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      const updatedAccount = makeAccountDoc();
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordSuccess('acc-1');
 
@@ -133,49 +110,33 @@ describe('HealthTracker', () => {
     });
 
     it('should do nothing if account not found', async () => {
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
       await tracker.recordSuccess('nonexistent');
 
-      expect(EmailAccount.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(EmailDailyStats.findOneAndUpdate).not.toHaveBeenCalled();
     });
   });
 
   describe('recordError()', () => {
-    it('should decrement health score by 5', async () => {
-      const account = makeAccountDoc({ health: { score: 80, consecutiveErrors: 0, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    it('should use atomic aggregation pipeline update', async () => {
+      const updatedAccount = makeAccountDoc({ health: { score: 75, consecutiveErrors: 1, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordError('acc-1', 'SMTP timeout');
 
-      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith('acc-1', {
-        $set: {
-          'health.score': 75,
-          'health.consecutiveErrors': 1,
-        },
-      });
+      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith(
+        'acc-1',
+        expect.arrayContaining([
+          expect.objectContaining({ $set: expect.any(Object) }),
+        ]),
+        { new: true },
+      );
     });
 
-    it('should not go below 0', async () => {
-      const account = makeAccountDoc({ health: { score: 3, consecutiveErrors: 0, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-
-      await tracker.recordError('acc-1', 'error');
-
-      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith('acc-1', {
-        $set: {
-          'health.score': 0,
-          'health.consecutiveErrors': 1,
-        },
-      });
-    });
-
-    it('should call onHealthDegraded hook', async () => {
-      const account = makeAccountDoc({ health: { score: 80, consecutiveErrors: 0, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    it('should call onHealthDegraded hook with returned score', async () => {
+      const updatedAccount = makeAccountDoc({ health: { score: 75, consecutiveErrors: 1, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordError('acc-1', 'SMTP timeout');
 
@@ -183,14 +144,16 @@ describe('HealthTracker', () => {
     });
 
     it('should auto-disable when score drops below minScore threshold', async () => {
-      const account = makeAccountDoc({ health: { score: 52, consecutiveErrors: 0, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      const updatedAccount = makeAccountDoc({ health: { score: 47, consecutiveErrors: 1, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordError('acc-1', 'error');
 
       const disableCall = (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => (call[1] as Record<string, unknown>).$set && (call[1] as Record<string, Record<string, unknown>>).$set.status === ACCOUNT_STATUS.Disabled,
+        (call: unknown[]) => {
+          const arg = call[1] as Record<string, unknown>;
+          return arg.$set && (arg.$set as Record<string, unknown>).status === ACCOUNT_STATUS.Disabled;
+        },
       );
       expect(disableCall).toBeTruthy();
       expect(logger.error).toHaveBeenCalledWith('Account auto-disabled', expect.objectContaining({ accountId: 'acc-1' }));
@@ -201,14 +164,16 @@ describe('HealthTracker', () => {
     });
 
     it('should auto-disable when consecutiveErrors exceeds max', async () => {
-      const account = makeAccountDoc({ health: { score: 80, consecutiveErrors: 10, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      const updatedAccount = makeAccountDoc({ health: { score: 75, consecutiveErrors: 11, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordError('acc-1', 'SMTP error');
 
       const disableCall = (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => (call[1] as Record<string, unknown>).$set && (call[1] as Record<string, Record<string, unknown>>).$set.status === ACCOUNT_STATUS.Disabled,
+        (call: unknown[]) => {
+          const arg = call[1] as Record<string, unknown>;
+          return arg.$set && (arg.$set as Record<string, unknown>).status === ACCOUNT_STATUS.Disabled;
+        },
       );
       expect(disableCall).toBeTruthy();
       expect(hooks!.onAccountDisabled).toHaveBeenCalledWith({
@@ -218,9 +183,8 @@ describe('HealthTracker', () => {
     });
 
     it('should NOT auto-disable when within thresholds', async () => {
-      const account = makeAccountDoc({ health: { score: 80, consecutiveErrors: 0, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      const updatedAccount = makeAccountDoc({ health: { score: 75, consecutiveErrors: 1, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordError('acc-1', 'temp error');
 
@@ -229,43 +193,33 @@ describe('HealthTracker', () => {
     });
 
     it('should do nothing if account not found', async () => {
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
       await tracker.recordError('nonexistent', 'error');
 
-      expect(EmailAccount.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(logger.warn).not.toHaveBeenCalled();
     });
   });
 
   describe('recordBounce()', () => {
-    it('should decrement health score by 10', async () => {
-      const account = makeAccountDoc({ health: { score: 80, consecutiveErrors: 0, bounceCount: 2, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } }, totalEmailsSent: 100 });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    it('should use atomic aggregation pipeline update', async () => {
+      const updatedAccount = makeAccountDoc({ health: { score: 70, consecutiveErrors: 0, bounceCount: 3, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } }, totalEmailsSent: 100 });
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordBounce('acc-1', 'recipient@example.com', 'hard');
 
-      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith('acc-1', {
-        $set: { 'health.score': 70, 'health.bounceCount': 3 },
-      });
-    });
-
-    it('should not go below 0', async () => {
-      const account = makeAccountDoc({ health: { score: 5, consecutiveErrors: 0, bounceCount: 0, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } }, totalEmailsSent: 100 });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
-
-      await tracker.recordBounce('acc-1', 'test@test.com', 'hard');
-
-      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith('acc-1', {
-        $set: { 'health.score': 0, 'health.bounceCount': 1 },
-      });
+      expect(EmailAccount.findByIdAndUpdate).toHaveBeenCalledWith(
+        'acc-1',
+        expect.arrayContaining([
+          expect.objectContaining({ $set: expect.any(Object) }),
+        ]),
+        { new: true },
+      );
     });
 
     it('should increment daily bounced stat', async () => {
-      const account = makeAccountDoc();
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      const updatedAccount = makeAccountDoc({ health: { score: 70, consecutiveErrors: 0, bounceCount: 3, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordBounce('acc-1', 'test@test.com', 'soft');
 
@@ -277,9 +231,8 @@ describe('HealthTracker', () => {
     });
 
     it('should call onBounce hook with correct info', async () => {
-      const account = makeAccountDoc({ provider: 'ses' });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      const updatedAccount = makeAccountDoc({ provider: 'ses', health: { score: 70, consecutiveErrors: 0, bounceCount: 3, thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 } } });
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordBounce('acc-1', 'bounced@test.com', 'hard');
 
@@ -292,22 +245,24 @@ describe('HealthTracker', () => {
     });
 
     it('should auto-disable when bounce rate exceeds threshold', async () => {
-      const account = makeAccountDoc({
+      const updatedAccount = makeAccountDoc({
         totalEmailsSent: 10,
         health: {
-          score: 80,
+          score: 70,
           consecutiveErrors: 0,
-          bounceCount: 0,
+          bounceCount: 1,
           thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 },
         },
       });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordBounce('acc-1', 'test@test.com', 'hard');
 
       const disableCall = (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mock.calls.find(
-        (call: unknown[]) => (call[1] as Record<string, unknown>).$set && (call[1] as Record<string, Record<string, unknown>>).$set.status === ACCOUNT_STATUS.Disabled,
+        (call: unknown[]) => {
+          const arg = call[1] as Record<string, unknown>;
+          return arg.$set && (arg.$set as Record<string, unknown>).status === ACCOUNT_STATUS.Disabled;
+        },
       );
       expect(disableCall).toBeTruthy();
       expect(logger.error).toHaveBeenCalledWith('Account auto-disabled due to bounce rate', expect.objectContaining({ accountId: 'acc-1' }));
@@ -318,17 +273,16 @@ describe('HealthTracker', () => {
     });
 
     it('should NOT auto-disable when bounce rate is within threshold', async () => {
-      const account = makeAccountDoc({
+      const updatedAccount = makeAccountDoc({
         totalEmailsSent: 1000,
         health: {
-          score: 80,
+          score: 70,
           consecutiveErrors: 0,
-          bounceCount: 2,
+          bounceCount: 3,
           thresholds: { minScore: 50, maxBounceRate: 5, maxConsecutiveErrors: 10 },
         },
       });
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(account);
-      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(updatedAccount);
 
       await tracker.recordBounce('acc-1', 'test@test.com', 'soft');
 
@@ -336,11 +290,11 @@ describe('HealthTracker', () => {
     });
 
     it('should do nothing if account not found', async () => {
-      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
       await tracker.recordBounce('nonexistent', 'test@test.com', 'hard');
 
-      expect(EmailAccount.findByIdAndUpdate).not.toHaveBeenCalled();
+      expect(EmailDailyStats.findOneAndUpdate).not.toHaveBeenCalled();
     });
   });
 

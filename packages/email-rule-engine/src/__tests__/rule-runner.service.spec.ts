@@ -40,6 +40,7 @@ function createMockModels() {
     },
     EmailTemplate: {
       findById: vi.fn().mockResolvedValue(null),
+      find: vi.fn().mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([]) })),
     },
     EmailRuleSend: {
       find: vi.fn().mockImplementation(() => createChainableMock([])),
@@ -159,12 +160,15 @@ describe('RuleRunnerService', () => {
         queryUsers: vi.fn().mockResolvedValue([makeUser()]),
       });
 
-      models.EmailRule.findActive.mockResolvedValue([makeRule()]);
-      models.EmailTemplate.findById.mockResolvedValue({
+      const templateDoc = {
+        _id: 'template-1',
         subject: 'Hi {{name}}',
         body: '<p>Hello</p>',
         textBody: undefined,
-      });
+      };
+      models.EmailRule.findActive.mockResolvedValue([makeRule()]);
+      models.EmailTemplate.findById.mockResolvedValue(templateDoc);
+      models.EmailTemplate.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([templateDoc]) }));
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
 
       const { service } = createService(models, config);

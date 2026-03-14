@@ -61,8 +61,19 @@ export function createEmailIdentifierSchema(options?: CreateEmailIdentifierSchem
           if (existing) {
             return { identifier: existing, created: false };
           }
-          const identifier = await this.create({ email: normalized });
-          return { identifier, created: true };
+          const identifier = await this.findOneAndUpdate(
+            { email: normalized },
+            {
+              $setOnInsert: {
+                email: normalized,
+                status: IDENTIFIER_STATUS.Active,
+                sentCount: 0,
+                bounceCount: 0,
+              },
+            },
+            { upsert: true, new: true },
+          );
+          return { identifier: identifier!, created: true };
         },
 
         markBounced(email: string, bounceType: BounceType) {

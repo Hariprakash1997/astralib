@@ -79,6 +79,7 @@ describe('createConfigValidator', () => {
   });
 
   it('should include field path in the error', () => {
+    expect.hasAssertions();
     try {
       validate({ db: { connection: {} } });
     } catch (e) {
@@ -88,6 +89,7 @@ describe('createConfigValidator', () => {
   });
 
   it('should format issues in the error message', () => {
+    expect.hasAssertions();
     try {
       validate({});
     } catch (e) {

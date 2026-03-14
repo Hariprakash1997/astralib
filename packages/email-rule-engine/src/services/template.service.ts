@@ -3,6 +3,12 @@ import type { EmailTemplateModel, EmailTemplateDocument } from '../schemas/templ
 import type { CreateEmailTemplateInput, UpdateEmailTemplateInput } from '../types/template.types';
 import type { TemplateCategory, TemplateAudience } from '../constants';
 import type { EmailRuleEngineConfig } from '../types/config.types';
+import { DuplicateSlugError, TemplateSyntaxError, TemplateNotFoundError } from '../errors';
+
+const UPDATEABLE_FIELDS = new Set([
+  'name', 'description', 'category', 'audience', 'platform',
+  'subject', 'body', 'textBody', 'variables', 'isActive'
+]);
 
 function slugify(name: string): string {
   return name
@@ -49,12 +55,12 @@ export class TemplateService {
 
     const existing = await this.EmailTemplate.findBySlug(slug);
     if (existing) {
-      throw new Error(`Template with slug "${slug}" already exists`);
+      throw new DuplicateSlugError(slug);
     }
 
     const validation = this.renderService.validateTemplate(input.body);
     if (!validation.valid) {
-      throw new Error(`Template validation failed: ${validation.errors.join('; ')}`);
+      throw new TemplateSyntaxError(`Template validation failed: ${validation.errors.join('; ')}`, validation.errors);
     }
 
     const variables = input.variables || this.renderService.extractVariables(
@@ -75,7 +81,7 @@ export class TemplateService {
     if (input.body) {
       const validation = this.renderService.validateTemplate(input.body);
       if (!validation.valid) {
-        throw new Error(`Template validation failed: ${validation.errors.join('; ')}`);
+        throw new TemplateSyntaxError(`Template validation failed: ${validation.errors.join('; ')}`, validation.errors);
       }
     }
 
@@ -91,7 +97,7 @@ export class TemplateService {
 
     const setFields: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(input)) {
-      if (value !== undefined) {
+      if (value !== undefined && UPDATEABLE_FIELDS.has(key)) {
         setFields[key] = value;
       }
     }

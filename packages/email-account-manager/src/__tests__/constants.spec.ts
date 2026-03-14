@@ -124,12 +124,13 @@ describe('Constants', () => {
       expect(DRAFT_STATUS.Pending).toBe('pending');
       expect(DRAFT_STATUS.Approved).toBe('approved');
       expect(DRAFT_STATUS.Rejected).toBe('rejected');
+      expect(DRAFT_STATUS.Queued).toBe('queued');
       expect(DRAFT_STATUS.Sent).toBe('sent');
       expect(DRAFT_STATUS.Failed).toBe('failed');
     });
 
-    it('has exactly 5 entries', () => {
-      expect(Object.keys(DRAFT_STATUS)).toHaveLength(5);
+    it('has exactly 6 entries', () => {
+      expect(Object.keys(DRAFT_STATUS)).toHaveLength(6);
     });
 
     it('all values are unique', () => {

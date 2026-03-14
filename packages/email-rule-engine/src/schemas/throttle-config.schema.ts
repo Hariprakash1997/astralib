@@ -12,7 +12,7 @@ export interface EmailThrottleConfigStatics {
 
 export type EmailThrottleConfigModel = Model<IEmailThrottleConfig> & EmailThrottleConfigStatics;
 
-export function createEmailThrottleConfigSchema() {
+export function createEmailThrottleConfigSchema(collectionPrefix?: string) {
   const schema = new Schema<IEmailThrottleConfig>(
     {
       maxPerUserPerDay: { type: Number, default: 1 },
@@ -22,7 +22,7 @@ export function createEmailThrottleConfigSchema() {
     },
     {
       timestamps: true,
-      collection: 'email_throttle_config',
+      collection: `${collectionPrefix || ''}email_throttle_config`,
 
       statics: {
         async getConfig() {

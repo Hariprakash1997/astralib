@@ -28,16 +28,16 @@ export function createApprovalProcessor(
 
     logger.info('Processing approved draft', { draftId, to: d.to });
 
+    await EmailDraft.findByIdAndUpdate(draftId, {
+      $set: { status: DRAFT_STATUS.Queued },
+    });
+
     await queueService.enqueueSend({
       accountId: d.accountId.toString(),
       to: d.to,
       subject: d.subject,
       html: d.htmlBody,
       text: d.textBody || '',
-    });
-
-    await EmailDraft.findByIdAndUpdate(draftId, {
-      $set: { status: DRAFT_STATUS.Sent, sentAt: new Date() },
     });
   };
 }

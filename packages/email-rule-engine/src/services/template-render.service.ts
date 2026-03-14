@@ -131,10 +131,10 @@ export class TemplateRenderService {
     data: Record<string, unknown>,
     textBody?: string
   ): RenderResult {
-    const subjectFn = Handlebars.compile(subject);
+    const subjectFn = Handlebars.compile(subject, { strict: true });
     const resolvedSubject = subjectFn(data);
 
-    const bodyFn = Handlebars.compile(body);
+    const bodyFn = Handlebars.compile(body, { strict: true });
     const resolvedBody = bodyFn(data);
 
     const mjmlSource = wrapInMjml(resolvedBody);
@@ -142,7 +142,7 @@ export class TemplateRenderService {
 
     let text: string;
     if (textBody) {
-      const textFn = Handlebars.compile(textBody);
+      const textFn = Handlebars.compile(textBody, { strict: true });
       text = textFn(data);
     } else {
       text = htmlToPlainText(html);
@@ -155,9 +155,9 @@ export class TemplateRenderService {
     const mjmlSource = wrapInMjml(body);
     const htmlWithHandlebars = compileMjml(mjmlSource);
 
-    const subjectFn = Handlebars.compile(subject);
-    const bodyFn = Handlebars.compile(htmlWithHandlebars);
-    const textBodyFn = textBody ? Handlebars.compile(textBody) : undefined;
+    const subjectFn = Handlebars.compile(subject, { strict: true });
+    const bodyFn = Handlebars.compile(htmlWithHandlebars, { strict: true });
+    const textBodyFn = textBody ? Handlebars.compile(textBody, { strict: true }) : undefined;
 
     return { subjectFn, bodyFn, textBodyFn };
   }

@@ -50,6 +50,8 @@ export interface EmailAccountManager {
   identifiers: IdentifierService;
   queues: QueueService;
   settings: SettingsService;
+
+  destroy(): Promise<void>;
 }
 
 const noopLogger: LogAdapter = {
@@ -218,6 +220,13 @@ export function createEmailAccountManager(
     remove: (id: string) => EmailAccount.findByIdAndDelete(id),
   };
 
+  async function destroy(): Promise<void> {
+    imapBounceChecker.stop();
+    smtpService.closeAll();
+    await queueService.close();
+    logger.info('EmailAccountManager destroyed');
+  }
+
   return {
     routes,
     webhookRoutes: { ses: sesWebhookRouter },
@@ -233,6 +242,7 @@ export function createEmailAccountManager(
     identifiers: identifierService,
     queues: queueService,
     settings: settingsService,
+    destroy,
   };
 }
 

@@ -2,11 +2,25 @@ import { Request, Response } from 'express';
 import { RUN_TRIGGER } from '../constants';
 import type { RuleRunnerService } from '../services/rule-runner.service';
 import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
+import type { LogAdapter } from '../types/config.types';
 
-export function createRunnerController(runnerService: RuleRunnerService, EmailRuleRunLog: EmailRuleRunLogModel) {
+const defaultLogger: LogAdapter = {
+  info: () => {},
+  warn: () => {},
+  error: () => {}
+};
+
+export function createRunnerController(
+  runnerService: RuleRunnerService,
+  EmailRuleRunLog: EmailRuleRunLogModel,
+  logger?: LogAdapter
+) {
+  const log = logger || defaultLogger;
 
   async function triggerManualRun(_req: Request, res: Response) {
-    runnerService.runAllRules(RUN_TRIGGER.Manual).catch(() => {});
+    runnerService.runAllRules(RUN_TRIGGER.Manual).catch(err => {
+      log.error('Manual rule run failed', { error: err });
+    });
     res.json({ success: true, data: { message: 'Rule run triggered' } });
   }
 

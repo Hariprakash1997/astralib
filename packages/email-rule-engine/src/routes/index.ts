@@ -8,6 +8,7 @@ import type { RuleService } from '../services/rule.service';
 import type { RuleRunnerService } from '../services/rule-runner.service';
 import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
 import type { EmailThrottleConfigModel } from '../schemas/throttle-config.schema';
+import type { LogAdapter } from '../types/config.types';
 
 export interface RoutesDeps {
   templateService: TemplateService;
@@ -18,6 +19,7 @@ export interface RoutesDeps {
   platformValues?: string[];
   categoryValues?: string[];
   audienceValues?: string[];
+  logger?: LogAdapter;
 }
 
 export function createRoutes(deps: RoutesDeps): Router {
@@ -32,7 +34,7 @@ export function createRoutes(deps: RoutesDeps): Router {
     platforms: deps.platformValues,
     audiences: deps.audienceValues,
   });
-  const runnerCtrl = createRunnerController(deps.runnerService, deps.EmailRuleRunLog);
+  const runnerCtrl = createRunnerController(deps.runnerService, deps.EmailRuleRunLog, deps.logger);
   const settingsCtrl = createSettingsController(deps.EmailThrottleConfig);
 
   const templateRouter = Router();

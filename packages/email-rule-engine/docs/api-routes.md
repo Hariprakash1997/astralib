@@ -2,6 +2,16 @@
 
 All routes are mounted under your chosen prefix (e.g., `/api/email-rules`). All responses use `{ success: boolean, data?: any, error?: string }`.
 
+## Authentication
+
+This package does **not** include authentication. Routes are returned as bare Express routers — apply your own auth middleware when mounting:
+
+```typescript
+app.use('/api/email-rules', authMiddleware, engine.routes);
+```
+
+> **Important:** Always protect admin routes with authentication. Only webhook and unsubscribe routes (if applicable) should be publicly accessible — they use signature verification or token-based validation respectively.
+
 ## Templates
 
 | Method | Path | Description |

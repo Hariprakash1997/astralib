@@ -12,19 +12,21 @@ export class IdentifierService {
 
   async findOrCreate(email: string): Promise<EmailIdentifierDocument> {
     const normalized = email.toLowerCase().trim();
-    let doc = await this.EmailIdentifier.findOne({ email: normalized });
 
-    if (!doc) {
-      doc = await this.EmailIdentifier.create({
-        email: normalized,
-        status: IDENTIFIER_STATUS.Active,
-        sentCount: 0,
-        bounceCount: 0,
-      });
-      this.logger.info('Identifier created', { email: normalized });
-    }
+    const doc = await this.EmailIdentifier.findOneAndUpdate(
+      { email: normalized },
+      {
+        $setOnInsert: {
+          email: normalized,
+          status: IDENTIFIER_STATUS.Active,
+          sentCount: 0,
+          bounceCount: 0,
+        },
+      },
+      { upsert: true, new: true },
+    );
 
-    return doc;
+    return doc!;
   }
 
   async findByEmail(email: string): Promise<EmailIdentifierDocument | null> {

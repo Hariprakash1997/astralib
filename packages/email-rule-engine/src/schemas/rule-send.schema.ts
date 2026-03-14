@@ -29,7 +29,7 @@ export interface EmailRuleSendStatics {
 
 export type EmailRuleSendModel = Model<IEmailRuleSend> & EmailRuleSendStatics;
 
-export function createEmailRuleSendSchema() {
+export function createEmailRuleSendSchema(collectionPrefix?: string) {
   const schema = new Schema<IEmailRuleSend>(
     {
       ruleId: { type: Schema.Types.ObjectId, ref: 'EmailRule', required: true },
@@ -44,7 +44,7 @@ export function createEmailRuleSendSchema() {
       failureReason: { type: String },
     },
     {
-      collection: 'email_rule_sends',
+      collection: `${collectionPrefix || ''}email_rule_sends`,
 
       statics: {
         findLatestForUser(ruleId: string | Types.ObjectId, userId: string | Types.ObjectId) {

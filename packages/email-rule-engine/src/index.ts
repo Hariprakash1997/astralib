@@ -53,27 +53,27 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleE
 
   const EmailTemplate = conn.model<any>(
     `${prefix}EmailTemplate`,
-    createEmailTemplateSchema(config.platforms, config.audiences, config.categories)
+    createEmailTemplateSchema(config.platforms, config.audiences, config.categories, prefix)
   ) as EmailTemplateModel;
 
   const EmailRule = conn.model<any>(
     `${prefix}EmailRule`,
-    createEmailRuleSchema(config.platforms, config.audiences)
+    createEmailRuleSchema(config.platforms, config.audiences, prefix)
   ) as EmailRuleModel;
 
   const EmailRuleSend = conn.model<any>(
     `${prefix}EmailRuleSend`,
-    createEmailRuleSendSchema()
+    createEmailRuleSendSchema(prefix)
   ) as EmailRuleSendModel;
 
   const EmailRuleRunLog = conn.model<any>(
     `${prefix}EmailRuleRunLog`,
-    createEmailRuleRunLogSchema()
+    createEmailRuleRunLogSchema(prefix)
   ) as EmailRuleRunLogModel;
 
   const EmailThrottleConfig = conn.model<any>(
     `${prefix}EmailThrottleConfig`,
-    createEmailThrottleConfigSchema()
+    createEmailThrottleConfigSchema(prefix)
   ) as EmailThrottleConfigModel;
 
   const templateService = new TemplateService(EmailTemplate, config);
@@ -91,6 +91,7 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleE
     platformValues: config.platforms,
     categoryValues: config.categories,
     audienceValues: config.audiences,
+    logger: config.logger,
   });
 
   return {

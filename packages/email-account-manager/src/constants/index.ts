@@ -38,6 +38,7 @@ export const DRAFT_STATUS = {
   Pending: 'pending',
   Approved: 'approved',
   Rejected: 'rejected',
+  Queued: 'queued',
   Sent: 'sent',
   Failed: 'failed',
 } as const;

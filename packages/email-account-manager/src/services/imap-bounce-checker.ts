@@ -112,7 +112,7 @@ export class ImapBounceChecker {
       const lock = await client.getMailboxLock('INBOX');
 
       try {
-        const searchDate = this.getSearchDate(globalSettings.imap.searchSince);
+        const searchDate = this.getSearchDate(globalSettings.imap.searchSince, acct.lastImapCheckAt);
         const senderQuery = bounceSenders.map((s: string) => ({ from: s }));
 
         const messages = client.fetch(
@@ -160,6 +160,10 @@ export class ImapBounceChecker {
       }
 
       await client.logout();
+
+      await this.EmailAccount.findByIdAndUpdate(accountId, {
+        $set: { lastImapCheckAt: new Date() },
+      });
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       this.logger.error('IMAP connection failed', { accountId, error: msg });
@@ -177,16 +181,19 @@ export class ImapBounceChecker {
     return BOUNCE_TYPE.Soft;
   }
 
-  private getSearchDate(searchSince: string): Date {
+  private getSearchDate(searchSince: string, lastImapCheckAt?: Date): Date {
     const now = new Date();
+    const fallback24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
     switch (searchSince) {
       case 'last_24h':
-        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        return fallback24h;
       case 'last_7d':
         return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       case 'last_check':
+        return lastImapCheckAt ? new Date(lastImapCheckAt) : fallback24h;
       default:
-        return new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        return fallback24h;
     }
   }
 }

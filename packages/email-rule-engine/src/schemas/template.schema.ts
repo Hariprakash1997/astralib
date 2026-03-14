@@ -20,7 +20,8 @@ export type EmailTemplateModel = Model<IEmailTemplate> & EmailTemplateStatics;
 export function createEmailTemplateSchema(
   platformValues?: string[],
   audienceValues?: string[],
-  categoryValues?: string[]
+  categoryValues?: string[],
+  collectionPrefix?: string
 ) {
   const schema = new Schema<IEmailTemplate>(
     {
@@ -45,7 +46,7 @@ export function createEmailTemplateSchema(
     },
     {
       timestamps: true,
-      collection: 'email_templates',
+      collection: `${collectionPrefix || ''}email_templates`,
 
       statics: {
         findBySlug(slug: string) {

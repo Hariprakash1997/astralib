@@ -36,6 +36,7 @@ export interface IEmailAccount {
 
   totalEmailsSent: number;
   lastSuccessfulSendAt?: Date;
+  lastImapCheckAt?: Date;
 
   createdAt: Date;
   updatedAt: Date;
@@ -69,6 +70,10 @@ export function createEmailAccountSchema(options?: CreateEmailAccountSchemaOptio
         index: true,
       },
 
+      // WARNING: SMTP/IMAP credentials are stored as plaintext in the database.
+      // Consumers MUST encrypt `smtp.pass` and `imap.pass` at the application layer
+      // before storing, and decrypt after retrieval. A built-in encryption layer
+      // is planned for a future version.
       smtp: {
         type: {
           host: { type: String, required: true },
@@ -144,6 +149,7 @@ export function createEmailAccountSchema(options?: CreateEmailAccountSchemaOptio
 
       totalEmailsSent: { type: Number, default: 0 },
       lastSuccessfulSendAt: Date,
+      lastImapCheckAt: Date,
     },
     {
       timestamps: true,

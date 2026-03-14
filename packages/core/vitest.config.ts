@@ -15,7 +15,7 @@ export default defineConfig({
         lines: 80,
       },
       include: ['**/*.ts'],
-      exclude: ['**/types/**', '**/__tests__/**', '**/index.ts'],
+      exclude: ['**/types/**', '**/types.ts', '**/__tests__/**', '**/index.ts'],
     },
   },
 });
