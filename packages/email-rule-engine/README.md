@@ -34,19 +34,19 @@ app.use('/api/email-rules', engine.routes);
 
 | Feature | Description | Docs |
 |---------|-------------|------|
-| Adapters | Connect to your data, delivery, and accounts | [adapters.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/adapters.md) |
-| Templates | MJML + Handlebars responsive email templates | [templates.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/templates.md) |
-| Rules | Condition-based targeting and automation | [rules.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/rules.md) |
-| Throttling | Per-user daily/weekly rate limits | [throttling.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/throttling.md) |
-| Send Window | Time-based execution control | [send-window.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/send-window.md) |
-| Delivery Delays | Natural send spread with jitter | [delivery-delays.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/delivery-delays.md) |
-| Progress Hooks | Live execution tracking callbacks | [progress-hooks.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/progress-hooks.md) |
-| SMTP Pooling | Efficient email delivery patterns | [smtp-pooling.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/smtp-pooling.md) |
-| Account Rotation | Multi-account sending with quotas | [account-rotation.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/account-rotation.md) |
-| Email Validation | MX checks and domain validation | [email-validation.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/email-validation.md) |
-| Execution Flow | How the runner processes rules | [execution-flow.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/execution-flow.md) |
-| API Routes | REST endpoint reference | [api-routes.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/api-routes.md) |
-| Config Reference | Full configuration options | [config-reference.md](https://github.com/AstralibX/astralibx/blob/main/packages/email-rule-engine/docs/config-reference.md) |
+| Adapters | Connect to your data, delivery, and accounts | [adapters.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/adapters.md) |
+| Templates | MJML + Handlebars responsive email templates | [templates.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/templates.md) |
+| Rules | Condition-based targeting and automation | [rules.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/rules.md) |
+| Throttling | Per-user daily/weekly rate limits | [throttling.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/throttling.md) |
+| Send Window | Time-based execution control | [send-window.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/send-window.md) |
+| Delivery Delays | Natural send spread with jitter | [delivery-delays.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/delivery-delays.md) |
+| Progress Hooks | Live execution tracking callbacks | [progress-hooks.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/progress-hooks.md) |
+| SMTP Pooling | Efficient email delivery patterns | [smtp-pooling.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/smtp-pooling.md) |
+| Account Rotation | Multi-account sending with quotas | [account-rotation.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/account-rotation.md) |
+| Email Validation | MX checks and domain validation | [email-validation.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/email-validation.md) |
+| Execution Flow | How the runner processes rules | [execution-flow.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/execution-flow.md) |
+| API Routes | REST endpoint reference | [api-routes.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/api-routes.md) |
+| Config Reference | Full configuration options | [config-reference.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/config-reference.md) |
 
 ## Prerequisites
 
