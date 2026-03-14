@@ -1,5 +1,16 @@
 # @astralibx/email-rule-engine
 
+## 3.0.0
+
+### Major Changes
+
+- d6b8e20: Initial release of full email ecosystem
+
+### Patch Changes
+
+- Updated dependencies [d6b8e20]
+  - @astralibx/core@1.1.0
+
 ## 1.2.2
 
 ### Patch Changes
