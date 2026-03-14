@@ -49,6 +49,17 @@ export class RuleRunnerService {
   }
 
   async runAllRules(triggeredBy: typeof RunTrigger[keyof typeof RunTrigger] = RunTrigger.Cron): Promise<void> {
+    if (this.config.options?.sendWindow) {
+      const { startHour, endHour, timezone } = this.config.options.sendWindow;
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: timezone });
+      const currentHour = parseInt(formatter.format(now), 10);
+      if (currentHour < startHour || currentHour >= endHour) {
+        this.logger.info('Outside send window, skipping run', { currentHour, startHour, endHour, timezone });
+        return;
+      }
+    }
+
     const lockAcquired = await this.lock.acquire();
     if (!lockAcquired) {
       this.logger.warn('Rule runner already executing, skipping');
@@ -60,6 +71,8 @@ export class RuleRunnerService {
     try {
       const throttleConfig = await this.EmailThrottleConfig.getConfig();
       const activeRules = await this.EmailRule.findActive();
+
+      this.config.hooks?.onRunStart?.({ rulesCount: activeRules.length, triggeredBy });
 
       if (activeRules.length === 0) {
         this.logger.info('No active rules to process');
@@ -110,6 +123,8 @@ export class RuleRunnerService {
         perRuleStats
       });
 
+      this.config.hooks?.onRunComplete?.({ duration: Date.now() - runStartTime, totalStats, perRuleStats });
+
       this.logger.info('Rule run completed', {
         triggeredBy,
         rulesProcessed: activeRules.length,
@@ -146,6 +161,7 @@ export class RuleRunnerService {
     }
 
     stats.matched = users.length;
+    this.config.hooks?.onRuleStart?.({ ruleId: rule._id.toString(), ruleName: rule.name, matchedCount: users.length });
     if (users.length === 0) return stats;
 
     const userIds = users.map(u => (u._id as any)?.toString()).filter(Boolean);
@@ -183,7 +199,8 @@ export class RuleRunnerService {
       template.textBody
     );
 
-    for (const user of users) {
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i];
       try {
         const userId = (user._id as any)?.toString();
         const email = user.email as string;
@@ -236,8 +253,19 @@ export class RuleRunnerService {
         });
 
         stats.sent++;
+        this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'sent' });
+
+        if (i < users.length - 1) {
+          const delayMs = this.config.options?.delayBetweenSendsMs || 0;
+          const jitterMs = this.config.options?.jitterMs || 0;
+          if (delayMs > 0 || jitterMs > 0) {
+            const totalDelay = delayMs + Math.floor(Math.random() * (jitterMs + 1));
+            if (totalDelay > 0) await new Promise(resolve => setTimeout(resolve, totalDelay));
+          }
+        }
       } catch (err) {
         stats.errors++;
+        this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email: (user.email as string) || 'unknown', status: 'error' });
         this.logger.error(`Rule "${rule.name}" failed for user ${(user._id as any)?.toString()}`, { error: err });
       }
     }
@@ -246,6 +274,8 @@ export class RuleRunnerService {
       $set: { lastRunAt: new Date(), lastRunStats: stats },
       $inc: { totalSent: stats.sent, totalSkipped: stats.skipped }
     });
+
+    this.config.hooks?.onRuleComplete?.({ ruleId: rule._id.toString(), ruleName: rule.name, stats });
 
     return stats;
   }

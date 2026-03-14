@@ -1,6 +1,6 @@
 import type { Connection } from 'mongoose';
 import type { Redis } from 'ioredis';
-import { RuleTarget } from './rule.types';
+import type { RuleTarget, RuleRunStats, PerRuleStats } from './rule.types';
 
 export interface SendEmailParams {
   identifierId: string;
@@ -57,5 +57,20 @@ export interface EmailRuleEngineConfig {
   options?: {
     lockTTLMs?: number;
     defaultMaxPerRun?: number;
+    sendWindow?: {
+      startHour: number;
+      endHour: number;
+      timezone: string;
+    };
+    delayBetweenSendsMs?: number;
+    jitterMs?: number;
+  };
+
+  hooks?: {
+    onRunStart?: (info: { rulesCount: number; triggeredBy: string }) => void;
+    onRuleStart?: (info: { ruleId: string; ruleName: string; matchedCount: number }) => void;
+    onSend?: (info: { ruleId: string; ruleName: string; email: string; status: 'sent' | 'error' }) => void;
+    onRuleComplete?: (info: { ruleId: string; ruleName: string; stats: RuleRunStats }) => void;
+    onRunComplete?: (info: { duration: number; totalStats: RuleRunStats; perRuleStats: PerRuleStats[] }) => void;
   };
 }
