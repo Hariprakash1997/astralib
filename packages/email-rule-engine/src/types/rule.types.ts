@@ -1,4 +1,4 @@
-import { RuleOperator, EmailType, RunTrigger, TemplateAudience } from './enums';
+import type { RuleOperator, EmailType, RunTrigger, TemplateAudience } from '../constants';
 
 export interface RuleCondition {
   field: string;
@@ -87,6 +87,11 @@ export interface EmailRuleSend {
   emailIdentifierId?: string;
   messageId?: string;
   sentAt: Date;
+  status?: string;
+  accountId?: string;
+  senderName?: string;
+  subject?: string;
+  failureReason?: string;
 }
 
 export interface PerRuleStats extends RuleRunStats {

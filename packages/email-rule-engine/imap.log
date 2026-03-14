@@ -1,0 +1,110 @@
+const mongoose = require('mongoose');
+const Imap = require('imap');
+const { simpleParser } = require('mailparser');
+const { delayTime } = require("./src/utils/utils");
+const Email = require('./src/email/email.schema');
+
+const prodConn = 'mongodb://user:pwd@localhost:27017/sundara_sensations';
+// const localConn = 'mongodb://localhost:27017/myproject';
+mongoose.connect(prodConn).then(() => console.log('Database connected'))
+  .catch(err => console.error('Database connection error', err));
+
+const imap = new Imap({
+  user: 'relaxmassagetherapychennai@gmail.com',
+  password: '',
+  host: 'imap.gmail.com',
+  port: 993,
+  tls: true,
+  ignoreTLS: true,
+  authTimeout: 10000,
+  tlsOptions: { rejectUnauthorized: false }
+});
+
+console.log(imap);
+
+function openInbox(cb) {
+  imap.openBox('INBOX', false, cb);
+}
+
+imap.once('ready', () => {
+  openInbox((err, box) => {
+    if (err) throw err;
+
+    // Search for all unread emails
+    imap.search([
+      ['SINCE', 'Dec 7, 2025'],
+      ['FROM', 'mailer-daemon@googlemail.com']
+    ], (err, results) => {
+      if (err) throw err;
+
+      if (!results || results.length === 0) {
+        console.log('No unread emails found.');
+        imap.end();
+        return;
+      }
+
+      const f = imap.fetch(results, { bodies: '', markSeen: false });
+
+      f.on('message', (msg, seqno) => {
+        msg.on('body', (stream) => {
+          simpleParser(stream, async (err, parsed) => {
+            if (err) {
+              console.error('Error parsing email:', err);
+              return;
+            }
+
+            const updateEmail = async (emailId, key) => {
+              const matchedEmail = await Email.findOne({ email: emailId });
+              console.log(matchedEmail);
+              const query = {};
+              query[key] = true;
+              await Email.findOneAndUpdate({ email: emailId }, { $set: query });
+              console.log(`update ${key} for: ${emailId}`);
+            }
+
+            // Check if the email body includes the "Recipient inbox full" message
+            const bodyText = parsed.text || '';
+
+            const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+            const emailMatch = bodyText.match(emailRegex);
+            let emailId = null;
+            console.log('================================================');
+            if (emailMatch) {
+              emailId = emailMatch[0];
+              console.log(emailId);
+            } else {
+              console.log('No email found.');
+            }
+            console.log('================================================');
+
+            if(bodyText.includes('Recipient inbox full') || bodyText.includes('Delivery incomplete')) {
+              await updateEmail(emailId, 'inbox_full');
+            } else if (bodyText.includes('Address not found') || bodyText.includes('Message blocked')) {
+              await updateEmail(emailId, 'invalid_email');
+            }
+          });
+        });
+      });
+
+      f.once('error', (err) => {
+        console.error('Fetch error:', err);
+      });
+
+      f.once('end', () => {
+        console.log('Done fetching all unread emails.');
+        imap.end();
+      });
+    });
+  });
+});
+
+imap.once('error', (err) => {
+  console.error('Connection error:', err);
+});
+
+imap.once('end', () => {
+  console.log('Connection closed.');
+});
+
+imap.connect();
+

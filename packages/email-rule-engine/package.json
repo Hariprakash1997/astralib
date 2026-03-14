@@ -1,15 +1,26 @@
 {
   "name": "@astralibx/email-rule-engine",
-  "version": "1.2.2",
+  "version": "2.0.0",
   "description": "Rule-based email automation engine with MJML + Handlebars templates, throttling, and distributed locking",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.mts", "default": "./dist/index.mjs" },
+      "require": { "types": "./dist/index.d.ts", "default": "./dist/index.cjs" }
+    }
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
-    "test": "jest",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist"
   },
@@ -22,6 +33,10 @@
     "throttle"
   ],
   "license": "MIT",
+  "dependencies": {
+    "@astralibx/core": "*",
+    "zod": "^3.23.0"
+  },
   "peerDependencies": {
     "express": "^4.18.0 || ^5.0.0",
     "handlebars": "^4.7.0",
@@ -31,19 +46,17 @@
     "mongoose": "^7.0.0 || ^8.0.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.0",
     "@types/express": "^5.0.0",
     "@types/html-to-text": "^9.0.4",
     "@types/mjml": "^4.7.4",
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
     "express": "^5.0.0",
     "handlebars": "^4.7.8",
     "html-to-text": "^9.0.5",
     "ioredis": "^5.4.2",
     "mjml": "^4.15.3",
     "mongoose": "^8.12.1",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.2.0",
     "typescript": "^5.8.2"
   }
 }

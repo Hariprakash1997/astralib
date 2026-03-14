@@ -2,7 +2,7 @@ import type { EmailRuleModel, EmailRuleDocument } from '../schemas/rule.schema';
 import type { EmailTemplateModel, EmailTemplateDocument } from '../schemas/template.schema';
 import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
 import type { CreateEmailRuleInput, UpdateEmailRuleInput } from '../types/rule.types';
-import type { TemplateAudience } from '../types/enums';
+import type { TemplateAudience } from '../constants';
 import type { EmailRuleEngineConfig } from '../types/config.types';
 
 const UPDATEABLE_FIELDS = new Set([

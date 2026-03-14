@@ -16,13 +16,22 @@ export interface RoutesDeps {
   EmailRuleRunLog: EmailRuleRunLogModel;
   EmailThrottleConfig: EmailThrottleConfigModel;
   platformValues?: string[];
+  categoryValues?: string[];
+  audienceValues?: string[];
 }
 
 export function createRoutes(deps: RoutesDeps): Router {
   const router = Router();
 
-  const templateCtrl = createTemplateController(deps.templateService, deps.platformValues);
-  const ruleCtrl = createRuleController(deps.ruleService, deps.platformValues);
+  const templateCtrl = createTemplateController(deps.templateService, {
+    platforms: deps.platformValues,
+    categories: deps.categoryValues,
+    audiences: deps.audienceValues,
+  });
+  const ruleCtrl = createRuleController(deps.ruleService, {
+    platforms: deps.platformValues,
+    audiences: deps.audienceValues,
+  });
   const runnerCtrl = createRunnerController(deps.runnerService, deps.EmailRuleRunLog);
   const settingsCtrl = createSettingsController(deps.EmailThrottleConfig);
 

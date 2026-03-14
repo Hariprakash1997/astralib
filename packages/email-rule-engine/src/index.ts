@@ -8,8 +8,12 @@ import { TemplateService } from './services/template.service';
 import { RuleService } from './services/rule.service';
 import { RuleRunnerService } from './services/rule-runner.service';
 import { createRoutes } from './routes';
+import { validateConfig } from './validation/config.schema';
 import type { Router } from 'express';
 
+/**
+ * Engine instance with Express routes and programmatic service access.
+ */
 export interface EmailRuleEngine {
   routes: Router;
   runner: RuleRunnerService;
@@ -24,13 +28,32 @@ export interface EmailRuleEngine {
   };
 }
 
+/**
+ * Creates an email rule engine instance with routes, services, and models.
+ *
+ * @param config - Engine configuration including DB, Redis, adapters, and options.
+ * @returns Engine instance with Express routes and programmatic service access.
+ * @throws {ConfigValidationError} If the provided config is invalid.
+ *
+ * @example
+ * ```typescript
+ * const engine = createEmailRuleEngine({
+ *   db: { connection: mongoose.createConnection(uri) },
+ *   redis: { connection: new Redis() },
+ *   adapters: { queryUsers, resolveData, sendEmail, selectAgent, findIdentifier },
+ * });
+ * app.use('/api/email-rules', engine.routes);
+ * ```
+ */
 export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleEngine {
+  validateConfig(config);
+
   const conn = config.db.connection;
   const prefix = config.db.collectionPrefix || '';
 
   const EmailTemplate = conn.model<any>(
     `${prefix}EmailTemplate`,
-    createEmailTemplateSchema(config.platforms, config.audiences)
+    createEmailTemplateSchema(config.platforms, config.audiences, config.categories)
   ) as EmailTemplateModel;
 
   const EmailRule = conn.model<any>(
@@ -65,7 +88,9 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleE
     runnerService,
     EmailRuleRunLog,
     EmailThrottleConfig,
-    platformValues: config.platforms
+    platformValues: config.platforms,
+    categoryValues: config.categories,
+    audienceValues: config.audiences,
   });
 
   return {
@@ -78,6 +103,9 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleE
 }
 
 export * from './types';
+export * from './constants';
+export * from './errors';
+export { validateConfig } from './validation/config.schema';
 export * from './schemas';
 export { TemplateRenderService, type RenderResult, type CompiledTemplate } from './services/template-render.service';
 export { TemplateService } from './services/template.service';

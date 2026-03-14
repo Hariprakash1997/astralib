@@ -1,5 +1,5 @@
 import { Schema, Model, Types, HydratedDocument } from 'mongoose';
-import { RunTrigger } from '../types/enums';
+import { RUN_TRIGGER } from '../constants';
 
 export interface IEmailRuleRunLog {
   runAt: Date;
@@ -55,7 +55,7 @@ export function createEmailRuleRunLogSchema() {
   const schema = new Schema<IEmailRuleRunLog>(
     {
       runAt: { type: Date, required: true, default: () => new Date() },
-      triggeredBy: { type: String, enum: Object.values(RunTrigger), required: true },
+      triggeredBy: { type: String, enum: Object.values(RUN_TRIGGER), required: true },
       duration: { type: Number, required: true },
       rulesProcessed: { type: Number, required: true },
       totalStats: { type: TotalStatsSchema, required: true },

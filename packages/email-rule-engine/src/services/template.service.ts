@@ -1,7 +1,7 @@
 import { TemplateRenderService } from './template-render.service';
 import type { EmailTemplateModel, EmailTemplateDocument } from '../schemas/template.schema';
 import type { CreateEmailTemplateInput, UpdateEmailTemplateInput } from '../types/template.types';
-import type { TemplateCategory, TemplateAudience } from '../types/enums';
+import type { TemplateCategory, TemplateAudience } from '../constants';
 import type { EmailRuleEngineConfig } from '../types/config.types';
 
 function slugify(name: string): string {

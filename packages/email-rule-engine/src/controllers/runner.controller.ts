@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
-import { RunTrigger } from '../types/enums';
+import { RUN_TRIGGER } from '../constants';
 import type { RuleRunnerService } from '../services/rule-runner.service';
 import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
 
 export function createRunnerController(runnerService: RuleRunnerService, EmailRuleRunLog: EmailRuleRunLogModel) {
 
   async function triggerManualRun(_req: Request, res: Response) {
-    runnerService.runAllRules(RunTrigger.Manual).catch(() => {});
+    runnerService.runAllRules(RUN_TRIGGER.Manual).catch(() => {});
     res.json({ success: true, data: { message: 'Rule run triggered' } });
   }
 

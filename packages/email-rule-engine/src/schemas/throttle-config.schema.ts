@@ -1,5 +1,5 @@
 import { Schema, Model, HydratedDocument } from 'mongoose';
-import { ThrottleWindow } from '../types/enums';
+import { THROTTLE_WINDOW } from '../constants';
 import type { EmailThrottleConfig } from '../types/throttle.types';
 
 export interface IEmailThrottleConfig extends Omit<EmailThrottleConfig, '_id'> {}
@@ -18,7 +18,7 @@ export function createEmailThrottleConfigSchema() {
       maxPerUserPerDay: { type: Number, default: 1 },
       maxPerUserPerWeek: { type: Number, default: 2 },
       minGapDays: { type: Number, default: 3 },
-      throttleWindow: { type: String, enum: Object.values(ThrottleWindow), default: ThrottleWindow.Rolling }
+      throttleWindow: { type: String, enum: Object.values(THROTTLE_WINDOW), default: THROTTLE_WINDOW.Rolling }
     },
     {
       timestamps: true,
@@ -32,7 +32,7 @@ export function createEmailThrottleConfigSchema() {
               maxPerUserPerDay: 1,
               maxPerUserPerWeek: 2,
               minGapDays: 3,
-              throttleWindow: ThrottleWindow.Rolling
+              throttleWindow: THROTTLE_WINDOW.Rolling
             });
           }
           return config;

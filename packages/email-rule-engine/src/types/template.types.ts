@@ -1,4 +1,4 @@
-import { TemplateCategory, TemplateAudience } from './enums';
+import type { TemplateCategory, TemplateAudience } from '../constants';
 
 export interface EmailTemplate {
   _id: string;

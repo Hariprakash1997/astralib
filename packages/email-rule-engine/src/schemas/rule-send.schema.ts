@@ -6,6 +6,11 @@ export interface IEmailRuleSend {
   emailIdentifierId?: Types.ObjectId;
   messageId?: Types.ObjectId;
   sentAt: Date;
+  status?: string;
+  accountId?: string;
+  senderName?: string;
+  subject?: string;
+  failureReason?: string;
 }
 
 export type EmailRuleSendDocument = HydratedDocument<IEmailRuleSend>;
@@ -13,7 +18,13 @@ export type EmailRuleSendDocument = HydratedDocument<IEmailRuleSend>;
 export interface EmailRuleSendStatics {
   findLatestForUser(ruleId: string | Types.ObjectId, userId: string | Types.ObjectId): Promise<EmailRuleSendDocument | null>;
   findRecentByUserIds(userIds: (string | Types.ObjectId)[], sinceDays: number): Promise<EmailRuleSendDocument[]>;
-  logSend(ruleId: string | Types.ObjectId, userId: string | Types.ObjectId, emailIdentifierId?: string | Types.ObjectId, messageId?: string | Types.ObjectId): Promise<EmailRuleSendDocument>;
+  logSend(
+    ruleId: string | Types.ObjectId,
+    userId: string | Types.ObjectId,
+    emailIdentifierId?: string | Types.ObjectId,
+    messageId?: string | Types.ObjectId,
+    extra?: { status?: string; accountId?: string; senderName?: string; subject?: string; failureReason?: string }
+  ): Promise<EmailRuleSendDocument>;
 }
 
 export type EmailRuleSendModel = Model<IEmailRuleSend> & EmailRuleSendStatics;
@@ -25,7 +36,12 @@ export function createEmailRuleSendSchema() {
       userId: { type: Schema.Types.ObjectId, required: true },
       emailIdentifierId: { type: Schema.Types.ObjectId },
       messageId: { type: Schema.Types.ObjectId },
-      sentAt: { type: Date, required: true, default: () => new Date() }
+      sentAt: { type: Date, required: true, default: () => new Date() },
+      status: { type: String },
+      accountId: { type: String },
+      senderName: { type: String },
+      subject: { type: String },
+      failureReason: { type: String },
     },
     {
       collection: 'email_rule_sends',
@@ -47,14 +63,16 @@ export function createEmailRuleSendSchema() {
           ruleId: string | Types.ObjectId,
           userId: string | Types.ObjectId,
           emailIdentifierId?: string | Types.ObjectId,
-          messageId?: string | Types.ObjectId
+          messageId?: string | Types.ObjectId,
+          extra?: { status?: string; accountId?: string; senderName?: string; subject?: string; failureReason?: string }
         ) {
           return this.create({
             ruleId,
             userId,
             emailIdentifierId,
             messageId,
-            sentAt: new Date()
+            sentAt: new Date(),
+            ...extra,
           });
         }
       }

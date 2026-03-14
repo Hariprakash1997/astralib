@@ -1,5 +1,5 @@
 import { Schema, Model, Types, HydratedDocument } from 'mongoose';
-import { RuleOperator, EmailType, TemplateAudience } from '../types/enums';
+import { RULE_OPERATOR, EMAIL_TYPE, TEMPLATE_AUDIENCE } from '../constants';
 import type { EmailRule, CreateEmailRuleInput } from '../types/rule.types';
 
 export interface IEmailRule extends Omit<EmailRule, '_id' | 'templateId'> {
@@ -19,12 +19,12 @@ export type EmailRuleModel = Model<IEmailRule> & EmailRuleStatics;
 export function createEmailRuleSchema(platformValues?: string[], audienceValues?: string[]) {
   const RuleConditionSchema = new Schema({
     field: { type: String, required: true },
-    operator: { type: String, enum: Object.values(RuleOperator), required: true },
+    operator: { type: String, enum: Object.values(RULE_OPERATOR), required: true },
     value: { type: Schema.Types.Mixed }
   }, { _id: false });
 
   const RuleTargetSchema = new Schema({
-    role: { type: String, enum: audienceValues || Object.values(TemplateAudience), required: true },
+    role: { type: String, enum: audienceValues || Object.values(TEMPLATE_AUDIENCE), required: true },
     platform: {
       type: String,
       required: true,
@@ -59,7 +59,7 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
       maxPerRun: Number,
 
       bypassThrottle: { type: Boolean, default: false },
-      emailType: { type: String, enum: Object.values(EmailType), default: EmailType.Automated },
+      emailType: { type: String, enum: Object.values(EMAIL_TYPE), default: EMAIL_TYPE.Automated },
 
       totalSent: { type: Number, default: 0 },
       totalSkipped: { type: Number, default: 0 },
@@ -93,7 +93,7 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
             autoApprove: input.autoApprove ?? true,
             maxPerRun: input.maxPerRun,
             bypassThrottle: input.bypassThrottle ?? false,
-            emailType: input.emailType ?? EmailType.Automated,
+            emailType: input.emailType ?? EMAIL_TYPE.Automated,
             totalSent: 0,
             totalSkipped: 0
           });

@@ -1,4 +1,8 @@
-export { TemplateCategory, TemplateAudience, RuleOperator, EmailType, RunTrigger, ThrottleWindow } from './enums';
+export {
+  TEMPLATE_CATEGORY, TEMPLATE_AUDIENCE, RULE_OPERATOR, EMAIL_TYPE, RUN_TRIGGER, THROTTLE_WINDOW, EMAIL_SEND_STATUS,
+  type TemplateCategory, type TemplateAudience, type RuleOperator, type EmailType, type RunTrigger, type ThrottleWindow, type EmailSendStatus,
+} from '../constants';
+
 export type {
   EmailTemplate, CreateEmailTemplateInput, UpdateEmailTemplateInput
 } from './template.types';
@@ -12,3 +16,11 @@ export type {
   EmailRuleEngineConfig, SendEmailParams, AgentSelection,
   RecipientIdentifier, LogAdapter
 } from './config.types';
+
+export {
+  AlxEmailError, ConfigValidationError, TemplateNotFoundError,
+  TemplateSyntaxError, RuleNotFoundError, RuleTemplateIncompatibleError,
+  LockAcquisitionError, DuplicateSlugError,
+} from '../errors';
+
+export { validateConfig } from '../validation/config.schema';

@@ -1,5 +1,6 @@
 import { Schema, Model, HydratedDocument } from 'mongoose';
-import { TemplateCategory, TemplateAudience } from '../types/enums';
+import { TEMPLATE_CATEGORY, TEMPLATE_AUDIENCE } from '../constants';
+import type { TemplateCategory, TemplateAudience } from '../constants';
 import type { EmailTemplate, CreateEmailTemplateInput } from '../types/template.types';
 
 export interface IEmailTemplate extends Omit<EmailTemplate, '_id'> {}
@@ -16,14 +17,18 @@ export interface EmailTemplateStatics {
 
 export type EmailTemplateModel = Model<IEmailTemplate> & EmailTemplateStatics;
 
-export function createEmailTemplateSchema(platformValues?: string[], audienceValues?: string[]) {
+export function createEmailTemplateSchema(
+  platformValues?: string[],
+  audienceValues?: string[],
+  categoryValues?: string[]
+) {
   const schema = new Schema<IEmailTemplate>(
     {
       name: { type: String, required: true },
       slug: { type: String, required: true, unique: true },
       description: String,
-      category: { type: String, enum: Object.values(TemplateCategory), required: true },
-      audience: { type: String, enum: audienceValues || Object.values(TemplateAudience), required: true },
+      category: { type: String, enum: categoryValues || Object.values(TEMPLATE_CATEGORY), required: true },
+      audience: { type: String, enum: audienceValues || Object.values(TEMPLATE_AUDIENCE), required: true },
       platform: {
         type: String,
         required: true,
@@ -57,7 +62,7 @@ export function createEmailTemplateSchema(platformValues?: string[], audienceVal
 
         findByAudience(audience: TemplateAudience) {
           return this.find({
-            $or: [{ audience }, { audience: TemplateAudience.All }],
+            $or: [{ audience }, { audience: TEMPLATE_AUDIENCE.All }],
             isActive: true
           }).sort({ name: 1 });
         },

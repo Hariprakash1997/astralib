@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from 'vitest';
 import { TemplateRenderService } from '../services/template-render.service';
 
 describe('TemplateRenderService', () => {

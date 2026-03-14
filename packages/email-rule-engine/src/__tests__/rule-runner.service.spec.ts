@@ -1,21 +1,22 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RuleRunnerService } from '../services/rule-runner.service';
-import { EmailType, RunTrigger } from '../types/enums';
+import { EMAIL_TYPE, RUN_TRIGGER } from '../constants';
 
-jest.mock('../utils/redis-lock', () => ({
-  RedisLock: jest.fn().mockImplementation(() => ({
-    acquire: jest.fn().mockResolvedValue(true),
-    release: jest.fn().mockResolvedValue(undefined),
+vi.mock('../utils/redis-lock', () => ({
+  RedisLock: vi.fn().mockImplementation(() => ({
+    acquire: vi.fn().mockResolvedValue(true),
+    release: vi.fn().mockResolvedValue(undefined),
   })),
 }));
 
-jest.mock('../services/template-render.service', () => ({
-  TemplateRenderService: jest.fn().mockImplementation(() => ({
-    compileBatch: jest.fn().mockReturnValue({
-      subjectFn: jest.fn(),
-      bodyFn: jest.fn(),
-      textBodyFn: jest.fn(),
+vi.mock('../services/template-render.service', () => ({
+  TemplateRenderService: vi.fn().mockImplementation(() => ({
+    compileBatch: vi.fn().mockReturnValue({
+      subjectFn: vi.fn(),
+      bodyFn: vi.fn(),
+      textBodyFn: vi.fn(),
     }),
-    renderFromCompiled: jest.fn().mockReturnValue({
+    renderFromCompiled: vi.fn().mockReturnValue({
       subject: 'Rendered Subject',
       html: '<p>Rendered HTML</p>',
       text: 'Rendered Text',
@@ -25,8 +26,8 @@ jest.mock('../services/template-render.service', () => ({
 
 function createChainableMock(resolvedValue: any[] = []) {
   const mock: any = {
-    lean: jest.fn().mockResolvedValue(resolvedValue),
-    sort: jest.fn().mockReturnThis(),
+    lean: vi.fn().mockResolvedValue(resolvedValue),
+    sort: vi.fn().mockReturnThis(),
   };
   return mock;
 }
@@ -34,21 +35,21 @@ function createChainableMock(resolvedValue: any[] = []) {
 function createMockModels() {
   return {
     EmailRule: {
-      findActive: jest.fn().mockResolvedValue([]),
-      findByIdAndUpdate: jest.fn().mockResolvedValue(null),
+      findActive: vi.fn().mockResolvedValue([]),
+      findByIdAndUpdate: vi.fn().mockResolvedValue(null),
     },
     EmailTemplate: {
-      findById: jest.fn().mockResolvedValue(null),
+      findById: vi.fn().mockResolvedValue(null),
     },
     EmailRuleSend: {
-      find: jest.fn().mockImplementation(() => createChainableMock([])),
-      logSend: jest.fn().mockResolvedValue(undefined),
+      find: vi.fn().mockImplementation(() => createChainableMock([])),
+      logSend: vi.fn().mockResolvedValue(undefined),
     },
     EmailRuleRunLog: {
-      create: jest.fn().mockResolvedValue(undefined),
+      create: vi.fn().mockResolvedValue(undefined),
     },
     EmailThrottleConfig: {
-      getConfig: jest.fn().mockResolvedValue({
+      getConfig: vi.fn().mockResolvedValue({
         maxPerUserPerDay: 3,
         maxPerUserPerWeek: 10,
         minGapDays: 1,
@@ -62,14 +63,14 @@ function createMockConfig(adapterOverrides: Record<string, any> = {}) {
     db: { connection: {} as any, collectionPrefix: '' },
     redis: { connection: {} as any, keyPrefix: 'test:' },
     adapters: {
-      queryUsers: jest.fn().mockResolvedValue([]),
-      resolveData: jest.fn().mockImplementation((user: any) => user),
-      sendEmail: jest.fn().mockResolvedValue(undefined),
-      selectAgent: jest.fn().mockResolvedValue({ accountId: 'acc-1' }),
-      findIdentifier: jest.fn().mockResolvedValue({ id: 'ident-1', contactId: 'contact-1' }),
+      queryUsers: vi.fn().mockResolvedValue([]),
+      resolveData: vi.fn().mockImplementation((user: any) => user),
+      sendEmail: vi.fn().mockResolvedValue(undefined),
+      selectAgent: vi.fn().mockResolvedValue({ accountId: 'acc-1' }),
+      findIdentifier: vi.fn().mockResolvedValue({ id: 'ident-1', contactId: 'contact-1' }),
       ...adapterOverrides,
     },
-    logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     options: { lockTTLMs: 30000 },
   };
 }
@@ -98,7 +99,7 @@ function makeRule(overrides: Record<string, any> = {}) {
     sendOnce: false,
     autoApprove: true,
     bypassThrottle: false,
-    emailType: EmailType.Automated,
+    emailType: EMAIL_TYPE.Automated,
     target: { role: 'customer', platform: 'w1', conditions: [] },
     ...overrides,
   };
@@ -115,15 +116,15 @@ function makeUser(overrides: Record<string, any> = {}) {
 
 describe('RuleRunnerService', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('runAllRules', () => {
     it('skips when lock cannot be acquired', async () => {
-      const { RedisLock } = require('../utils/redis-lock');
-      RedisLock.mockImplementation(() => ({
-        acquire: jest.fn().mockResolvedValue(false),
-        release: jest.fn().mockResolvedValue(undefined),
+      const { RedisLock } = await import('../utils/redis-lock');
+      (RedisLock as any).mockImplementation(() => ({
+        acquire: vi.fn().mockResolvedValue(false),
+        release: vi.fn().mockResolvedValue(undefined),
       }));
 
       const { service, models, config } = createService();
@@ -132,9 +133,9 @@ describe('RuleRunnerService', () => {
       expect(models.EmailRule.findActive).not.toHaveBeenCalled();
       expect(config.logger.warn).toHaveBeenCalledWith(expect.stringContaining('already executing'));
 
-      RedisLock.mockImplementation(() => ({
-        acquire: jest.fn().mockResolvedValue(true),
-        release: jest.fn().mockResolvedValue(undefined),
+      (RedisLock as any).mockImplementation(() => ({
+        acquire: vi.fn().mockResolvedValue(true),
+        release: vi.fn().mockResolvedValue(undefined),
       }));
     });
 
@@ -155,7 +156,7 @@ describe('RuleRunnerService', () => {
     it('processes active rules and creates run log with stats', async () => {
       const models = createMockModels();
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
       });
 
       models.EmailRule.findActive.mockResolvedValue([makeRule()]);
@@ -180,10 +181,10 @@ describe('RuleRunnerService', () => {
     });
 
     it('releases lock even when error occurs (finally block)', async () => {
-      const { RedisLock } = require('../utils/redis-lock');
-      const mockRelease = jest.fn().mockResolvedValue(undefined);
-      RedisLock.mockImplementation(() => ({
-        acquire: jest.fn().mockResolvedValue(true),
+      const { RedisLock } = await import('../utils/redis-lock');
+      const mockRelease = vi.fn().mockResolvedValue(undefined);
+      (RedisLock as any).mockImplementation(() => ({
+        acquire: vi.fn().mockResolvedValue(true),
         release: mockRelease,
       }));
 
@@ -219,7 +220,7 @@ describe('RuleRunnerService', () => {
       const models = createMockModels();
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       const config = createMockConfig({
-        queryUsers: jest.fn().mockRejectedValue(new Error('query failed')),
+        queryUsers: vi.fn().mockRejectedValue(new Error('query failed')),
       });
       const { service } = createService(models, config);
 
@@ -231,7 +232,7 @@ describe('RuleRunnerService', () => {
       const models = createMockModels();
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([]),
+        queryUsers: vi.fn().mockResolvedValue([]),
       });
       const { service } = createService(models, config);
 
@@ -245,7 +246,7 @@ describe('RuleRunnerService', () => {
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([
+        queryUsers: vi.fn().mockResolvedValue([
           { _id: null, email: 'a@b.com' },
           { _id: 'u1', email: '' },
           { _id: undefined, email: undefined },
@@ -266,7 +267,7 @@ describe('RuleRunnerService', () => {
         { userId: 'user-1', ruleId: 'rule-1', sentAt: new Date() },
       ]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
       });
       const { service } = createService(models, config);
 
@@ -285,7 +286,7 @@ describe('RuleRunnerService', () => {
         { userId: 'user-1', ruleId: 'rule-1', sentAt: oldDate },
       ]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
       });
       const { service } = createService(models, config);
 
@@ -300,8 +301,8 @@ describe('RuleRunnerService', () => {
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
-        findIdentifier: jest.fn().mockResolvedValue(null),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+        findIdentifier: vi.fn().mockResolvedValue(null),
       });
       const { service } = createService(models, config);
 
@@ -315,8 +316,8 @@ describe('RuleRunnerService', () => {
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
-        selectAgent: jest.fn().mockResolvedValue(null),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+        selectAgent: vi.fn().mockResolvedValue(null),
       });
       const { service } = createService(models, config);
 
@@ -331,7 +332,7 @@ describe('RuleRunnerService', () => {
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
       });
       const { service } = createService(models, config);
 
@@ -357,14 +358,18 @@ describe('RuleRunnerService', () => {
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
       });
       const { service } = createService(models, config);
 
       const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
       await service.executeRule(makeRule(), new Map(), throttleConfig);
 
-      expect(models.EmailRuleSend.logSend).toHaveBeenCalledWith('rule-1', 'user-1', 'ident-1');
+      expect(models.EmailRuleSend.logSend).toHaveBeenCalledWith(
+        'rule-1', 'user-1', 'ident-1',
+        undefined,
+        expect.objectContaining({ status: 'sent' })
+      );
     });
 
     it('increments throttle map after send', async () => {
@@ -372,7 +377,7 @@ describe('RuleRunnerService', () => {
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
       });
       const { service } = createService(models, config);
 
@@ -392,7 +397,7 @@ describe('RuleRunnerService', () => {
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
       });
       const { service } = createService(models, config);
 
@@ -447,7 +452,7 @@ describe('RuleRunnerService', () => {
       models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
-        queryUsers: jest.fn().mockResolvedValue([makeUser()]),
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
       });
       const { service } = createService(models, config);
 
@@ -459,7 +464,7 @@ describe('RuleRunnerService', () => {
 
     it('bypasses for transactional emails', async () => {
       const { service, rule, throttleMap, config } = setupForThrottle(
-        { emailType: EmailType.Transactional },
+        { emailType: EMAIL_TYPE.Transactional },
         [['user-1', { today: 100, thisWeek: 200, lastSentDate: new Date() }]],
         { maxPerUserPerDay: 1, maxPerUserPerWeek: 1, minGapDays: 100 }
       );

@@ -1,6 +1,9 @@
 import type { Connection } from 'mongoose';
 import type { Redis } from 'ioredis';
+import type { LogAdapter } from '@astralibx/core';
 import type { RuleTarget, RuleRunStats, PerRuleStats } from './rule.types';
+
+export type { LogAdapter } from '@astralibx/core';
 
 export interface SendEmailParams {
   identifierId: string;
@@ -22,12 +25,6 @@ export interface RecipientIdentifier {
   contactId: string;
 }
 
-export interface LogAdapter {
-  info: (msg: string, meta?: Record<string, unknown>) => void;
-  warn: (msg: string, meta?: Record<string, unknown>) => void;
-  error: (msg: string, meta?: Record<string, unknown>) => void;
-}
-
 export interface EmailRuleEngineConfig {
   db: {
     connection: Connection;
@@ -43,7 +40,7 @@ export interface EmailRuleEngineConfig {
     queryUsers: (target: RuleTarget, limit: number) => Promise<Record<string, unknown>[]>;
     resolveData: (user: Record<string, unknown>) => Record<string, unknown>;
     sendEmail: (params: SendEmailParams) => Promise<void>;
-    selectAgent: (identifierId: string) => Promise<AgentSelection | null>;
+    selectAgent: (identifierId: string, context?: { ruleId: string; templateId: string }) => Promise<AgentSelection | null>;
     findIdentifier: (email: string) => Promise<RecipientIdentifier | null>;
     sendTestEmail?: (to: string, subject: string, html: string, text: string) => Promise<void>;
   };
@@ -51,6 +48,8 @@ export interface EmailRuleEngineConfig {
   platforms?: string[];
 
   audiences?: string[];
+
+  categories?: string[];
 
   logger?: LogAdapter;
 
@@ -69,7 +68,7 @@ export interface EmailRuleEngineConfig {
   hooks?: {
     onRunStart?: (info: { rulesCount: number; triggeredBy: string }) => void;
     onRuleStart?: (info: { ruleId: string; ruleName: string; matchedCount: number }) => void;
-    onSend?: (info: { ruleId: string; ruleName: string; email: string; status: 'sent' | 'error' }) => void;
+    onSend?: (info: { ruleId: string; ruleName: string; email: string; status: 'sent' | 'error' | 'skipped' | 'invalid' | 'throttled' }) => void;
     onRuleComplete?: (info: { ruleId: string; ruleName: string; stats: RuleRunStats }) => void;
     onRunComplete?: (info: { duration: number; totalStats: RuleRunStats; perRuleStats: PerRuleStats[] }) => void;
   };

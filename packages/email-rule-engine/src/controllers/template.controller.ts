@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
-import { TemplateCategory, TemplateAudience } from '../types/enums';
+import { TEMPLATE_CATEGORY, TEMPLATE_AUDIENCE } from '../constants';
+import type { TemplateCategory, TemplateAudience } from '../constants';
 import type { TemplateService } from '../services/template.service';
 import { getParam } from '../utils/express-helpers';
 
-function isValidEnum<T extends Record<string, string>>(enumObj: T, value: unknown): value is T[keyof T] {
-  return typeof value === 'string' && Object.values(enumObj).includes(value as T[keyof T]);
+function isValidValue(allowed: readonly string[], value: unknown): boolean {
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value);
 }
 
 function getErrorStatus(message: string): number {
@@ -13,7 +14,16 @@ function getErrorStatus(message: string): number {
   return 500;
 }
 
-export function createTemplateController(templateService: TemplateService, platformValues?: string[]) {
+export interface TemplateControllerOptions {
+  platforms?: string[];
+  categories?: string[];
+  audiences?: string[];
+}
+
+export function createTemplateController(templateService: TemplateService, options?: TemplateControllerOptions) {
+  const platformValues = options?.platforms;
+  const validCategories = options?.categories || Object.values(TEMPLATE_CATEGORY);
+  const validAudiences = options?.audiences || Object.values(TEMPLATE_AUDIENCE);
 
   async function list(req: Request, res: Response) {
     try {
@@ -51,11 +61,11 @@ export function createTemplateController(templateService: TemplateService, platf
       if (!name || !subject || !body || !category || !audience || !platform) {
         return res.status(400).json({ success: false, error: 'name, subject, body, category, audience, and platform are required' });
       }
-      if (!isValidEnum(TemplateCategory, category)) {
-        return res.status(400).json({ success: false, error: `Invalid category. Must be one of: ${Object.values(TemplateCategory).join(', ')}` });
+      if (!isValidValue(validCategories, category)) {
+        return res.status(400).json({ success: false, error: `Invalid category. Must be one of: ${validCategories.join(', ')}` });
       }
-      if (!isValidEnum(TemplateAudience, audience)) {
-        return res.status(400).json({ success: false, error: `Invalid audience. Must be one of: ${Object.values(TemplateAudience).join(', ')}` });
+      if (!isValidValue(validAudiences, audience)) {
+        return res.status(400).json({ success: false, error: `Invalid audience. Must be one of: ${validAudiences.join(', ')}` });
       }
       if (platformValues && !platformValues.includes(platform)) {
         return res.status(400).json({ success: false, error: `Invalid platform. Must be one of: ${platformValues.join(', ')}` });

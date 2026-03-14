@@ -5,7 +5,8 @@ import type { EmailTemplateModel } from '../schemas/template.schema';
 import type { EmailRuleSendModel } from '../schemas/rule-send.schema';
 import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
 import type { EmailThrottleConfigModel } from '../schemas/throttle-config.schema';
-import { RunTrigger, EmailType } from '../types/enums';
+import { RUN_TRIGGER, EMAIL_TYPE } from '../constants';
+import type { RunTrigger } from '../constants';
 import type { RuleRunStats, PerRuleStats } from '../types/rule.types';
 import type { EmailRuleEngineConfig, LogAdapter } from '../types/config.types';
 
@@ -48,7 +49,7 @@ export class RuleRunnerService {
     this.logger = config.logger || defaultLogger;
   }
 
-  async runAllRules(triggeredBy: typeof RunTrigger[keyof typeof RunTrigger] = RunTrigger.Cron): Promise<void> {
+  async runAllRules(triggeredBy: RunTrigger = RUN_TRIGGER.Cron): Promise<void> {
     if (this.config.options?.sendWindow) {
       const { startHour, endHour, timezone } = this.config.options.sendWindow;
       const now = new Date();
@@ -199,31 +200,56 @@ export class RuleRunnerService {
       template.textBody
     );
 
+    const ruleId = rule._id.toString();
+    const templateId = rule.templateId.toString();
+
     for (let i = 0; i < users.length; i++) {
       const user = users[i];
       try {
         const userId = (user._id as any)?.toString();
         const email = user.email as string;
-        if (!userId || !email) { stats.skipped++; continue; }
+        if (!userId || !email) {
+          stats.skipped++;
+          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email: email || 'unknown', status: 'invalid' });
+          continue;
+        }
 
         const lastSend = sendMap.get(userId);
         if (lastSend) {
-          if (rule.sendOnce && !rule.resendAfterDays) { stats.skipped++; continue; }
+          if (rule.sendOnce && !rule.resendAfterDays) {
+            stats.skipped++;
+            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+            continue;
+          }
           if (rule.resendAfterDays) {
             const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
-            if (daysSince < rule.resendAfterDays) { stats.skipped++; continue; }
+            if (daysSince < rule.resendAfterDays) {
+              stats.skipped++;
+              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+              continue;
+            }
           } else {
-            stats.skipped++; continue;
+            stats.skipped++;
+            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+            continue;
           }
         }
 
         const identifier = identifierMap.get(email.toLowerCase().trim());
-        if (!identifier) { stats.skipped++; continue; }
+        if (!identifier) {
+          stats.skipped++;
+          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'invalid' });
+          continue;
+        }
 
-        if (!this.checkThrottle(rule, userId, throttleMap, throttleConfig, stats)) continue;
+        if (!this.checkThrottle(rule, userId, email, throttleMap, throttleConfig, stats)) continue;
 
-        const agentSelection = await this.config.adapters.selectAgent(identifier.id);
-        if (!agentSelection) { stats.skipped++; continue; }
+        const agentSelection = await this.config.adapters.selectAgent(identifier.id, { ruleId, templateId });
+        if (!agentSelection) {
+          stats.skipped++;
+          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+          continue;
+        }
 
         const templateData = this.config.adapters.resolveData(user);
         const rendered = this.templateRenderer.renderFromCompiled(compiled, templateData);
@@ -235,14 +261,16 @@ export class RuleRunnerService {
           subject: rendered.subject,
           htmlBody: rendered.html,
           textBody: rendered.text,
-          ruleId: rule._id.toString(),
+          ruleId,
           autoApprove: rule.autoApprove ?? true
         });
 
         await this.EmailRuleSend.logSend(
-          rule._id.toString(),
+          ruleId,
           userId,
-          identifier.id
+          identifier.id,
+          undefined,
+          { status: 'sent', accountId: agentSelection.accountId, subject: rendered.subject }
         );
 
         const current = throttleMap.get(userId) || { today: 0, thisWeek: 0, lastSentDate: null };
@@ -253,7 +281,7 @@ export class RuleRunnerService {
         });
 
         stats.sent++;
-        this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'sent' });
+        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent' });
 
         if (i < users.length - 1) {
           const delayMs = this.config.options?.delayBetweenSendsMs || 0;
@@ -265,7 +293,7 @@ export class RuleRunnerService {
         }
       } catch (err) {
         stats.errors++;
-        this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email: (user.email as string) || 'unknown', status: 'error' });
+        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email: (user.email as string) || 'unknown', status: 'error' });
         this.logger.error(`Rule "${rule.name}" failed for user ${(user._id as any)?.toString()}`, { error: err });
       }
     }
@@ -275,7 +303,7 @@ export class RuleRunnerService {
       $inc: { totalSent: stats.sent, totalSkipped: stats.skipped }
     });
 
-    this.config.hooks?.onRuleComplete?.({ ruleId: rule._id.toString(), ruleName: rule.name, stats });
+    this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats });
 
     return stats;
   }
@@ -283,26 +311,30 @@ export class RuleRunnerService {
   private checkThrottle(
     rule: any,
     userId: string,
+    email: string,
     throttleMap: Map<string, UserThrottle>,
     config: any,
     stats: RuleRunStats
   ): boolean {
-    if (rule.emailType === EmailType.Transactional || rule.bypassThrottle) return true;
+    if (rule.emailType === EMAIL_TYPE.Transactional || rule.bypassThrottle) return true;
 
     const userThrottle = throttleMap.get(userId) || { today: 0, thisWeek: 0, lastSentDate: null };
 
     if (userThrottle.today >= config.maxPerUserPerDay) {
       stats.skippedByThrottle++;
+      this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled' });
       return false;
     }
     if (userThrottle.thisWeek >= config.maxPerUserPerWeek) {
       stats.skippedByThrottle++;
+      this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled' });
       return false;
     }
     if (userThrottle.lastSentDate) {
       const daysSinceLastSend = (Date.now() - userThrottle.lastSentDate.getTime()) / MS_PER_DAY;
       if (daysSinceLastSend < config.minGapDays) {
         stats.skippedByThrottle++;
+        this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled' });
         return false;
       }
     }

@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import { TemplateAudience, EmailType } from '../types/enums';
+import { TEMPLATE_AUDIENCE, EMAIL_TYPE } from '../constants';
 import type { RuleService } from '../services/rule.service';
 import { getParam } from '../utils/express-helpers';
 
-function isValidEnum<T extends Record<string, string>>(enumObj: T, value: unknown): value is T[keyof T] {
-  return typeof value === 'string' && Object.values(enumObj).includes(value as T[keyof T]);
+function isValidValue(allowed: readonly string[], value: unknown): boolean {
+  return typeof value === 'string' && (allowed as readonly string[]).includes(value);
 }
 
 function getErrorStatus(message: string): number {
@@ -13,7 +13,15 @@ function getErrorStatus(message: string): number {
   return 500;
 }
 
-export function createRuleController(ruleService: RuleService, platformValues?: string[]) {
+export interface RuleControllerOptions {
+  platforms?: string[];
+  audiences?: string[];
+}
+
+export function createRuleController(ruleService: RuleService, options?: RuleControllerOptions) {
+  const platformValues = options?.platforms;
+  const validAudiences = options?.audiences || Object.values(TEMPLATE_AUDIENCE);
+  const validEmailTypes = Object.values(EMAIL_TYPE);
 
   async function list(_req: Request, res: Response) {
     try {
@@ -45,8 +53,8 @@ export function createRuleController(ruleService: RuleService, platformValues?: 
       if (!name || !target || !templateId) {
         return res.status(400).json({ success: false, error: 'name, target, and templateId are required' });
       }
-      if (!target.role || !isValidEnum(TemplateAudience, target.role)) {
-        return res.status(400).json({ success: false, error: `Invalid target.role. Must be one of: ${Object.values(TemplateAudience).join(', ')}` });
+      if (!target.role || !isValidValue(validAudiences, target.role)) {
+        return res.status(400).json({ success: false, error: `Invalid target.role. Must be one of: ${validAudiences.join(', ')}` });
       }
       if (platformValues && !platformValues.includes(target.platform)) {
         return res.status(400).json({ success: false, error: `Invalid target.platform. Must be one of: ${platformValues.join(', ')}` });
@@ -54,8 +62,8 @@ export function createRuleController(ruleService: RuleService, platformValues?: 
       if (!Array.isArray(target.conditions)) {
         return res.status(400).json({ success: false, error: 'target.conditions must be an array' });
       }
-      if (req.body.emailType && !isValidEnum(EmailType, req.body.emailType)) {
-        return res.status(400).json({ success: false, error: `Invalid emailType. Must be one of: ${Object.values(EmailType).join(', ')}` });
+      if (req.body.emailType && !isValidValue(validEmailTypes, req.body.emailType)) {
+        return res.status(400).json({ success: false, error: `Invalid emailType. Must be one of: ${validEmailTypes.join(', ')}` });
       }
 
       const rule = await ruleService.create(req.body);
@@ -70,8 +78,8 @@ export function createRuleController(ruleService: RuleService, platformValues?: 
     try {
       const { target, emailType } = req.body;
 
-      if (target?.role && !isValidEnum(TemplateAudience, target.role)) {
-        return res.status(400).json({ success: false, error: `Invalid target.role. Must be one of: ${Object.values(TemplateAudience).join(', ')}` });
+      if (target?.role && !isValidValue(validAudiences, target.role)) {
+        return res.status(400).json({ success: false, error: `Invalid target.role. Must be one of: ${validAudiences.join(', ')}` });
       }
       if (target?.platform && platformValues && !platformValues.includes(target.platform)) {
         return res.status(400).json({ success: false, error: `Invalid target.platform. Must be one of: ${platformValues.join(', ')}` });
@@ -79,8 +87,8 @@ export function createRuleController(ruleService: RuleService, platformValues?: 
       if (target?.conditions && !Array.isArray(target.conditions)) {
         return res.status(400).json({ success: false, error: 'target.conditions must be an array' });
       }
-      if (emailType && !isValidEnum(EmailType, emailType)) {
-        return res.status(400).json({ success: false, error: `Invalid emailType. Must be one of: ${Object.values(EmailType).join(', ')}` });
+      if (emailType && !isValidValue(validEmailTypes, emailType)) {
+        return res.status(400).json({ success: false, error: `Invalid emailType. Must be one of: ${validEmailTypes.join(', ')}` });
       }
 
       const rule = await ruleService.update(getParam(req, 'id'), req.body);

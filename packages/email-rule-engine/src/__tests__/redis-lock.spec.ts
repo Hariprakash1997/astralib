@@ -1,16 +1,17 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { RedisLock } from '../utils/redis-lock';
 
 const mockRedis = {
-  set: jest.fn(),
-  eval: jest.fn(),
+  set: vi.fn(),
+  eval: vi.fn(),
 };
 
 describe('RedisLock', () => {
   let lock: RedisLock;
-  const mockLogger = { info: jest.fn(), warn: jest.fn(), error: jest.fn() };
+  const mockLogger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     lock = new RedisLock(mockRedis as any, 'test:lock', 30000, mockLogger);
   });
 

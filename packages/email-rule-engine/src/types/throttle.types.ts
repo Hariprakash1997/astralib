@@ -1,4 +1,4 @@
-import { ThrottleWindow } from './enums';
+import type { ThrottleWindow } from '../constants';
 
 export interface EmailThrottleConfig {
   _id: string;
