@@ -7,10 +7,10 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=add configurable audiences and updated README"
+set "COMMIT_MSG=fix doc links to use absolute GitHub URLs in README"
 
 REM Bump type: patch (bug fix), minor (new feature), major (breaking change)
-set "BUMP_TYPE=minor"
+set "BUMP_TYPE=patch"
 
 REM Which package to publish? (folder name under packages/)
 set "PACKAGE=email-rule-engine"
