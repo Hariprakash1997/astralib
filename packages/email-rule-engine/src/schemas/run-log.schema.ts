@@ -2,10 +2,12 @@ import { Schema, Model, Types, HydratedDocument } from 'mongoose';
 import { RUN_TRIGGER } from '../constants';
 
 export interface IEmailRuleRunLog {
+  runId?: string;
   runAt: Date;
   triggeredBy: string;
   duration: number;
   rulesProcessed: number;
+  status?: string;
   totalStats: {
     matched: number;
     sent: number;
@@ -54,7 +56,9 @@ export function createEmailRuleRunLogSchema(collectionPrefix?: string) {
 
   const schema = new Schema<IEmailRuleRunLog>(
     {
+      runId: { type: String, index: true },
       runAt: { type: Date, required: true, default: () => new Date() },
+      status: { type: String, enum: ['completed', 'cancelled', 'failed'], default: 'completed' },
       triggeredBy: { type: String, enum: Object.values(RUN_TRIGGER), required: true },
       duration: { type: Number, required: true },
       rulesProcessed: { type: Number, required: true },

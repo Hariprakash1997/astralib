@@ -1,10 +1,14 @@
 import type { EmailRuleModel, EmailRuleDocument } from '../schemas/rule.schema';
 import type { EmailTemplateModel, EmailTemplateDocument } from '../schemas/template.schema';
 import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
-import type { CreateEmailRuleInput, UpdateEmailRuleInput } from '../types/rule.types';
+import type { CreateEmailRuleInput, UpdateEmailRuleInput, RuleTarget, QueryTarget } from '../types/rule.types';
 import type { TemplateAudience } from '../constants';
 import type { EmailRuleEngineConfig } from '../types/config.types';
 import { TemplateNotFoundError, RuleNotFoundError, RuleTemplateIncompatibleError } from '../errors';
+
+function isQueryTarget(target: RuleTarget): target is QueryTarget {
+  return !target.mode || target.mode === 'query';
+}
 
 const UPDATEABLE_FIELDS = new Set([
   'name', 'description', 'sortOrder', 'target', 'templateId',
@@ -65,13 +69,22 @@ export class RuleService {
       throw new TemplateNotFoundError(input.templateId);
     }
 
-    const compatError = validateRuleTemplateCompat(
-      input.target.role,
-      input.target.platform,
-      template
-    );
-    if (compatError) {
-      throw new RuleTemplateIncompatibleError(compatError);
+    if (isQueryTarget(input.target)) {
+      if (!input.target.role || !input.target.platform) {
+        throw new RuleTemplateIncompatibleError('target.role and target.platform are required for query mode, validation failed');
+      }
+      const compatError = validateRuleTemplateCompat(
+        input.target.role,
+        input.target.platform,
+        template
+      );
+      if (compatError) {
+        throw new RuleTemplateIncompatibleError(compatError);
+      }
+    } else {
+      if (!input.target.identifiers || input.target.identifiers.length === 0) {
+        throw new RuleTemplateIncompatibleError('target.identifiers must be a non-empty array for list mode, validation failed');
+      }
     }
 
     return this.EmailRule.createRule(input);
@@ -82,16 +95,29 @@ export class RuleService {
     if (!rule) return null;
 
     const templateId = input.templateId ?? rule.templateId.toString();
-    const targetRole = input.target?.role ?? rule.target.role;
-    const targetPlatform = input.target?.platform ?? rule.target.platform;
 
-    if (input.templateId || input.target) {
+    if (input.target) {
+      if (isQueryTarget(input.target)) {
+        if (!input.target.role || !input.target.platform) {
+          throw new RuleTemplateIncompatibleError('target.role and target.platform are required for query mode, validation failed');
+        }
+      } else {
+        if (!input.target.identifiers || input.target.identifiers.length === 0) {
+          throw new RuleTemplateIncompatibleError('target.identifiers must be a non-empty array for list mode, validation failed');
+        }
+      }
+    }
+
+    const effectiveTarget = input.target ?? rule.target;
+
+    if ((input.templateId || input.target) && isQueryTarget(effectiveTarget as RuleTarget)) {
+      const qt = effectiveTarget as QueryTarget;
       const template = await this.EmailTemplate.findById(templateId);
       if (!template) {
         throw new TemplateNotFoundError(templateId);
       }
 
-      const compatError = validateRuleTemplateCompat(targetRole, targetPlatform, template);
+      const compatError = validateRuleTemplateCompat(qt.role, qt.platform, template);
       if (compatError) {
         throw new RuleTemplateIncompatibleError(compatError);
       }
@@ -148,6 +174,12 @@ export class RuleService {
     const rule = await this.EmailRule.findById(id);
     if (!rule) {
       throw new RuleNotFoundError(id);
+    }
+
+    const target = rule.target as unknown as RuleTarget;
+    if (target.mode === 'list') {
+      const identifiers = (target as any).identifiers || [];
+      return { matchedCount: identifiers.length, ruleId: id };
     }
 
     const users = await this.config.adapters.queryUsers(rule.target, 50000);

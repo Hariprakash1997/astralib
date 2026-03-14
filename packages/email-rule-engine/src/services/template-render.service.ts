@@ -162,6 +162,21 @@ export class TemplateRenderService {
     return { subjectFn, bodyFn, textBodyFn };
   }
 
+  compileBatchVariants(
+    subjects: string[],
+    bodies: string[],
+    textBody?: string
+  ): { subjectFns: HandlebarsTemplateDelegate[]; bodyFns: HandlebarsTemplateDelegate[]; textBodyFn?: HandlebarsTemplateDelegate } {
+    const subjectFns = subjects.map(s => Handlebars.compile(s, { strict: true }));
+    const bodyFns = bodies.map(b => {
+      const mjmlSource = wrapInMjml(b);
+      const htmlWithHandlebars = compileMjml(mjmlSource);
+      return Handlebars.compile(htmlWithHandlebars, { strict: true });
+    });
+    const textBodyFn = textBody ? Handlebars.compile(textBody, { strict: true }) : undefined;
+    return { subjectFns, bodyFns, textBodyFn };
+  }
+
   renderFromCompiled(
     compiled: CompiledTemplate,
     data: Record<string, unknown>
@@ -182,6 +197,10 @@ export class TemplateRenderService {
     textBody?: string
   ): RenderResult {
     return this.renderSingle(subject, body, data, textBody);
+  }
+
+  htmlToText(html: string): string {
+    return htmlToPlainText(html);
   }
 
   extractVariables(template: string): string[] {

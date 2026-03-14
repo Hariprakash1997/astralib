@@ -14,11 +14,19 @@ export interface RuleRunStats {
   errors: number;
 }
 
-export interface RuleTarget {
+export interface QueryTarget {
+  mode: 'query';
   role: TemplateAudience;
   platform: string;
   conditions: RuleCondition[];
 }
+
+export interface ListTarget {
+  mode: 'list';
+  identifiers: string[];
+}
+
+export type RuleTarget = QueryTarget | ListTarget;
 
 export interface EmailRule {
   _id: string;

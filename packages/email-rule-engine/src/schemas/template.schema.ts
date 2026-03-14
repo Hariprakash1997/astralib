@@ -36,9 +36,9 @@ export function createEmailTemplateSchema(
         ...(platformValues ? { enum: platformValues } : {})
       },
 
-      subject: { type: String, required: true },
-      body: { type: String, required: true },
       textBody: String,
+      subjects: { type: [{ type: String }], required: true, validate: [(v: string[]) => v.length >= 1, 'At least one subject is required'] },
+      bodies: { type: [{ type: String }], required: true, validate: [(v: string[]) => v.length >= 1, 'At least one body is required'] },
 
       variables: [{ type: String }],
       version: { type: Number, default: 1 },
@@ -76,9 +76,9 @@ export function createEmailTemplateSchema(
             category: input.category,
             audience: input.audience,
             platform: input.platform,
-            subject: input.subject,
-            body: input.body,
             textBody: input.textBody,
+            subjects: input.subjects,
+            bodies: input.bodies,
             variables: input.variables || [],
             version: 1,
             isActive: true

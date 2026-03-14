@@ -94,6 +94,50 @@ describe('TemplateRenderService', () => {
     });
   });
 
+  describe('compileBatchVariants', () => {
+    it('compiles multiple subjects and bodies into arrays of functions', () => {
+      const result = service.compileBatchVariants(
+        ['Hello {{name}}', 'Hi {{name}}'],
+        ['<p>Body A for {{name}}</p>', '<p>Body B for {{name}}</p>']
+      );
+
+      expect(result.subjectFns).toHaveLength(2);
+      expect(result.bodyFns).toHaveLength(2);
+      expect(result.textBodyFn).toBeUndefined();
+
+      const data = { name: 'Alice' };
+      expect(result.subjectFns[0](data)).toBe('Hello Alice');
+      expect(result.subjectFns[1](data)).toBe('Hi Alice');
+      expect(result.bodyFns[0](data)).toContain('Body A for Alice');
+      expect(result.bodyFns[1](data)).toContain('Body B for Alice');
+    });
+
+    it('compiles single-element arrays', () => {
+      const result = service.compileBatchVariants(
+        ['Only subject {{name}}'],
+        ['<p>Only body {{name}}</p>']
+      );
+
+      expect(result.subjectFns).toHaveLength(1);
+      expect(result.bodyFns).toHaveLength(1);
+
+      const data = { name: 'Bob' };
+      expect(result.subjectFns[0](data)).toBe('Only subject Bob');
+      expect(result.bodyFns[0](data)).toContain('Only body Bob');
+    });
+
+    it('includes textBodyFn when textBody is provided', () => {
+      const result = service.compileBatchVariants(
+        ['Subject {{name}}'],
+        ['<p>Body</p>'],
+        'Plain text for {{name}}'
+      );
+
+      expect(result.textBodyFn).toBeDefined();
+      expect(result.textBodyFn!({ name: 'Charlie' })).toBe('Plain text for Charlie');
+    });
+  });
+
   describe('extractVariables', () => {
     it('finds all {{variable}} patterns, ignores helpers (#if, /if, etc.)', () => {
       const template = '{{name}} {{#if active}}{{email}}{{/if}} {{! comment}} {{> partial}}';

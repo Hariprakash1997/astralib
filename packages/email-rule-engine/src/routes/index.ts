@@ -62,6 +62,8 @@ export function createRoutes(deps: RoutesDeps): Router {
   const runnerRouter = Router();
   runnerRouter.post('/', runnerCtrl.triggerManualRun);
   runnerRouter.get('/status', runnerCtrl.getLatestRun);
+  runnerRouter.get('/status/:runId', runnerCtrl.getStatusByRunId);
+  runnerRouter.post('/cancel/:runId', runnerCtrl.cancelRun);
 
   const settingsRouter = Router();
   settingsRouter.get('/throttle', settingsCtrl.getThrottleConfig);

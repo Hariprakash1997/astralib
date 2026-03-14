@@ -56,11 +56,12 @@ export function createTemplateController(templateService: TemplateService, optio
 
   async function create(req: Request, res: Response) {
     try {
-      const { name, subject, body, category, audience, platform } = req.body;
+      const { name, subjects, bodies, category, audience, platform } = req.body;
 
-      if (!name || !subject || !body || !category || !audience || !platform) {
-        return res.status(400).json({ success: false, error: 'name, subject, body, category, audience, and platform are required' });
+      if (!name || !subjects || subjects.length === 0 || !bodies || bodies.length === 0 || !category || !audience || !platform) {
+        return res.status(400).json({ success: false, error: 'name, subjects, bodies, category, audience, and platform are required' });
       }
+
       if (!isValidValue(validCategories, category)) {
         return res.status(400).json({ success: false, error: `Invalid category. Must be one of: ${validCategories.join(', ')}` });
       }

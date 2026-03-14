@@ -7,14 +7,14 @@ export type {
   EmailTemplate, CreateEmailTemplateInput, UpdateEmailTemplateInput
 } from './template.types';
 export type {
-  RuleCondition, RuleRunStats, RuleTarget,
+  RuleCondition, RuleRunStats, RuleTarget, QueryTarget, ListTarget,
   EmailRule, CreateEmailRuleInput, UpdateEmailRuleInput,
   EmailRuleSend, PerRuleStats, EmailRuleRunLog
 } from './rule.types';
 export type { EmailThrottleConfig, UpdateEmailThrottleConfigInput } from './throttle.types';
 export type {
   EmailRuleEngineConfig, SendEmailParams, AgentSelection,
-  RecipientIdentifier, LogAdapter
+  RecipientIdentifier, LogAdapter, BeforeSendParams, BeforeSendResult
 } from './config.types';
 
 export {

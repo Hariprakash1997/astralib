@@ -9,9 +9,9 @@ export interface EmailTemplate {
   audience: TemplateAudience;
   platform: string;
 
-  subject: string;
-  body: string;
   textBody?: string;
+  subjects: string[];
+  bodies: string[];
 
   variables: string[];
   version: number;
@@ -28,9 +28,9 @@ export interface CreateEmailTemplateInput {
   category: TemplateCategory;
   audience: TemplateAudience;
   platform: string;
-  subject: string;
-  body: string;
   textBody?: string;
+  subjects: string[];
+  bodies: string[];
   variables?: string[];
 }
 
@@ -40,9 +40,9 @@ export interface UpdateEmailTemplateInput {
   category?: TemplateCategory;
   audience?: TemplateAudience;
   platform?: string;
-  subject?: string;
-  body?: string;
   textBody?: string;
+  subjects?: string[];
+  bodies?: string[];
   variables?: string[];
   isActive?: boolean;
 }

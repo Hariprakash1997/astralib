@@ -7,7 +7,7 @@ import { DuplicateSlugError, TemplateSyntaxError, TemplateNotFoundError } from '
 
 const UPDATEABLE_FIELDS = new Set([
   'name', 'description', 'category', 'audience', 'platform',
-  'subject', 'body', 'textBody', 'variables', 'isActive'
+  'textBody', 'subjects', 'bodies', 'variables', 'isActive'
 ]);
 
 function slugify(name: string): string {
@@ -58,18 +58,25 @@ export class TemplateService {
       throw new DuplicateSlugError(slug);
     }
 
-    const validation = this.renderService.validateTemplate(input.body);
-    if (!validation.valid) {
-      throw new TemplateSyntaxError(`Template validation failed: ${validation.errors.join('; ')}`, validation.errors);
+    const { subjects, bodies } = input;
+    if (subjects.length === 0) throw new TemplateSyntaxError('At least one subject is required', ['At least one subject is required']);
+    if (bodies.length === 0) throw new TemplateSyntaxError('At least one body is required', ['At least one body is required']);
+
+    for (const b of bodies) {
+      const validation = this.renderService.validateTemplate(b);
+      if (!validation.valid) {
+        throw new TemplateSyntaxError(`Template validation failed: ${validation.errors.join('; ')}`, validation.errors);
+      }
     }
 
-    const variables = input.variables || this.renderService.extractVariables(
-      `${input.subject} ${input.body} ${input.textBody || ''}`
-    );
+    const allContent = [...subjects, ...bodies, input.textBody || ''].join(' ');
+    const variables = input.variables || this.renderService.extractVariables(allContent);
 
     return this.EmailTemplate.createTemplate({
       ...input,
       slug,
+      subjects,
+      bodies,
       variables
     });
   }
@@ -78,21 +85,30 @@ export class TemplateService {
     const template = await this.EmailTemplate.findById(id);
     if (!template) return null;
 
-    if (input.body) {
-      const validation = this.renderService.validateTemplate(input.body);
-      if (!validation.valid) {
-        throw new TemplateSyntaxError(`Template validation failed: ${validation.errors.join('; ')}`, validation.errors);
+    if (input.subjects && input.subjects.length === 0) {
+      throw new TemplateSyntaxError('At least one subject is required', ['At least one subject is required']);
+    }
+    if (input.bodies && input.bodies.length === 0) {
+      throw new TemplateSyntaxError('At least one body is required', ['At least one body is required']);
+    }
+
+    const bodiesToValidate = input.bodies || null;
+    if (bodiesToValidate) {
+      for (const b of bodiesToValidate) {
+        const validation = this.renderService.validateTemplate(b);
+        if (!validation.valid) {
+          throw new TemplateSyntaxError(`Template validation failed: ${validation.errors.join('; ')}`, validation.errors);
+        }
       }
     }
 
-    if (input.body || input.subject || input.textBody) {
-      const subject = input.subject ?? template.subject;
-      const body = input.body ?? template.body;
+    if (input.textBody || input.subjects || input.bodies) {
+      const subjects = input.subjects ?? template.subjects;
+      const bodies = input.bodies ?? template.bodies;
       const textBody = input.textBody ?? template.textBody;
 
-      input.variables = this.renderService.extractVariables(
-        `${subject} ${body} ${textBody || ''}`
-      );
+      const allContent = [...subjects, ...bodies, textBody || ''].join(' ');
+      input.variables = this.renderService.extractVariables(allContent);
     }
 
     const setFields: Record<string, unknown> = {};
@@ -103,7 +119,7 @@ export class TemplateService {
     }
 
     const update: Record<string, unknown> = { $set: setFields };
-    if (input.body || input.subject || input.textBody) {
+    if (input.textBody || input.subjects || input.bodies) {
       update['$inc'] = { version: 1 };
     }
 
@@ -136,8 +152,8 @@ export class TemplateService {
     if (!template) return null;
 
     return this.renderService.renderPreview(
-      template.subject,
-      template.body,
+      template.subjects[0],
+      template.bodies[0],
       sampleData,
       template.textBody
     );
@@ -173,8 +189,8 @@ export class TemplateService {
     }
 
     const rendered = this.renderService.renderSingle(
-      template.subject,
-      template.body,
+      template.subjects[0],
+      template.bodies[0],
       sampleData,
       template.textBody
     );

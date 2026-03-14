@@ -16,11 +16,17 @@ vi.mock('../services/template-render.service', () => ({
       bodyFn: vi.fn(),
       textBodyFn: vi.fn(),
     }),
+    compileBatchVariants: vi.fn().mockReturnValue({
+      subjectFns: [vi.fn().mockReturnValue('Rendered Subject')],
+      bodyFns: [vi.fn().mockReturnValue('<p>Rendered HTML</p>')],
+      textBodyFn: vi.fn().mockReturnValue('Rendered Text'),
+    }),
     renderFromCompiled: vi.fn().mockReturnValue({
       subject: 'Rendered Subject',
       html: '<p>Rendered HTML</p>',
       text: 'Rendered Text',
     }),
+    htmlToText: vi.fn().mockReturnValue('Rendered Text'),
   })),
 }));
 
@@ -59,20 +65,32 @@ function createMockModels() {
   };
 }
 
-function createMockConfig(adapterOverrides: Record<string, any> = {}) {
+function createMockRedis() {
+  return {
+    hset: vi.fn().mockResolvedValue(1),
+    hget: vi.fn().mockResolvedValue(null),
+    hgetall: vi.fn().mockResolvedValue({}),
+    expire: vi.fn().mockResolvedValue(1),
+    exists: vi.fn().mockResolvedValue(0),
+    set: vi.fn().mockResolvedValue('OK'),
+  };
+}
+
+function createMockConfig(adapterOverrides: Record<string, any> = {}, extraOverrides: Record<string, any> = {}) {
   return {
     db: { connection: {} as any, collectionPrefix: '' },
-    redis: { connection: {} as any, keyPrefix: 'test:' },
+    redis: { connection: createMockRedis() as any, keyPrefix: 'test:' },
     adapters: {
       queryUsers: vi.fn().mockResolvedValue([]),
       resolveData: vi.fn().mockImplementation((user: any) => user),
       sendEmail: vi.fn().mockResolvedValue(undefined),
-      selectAgent: vi.fn().mockResolvedValue({ accountId: 'acc-1' }),
+      selectAgent: vi.fn().mockResolvedValue({ accountId: 'acc-1', email: 'agent@example.com', metadata: { team: 'support' } }),
       findIdentifier: vi.fn().mockResolvedValue({ id: 'ident-1', contactId: 'contact-1' }),
       ...adapterOverrides,
     },
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     options: { lockTTLMs: 30000 },
+    ...extraOverrides,
   };
 }
 
@@ -101,7 +119,7 @@ function makeRule(overrides: Record<string, any> = {}) {
     autoApprove: true,
     bypassThrottle: false,
     emailType: EMAIL_TYPE.Automated,
-    target: { role: 'customer', platform: 'w1', conditions: [] },
+    target: { mode: 'query', role: 'customer', platform: 'w1', conditions: [] },
     ...overrides,
   };
 }
@@ -162,8 +180,8 @@ describe('RuleRunnerService', () => {
 
       const templateDoc = {
         _id: 'template-1',
-        subject: 'Hi {{name}}',
-        body: '<p>Hello</p>',
+        subjects: ['Hi {{name}}'],
+        bodies: ['<p>Hello</p>'],
         textBody: undefined,
       };
       models.EmailRule.findActive.mockResolvedValue([makeRule()]);
@@ -222,7 +240,7 @@ describe('RuleRunnerService', () => {
 
     it('returns error stats when queryUsers fails', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       const config = createMockConfig({
         queryUsers: vi.fn().mockRejectedValue(new Error('query failed')),
       });
@@ -234,7 +252,7 @@ describe('RuleRunnerService', () => {
 
     it('returns {matched:0} when no users match', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       const config = createMockConfig({
         queryUsers: vi.fn().mockResolvedValue([]),
       });
@@ -247,7 +265,7 @@ describe('RuleRunnerService', () => {
 
     it('skips users without email or userId', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
         queryUsers: vi.fn().mockResolvedValue([
@@ -266,7 +284,7 @@ describe('RuleRunnerService', () => {
 
     it('skips users already sent (sendOnce=true)', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([
         { userId: 'user-1', ruleId: 'rule-1', sentAt: new Date() },
       ]));
@@ -283,7 +301,7 @@ describe('RuleRunnerService', () => {
 
     it('allows resend when resendAfterDays has elapsed', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
 
       const oldDate = new Date(Date.now() - 10 * 86400000);
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([
@@ -302,7 +320,7 @@ describe('RuleRunnerService', () => {
 
     it('skips users without identifier', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
         queryUsers: vi.fn().mockResolvedValue([makeUser()]),
@@ -317,7 +335,7 @@ describe('RuleRunnerService', () => {
 
     it('skips users when selectAgent returns null', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
         queryUsers: vi.fn().mockResolvedValue([makeUser()]),
@@ -333,7 +351,7 @@ describe('RuleRunnerService', () => {
 
     it('calls sendEmail with correct params for successful send', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
         queryUsers: vi.fn().mockResolvedValue([makeUser()]),
@@ -359,7 +377,7 @@ describe('RuleRunnerService', () => {
 
     it('logs send after successful email', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
         queryUsers: vi.fn().mockResolvedValue([makeUser()]),
@@ -378,7 +396,7 @@ describe('RuleRunnerService', () => {
 
     it('increments throttle map after send', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
         queryUsers: vi.fn().mockResolvedValue([makeUser()]),
@@ -398,7 +416,7 @@ describe('RuleRunnerService', () => {
 
     it('updates rule stats after execution', async () => {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
         queryUsers: vi.fn().mockResolvedValue([makeUser()]),
@@ -446,6 +464,366 @@ describe('RuleRunnerService', () => {
     });
   });
 
+  describe('A/B variant selection', () => {
+    it('passes subjectIndex and bodyIndex to logSend', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi {{name}}'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(models.EmailRuleSend.logSend).toHaveBeenCalledWith(
+        'rule-1', 'user-1', 'ident-1',
+        undefined,
+        expect.objectContaining({ subjectIndex: expect.any(Number), bodyIndex: expect.any(Number) })
+      );
+    });
+
+    it('works with single-element arrays (index 0)', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Only subject'], bodies: ['<p>Only body</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(models.EmailRuleSend.logSend).toHaveBeenCalledWith(
+        'rule-1', 'user-1', 'ident-1',
+        undefined,
+        expect.objectContaining({ subjectIndex: 0, bodyIndex: 0 })
+      );
+    });
+
+    it('picks variant and uses rendered output in sendEmail', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({
+        subjects: ['Subject A', 'Subject B'],
+        bodies: ['<p>Body A</p>', '<p>Body B</p>'],
+      });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(config.adapters.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: 'Rendered Subject',
+          htmlBody: '<p>Rendered HTML</p>',
+          textBody: 'Rendered Text',
+        })
+      );
+    });
+  });
+
+  describe('beforeSend hook', () => {
+    it('calls hook with correct params and uses returned values in sendEmail', async () => {
+      const beforeSend = vi.fn().mockResolvedValue({
+        htmlBody: '<p>Modified HTML</p>',
+        textBody: 'Modified Text',
+        subject: 'Modified Subject',
+      });
+
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig(
+        { queryUsers: vi.fn().mockResolvedValue([makeUser()]) },
+        { hooks: { beforeSend } }
+      );
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(beforeSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          htmlBody: expect.any(String),
+          textBody: expect.any(String),
+          subject: expect.any(String),
+          account: expect.objectContaining({
+            id: 'acc-1',
+            email: 'agent@example.com',
+            metadata: { team: 'support' },
+          }),
+          user: expect.objectContaining({
+            id: expect.any(String),
+            email: 'alice@example.com',
+          }),
+        })
+      );
+
+      expect(config.adapters.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: 'Modified Subject',
+          htmlBody: '<p>Modified HTML</p>',
+          textBody: 'Modified Text',
+        })
+      );
+    });
+
+    it('sends rendering output directly when no hook is configured', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(config.adapters.sendEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: 'Rendered Subject',
+          htmlBody: '<p>Rendered HTML</p>',
+          textBody: 'Rendered Text',
+        })
+      );
+    });
+
+    it('catches hook errors and skips user with stats.errors++', async () => {
+      const beforeSend = vi.fn().mockRejectedValue(new Error('hook boom'));
+
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig(
+        { queryUsers: vi.fn().mockResolvedValue([makeUser()]) },
+        { hooks: { beforeSend } }
+      );
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      const stats = await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(stats.errors).toBe(1);
+      expect(stats.sent).toBe(0);
+      expect(config.adapters.sendEmail).not.toHaveBeenCalled();
+      expect(config.logger.error).toHaveBeenCalledWith(expect.stringContaining('beforeSend hook failed'));
+    });
+  });
+
+  describe('list-mode targeting', () => {
+    function makeListRule(overrides: Record<string, any> = {}) {
+      return makeRule({
+        target: { mode: 'list', identifiers: ['alice@example.com', 'bob@example.com'] },
+        ...overrides,
+      });
+    }
+
+    it('does not call queryUsers when target.mode is list', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        findIdentifier: vi.fn().mockResolvedValue({ id: 'ident-1', contactId: 'contact-1' }),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeListRule(), new Map(), throttleConfig);
+
+      expect(config.adapters.queryUsers).not.toHaveBeenCalled();
+    });
+
+    it('calls findIdentifier for each email in the list', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        findIdentifier: vi.fn()
+          .mockResolvedValueOnce({ id: 'ident-a', contactId: 'contact-a' })
+          .mockResolvedValueOnce({ id: 'ident-b', contactId: 'contact-b' }),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeListRule(), new Map(), throttleConfig);
+
+      expect(config.adapters.findIdentifier).toHaveBeenCalledWith('alice@example.com');
+      expect(config.adapters.findIdentifier).toHaveBeenCalledWith('bob@example.com');
+    });
+
+    it('deduplicates when sendOnce is true and same identifier appears twice', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      const sameId = 'ident-same';
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([
+        { userId: sameId, ruleId: 'rule-1', sentAt: new Date() },
+      ]));
+      const config = createMockConfig({
+        findIdentifier: vi.fn().mockResolvedValue({ id: sameId, contactId: 'contact-1' }),
+      });
+      const { service } = createService(models, config);
+
+      const rule = makeListRule({ sendOnce: true });
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      const stats = await service.executeRule(rule, new Map(), throttleConfig);
+
+      expect(stats.sent).toBe(0);
+      expect(stats.skipped).toBeGreaterThanOrEqual(1);
+    });
+
+    it('limits identifiers processed by maxPerRun', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        findIdentifier: vi.fn().mockResolvedValue({ id: 'ident-1', contactId: 'contact-1' }),
+      });
+      const { service } = createService(models, config);
+
+      const rule = makeListRule({
+        target: {
+          mode: 'list',
+          identifiers: ['a@test.com', 'b@test.com', 'c@test.com', 'd@test.com', 'e@test.com'],
+        },
+        maxPerRun: 2,
+      });
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      const stats = await service.executeRule(rule, new Map(), throttleConfig);
+
+      expect(stats.matched).toBe(2);
+    });
+
+    it('skips invalid identifiers when findIdentifier returns null', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        findIdentifier: vi.fn()
+          .mockResolvedValueOnce(null)
+          .mockResolvedValueOnce({ id: 'ident-b', contactId: 'contact-b' }),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      const stats = await service.executeRule(makeListRule(), new Map(), throttleConfig);
+
+      expect(stats.skipped).toBeGreaterThanOrEqual(1);
+      expect(stats.sent).toBeLessThanOrEqual(1);
+    });
+  });
+
+  describe('run ID, status, and cancel', () => {
+    it('runAllRules returns { runId: string }', async () => {
+      const { service } = createService();
+
+      const result = await service.runAllRules();
+      expect(result).toHaveProperty('runId');
+      expect(typeof result.runId).toBe('string');
+      expect(result.runId.length).toBeGreaterThan(0);
+    });
+
+    it('trigger returns { runId } immediately (non-blocking)', () => {
+      const { service } = createService();
+
+      const result = service.trigger();
+      expect(result).toHaveProperty('runId');
+      expect(typeof result.runId).toBe('string');
+    });
+
+    it('getStatus reads from Redis and returns progress', async () => {
+      const models = createMockModels();
+      const config = createMockConfig();
+      (config.redis.connection as any).hgetall.mockResolvedValue({
+        runId: 'test-run-id',
+        status: 'running',
+        currentRule: 'Test Rule',
+        progress: JSON.stringify({ rulesTotal: 5, rulesCompleted: 2, sent: 10, failed: 1, skipped: 3, invalid: 0 }),
+        startedAt: '2025-01-01T00:00:00.000Z',
+        elapsed: '5000',
+      });
+      const { service } = createService(models, config);
+
+      const status = await service.getStatus('test-run-id');
+      expect(status).not.toBeNull();
+      expect(status!.runId).toBe('test-run-id');
+      expect(status!.status).toBe('running');
+      expect(status!.currentRule).toBe('Test Rule');
+      expect(status!.progress.rulesTotal).toBe(5);
+      expect(status!.progress.sent).toBe(10);
+      expect(status!.elapsed).toBe(5000);
+    });
+
+    it('getStatus returns null when no data in Redis', async () => {
+      const models = createMockModels();
+      const config = createMockConfig();
+      (config.redis.connection as any).hgetall.mockResolvedValue({});
+      const { service } = createService(models, config);
+
+      const status = await service.getStatus('nonexistent');
+      expect(status).toBeNull();
+    });
+
+    it('cancel sets a Redis key', async () => {
+      const models = createMockModels();
+      const config = createMockConfig();
+      (config.redis.connection as any).exists.mockResolvedValue(1);
+      const { service } = createService(models, config);
+
+      const result = await service.cancel('test-run-id');
+      expect(result).toEqual({ ok: true });
+      expect((config.redis.connection as any).set).toHaveBeenCalledWith(
+        'test:run:test-run-id:cancel', '1', 'EX', 3600
+      );
+    });
+
+    it('cancel returns { ok: false } when run does not exist', async () => {
+      const models = createMockModels();
+      const config = createMockConfig();
+      (config.redis.connection as any).exists.mockResolvedValue(0);
+      const { service } = createService(models, config);
+
+      const result = await service.cancel('nonexistent');
+      expect(result).toEqual({ ok: false });
+    });
+
+    it('cancel flag stops processing mid-run', async () => {
+      const models = createMockModels();
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([
+          makeUser({ _id: 'u1', email: 'u1@test.com' }),
+          makeUser({ _id: 'u2', email: 'u2@test.com' }),
+        ]),
+      });
+
+      const rule1 = makeRule({ _id: 'rule-1', name: 'Rule 1' });
+      const rule2 = makeRule({ _id: 'rule-2', name: 'Rule 2' });
+      models.EmailRule.findActive.mockResolvedValue([rule1, rule2]);
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailTemplate.find.mockImplementation(() => ({
+        lean: vi.fn().mockResolvedValue([{ _id: 'template-1', subjects: ['Hi'], bodies: ['<p>Hi</p>'] }]),
+      }));
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+
+      let callCount = 0;
+      (config.redis.connection as any).exists.mockImplementation(() => {
+        callCount++;
+        return callCount > 1 ? 1 : 0;
+      });
+
+      const { service } = createService(models, config);
+      const result = await service.runAllRules();
+
+      expect(result).toHaveProperty('runId');
+    });
+  });
+
   describe('checkThrottle (via executeRule)', () => {
     function setupForThrottle(
       ruleOverrides: Record<string, any> = {},
@@ -453,7 +831,7 @@ describe('RuleRunnerService', () => {
       throttleConfig: any = { maxPerUserPerDay: 3, maxPerUserPerWeek: 10, minGapDays: 1 }
     ) {
       const models = createMockModels();
-      models.EmailTemplate.findById.mockResolvedValue({ subject: 'Hi', body: '<p>Hi</p>' });
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
       models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
       const config = createMockConfig({
         queryUsers: vi.fn().mockResolvedValue([makeUser()]),

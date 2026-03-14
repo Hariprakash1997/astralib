@@ -24,13 +24,14 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
   }, { _id: false });
 
   const RuleTargetSchema = new Schema({
-    role: { type: String, enum: audienceValues || Object.values(TEMPLATE_AUDIENCE), required: true },
+    mode: { type: String, enum: ['query', 'list'], required: true },
+    role: { type: String, enum: audienceValues || Object.values(TEMPLATE_AUDIENCE) },
     platform: {
       type: String,
-      required: true,
       ...(platformValues ? { enum: platformValues } : {})
     },
-    conditions: [RuleConditionSchema]
+    conditions: [RuleConditionSchema],
+    identifiers: [{ type: String }]
   }, { _id: false });
 
   const RuleRunStatsSchema = new Schema({

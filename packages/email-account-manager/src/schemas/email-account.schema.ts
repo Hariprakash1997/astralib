@@ -34,6 +34,8 @@ export interface IEmailAccount {
     schedule: WarmupPhase[];
   };
 
+  metadata?: Record<string, unknown>;
+
   totalEmailsSent: number;
   lastSuccessfulSendAt?: Date;
   lastImapCheckAt?: Date;
@@ -145,6 +147,11 @@ export function createEmailAccountSchema(options?: CreateEmailAccountSchemaOptio
         },
         required: true,
         _id: false,
+      },
+
+      metadata: {
+        type: Schema.Types.Mixed,
+        default: {},
       },
 
       totalEmailsSent: { type: Number, default: 0 },

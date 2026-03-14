@@ -18,11 +18,47 @@ export interface SendEmailParams {
 
 export interface AgentSelection {
   accountId: string;
+  email: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface BeforeSendParams {
+  htmlBody: string;
+  textBody: string;
+  subject: string;
+  account: { id: string; email: string; metadata: Record<string, unknown> };
+  user: { id: string; email: string; name: string };
+}
+
+export interface BeforeSendResult {
+  htmlBody: string;
+  textBody: string;
+  subject: string;
 }
 
 export interface RecipientIdentifier {
   id: string;
   contactId: string;
+}
+
+export interface RunProgress {
+  rulesTotal: number;
+  rulesCompleted: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  invalid: number;
+}
+
+export type RunStatus = 'running' | 'completed' | 'cancelled' | 'failed';
+
+export interface RunStatusResponse {
+  runId: string;
+  status: RunStatus;
+  currentRule: string;
+  progress: RunProgress;
+  startedAt: string;
+  elapsed: number;
 }
 
 export interface EmailRuleEngineConfig {
@@ -71,5 +107,6 @@ export interface EmailRuleEngineConfig {
     onSend?: (info: { ruleId: string; ruleName: string; email: string; status: 'sent' | 'error' | 'skipped' | 'invalid' | 'throttled' }) => void;
     onRuleComplete?: (info: { ruleId: string; ruleName: string; stats: RuleRunStats }) => void;
     onRunComplete?: (info: { duration: number; totalStats: RuleRunStats; perRuleStats: PerRuleStats[] }) => void;
+    beforeSend?: (params: BeforeSendParams) => Promise<BeforeSendResult>;
   };
 }

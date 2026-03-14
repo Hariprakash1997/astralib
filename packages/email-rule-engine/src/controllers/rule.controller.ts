@@ -53,15 +53,25 @@ export function createRuleController(ruleService: RuleService, options?: RuleCon
       if (!name || !target || !templateId) {
         return res.status(400).json({ success: false, error: 'name, target, and templateId are required' });
       }
-      if (!target.role || !isValidValue(validAudiences, target.role)) {
-        return res.status(400).json({ success: false, error: `Invalid target.role. Must be one of: ${validAudiences.join(', ')}` });
+
+      const mode = target.mode || 'query';
+
+      if (mode === 'list') {
+        if (!Array.isArray(target.identifiers) || target.identifiers.length === 0) {
+          return res.status(400).json({ success: false, error: 'target.identifiers must be a non-empty array for list mode' });
+        }
+      } else {
+        if (!target.role || !isValidValue(validAudiences, target.role)) {
+          return res.status(400).json({ success: false, error: `Invalid target.role. Must be one of: ${validAudiences.join(', ')}` });
+        }
+        if (platformValues && !platformValues.includes(target.platform)) {
+          return res.status(400).json({ success: false, error: `Invalid target.platform. Must be one of: ${platformValues.join(', ')}` });
+        }
+        if (!Array.isArray(target.conditions)) {
+          return res.status(400).json({ success: false, error: 'target.conditions must be an array' });
+        }
       }
-      if (platformValues && !platformValues.includes(target.platform)) {
-        return res.status(400).json({ success: false, error: `Invalid target.platform. Must be one of: ${platformValues.join(', ')}` });
-      }
-      if (!Array.isArray(target.conditions)) {
-        return res.status(400).json({ success: false, error: 'target.conditions must be an array' });
-      }
+
       if (req.body.emailType && !isValidValue(validEmailTypes, req.body.emailType)) {
         return res.status(400).json({ success: false, error: `Invalid emailType. Must be one of: ${validEmailTypes.join(', ')}` });
       }
@@ -78,15 +88,25 @@ export function createRuleController(ruleService: RuleService, options?: RuleCon
     try {
       const { target, emailType } = req.body;
 
-      if (target?.role && !isValidValue(validAudiences, target.role)) {
-        return res.status(400).json({ success: false, error: `Invalid target.role. Must be one of: ${validAudiences.join(', ')}` });
+      if (target) {
+        const mode = target.mode || 'query';
+        if (mode === 'list') {
+          if (target.identifiers && (!Array.isArray(target.identifiers) || target.identifiers.length === 0)) {
+            return res.status(400).json({ success: false, error: 'target.identifiers must be a non-empty array for list mode' });
+          }
+        } else {
+          if (target.role && !isValidValue(validAudiences, target.role)) {
+            return res.status(400).json({ success: false, error: `Invalid target.role. Must be one of: ${validAudiences.join(', ')}` });
+          }
+          if (target.platform && platformValues && !platformValues.includes(target.platform)) {
+            return res.status(400).json({ success: false, error: `Invalid target.platform. Must be one of: ${platformValues.join(', ')}` });
+          }
+          if (target.conditions && !Array.isArray(target.conditions)) {
+            return res.status(400).json({ success: false, error: 'target.conditions must be an array' });
+          }
+        }
       }
-      if (target?.platform && platformValues && !platformValues.includes(target.platform)) {
-        return res.status(400).json({ success: false, error: `Invalid target.platform. Must be one of: ${platformValues.join(', ')}` });
-      }
-      if (target?.conditions && !Array.isArray(target.conditions)) {
-        return res.status(400).json({ success: false, error: 'target.conditions must be an array' });
-      }
+
       if (emailType && !isValidValue(validEmailTypes, emailType)) {
         return res.status(400).json({ success: false, error: `Invalid emailType. Must be one of: ${validEmailTypes.join(', ')}` });
       }
