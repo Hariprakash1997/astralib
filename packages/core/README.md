@@ -70,10 +70,10 @@ validate({
 
 ## Documentation
 
-- [Error Classes](docs/errors.md) -- AlxError, ConfigValidationError, extending for your package
-- [Type Contracts](docs/types.md) -- LogAdapter, BaseDbConfig, BaseRedisConfig
-- [Validation](docs/validation.md) -- Zod schemas, createConfigValidator, composing schemas
-- [Package Author Guide](docs/package-author-guide.md) -- Building new @astralibx packages on top of core
+- [Error Classes](https://github.com/Hariprakash1997/astralib/blob/main/packages/core/docs/errors.md) -- AlxError, ConfigValidationError, extending for your package
+- [Type Contracts](https://github.com/Hariprakash1997/astralib/blob/main/packages/core/docs/types.md) -- LogAdapter, BaseDbConfig, BaseRedisConfig
+- [Validation](https://github.com/Hariprakash1997/astralib/blob/main/packages/core/docs/validation.md) -- Zod schemas, createConfigValidator, composing schemas
+- [Package Author Guide](https://github.com/Hariprakash1997/astralib/blob/main/packages/core/docs/package-author-guide.md) -- Building new @astralibx packages on top of core
 
 ## License
 

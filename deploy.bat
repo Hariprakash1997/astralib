@@ -7,14 +7,14 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=fix CI publish by removing prepublishOnly, update root README"
+set "COMMIT_MSG=fix README doc links to use absolute GitHub URLs for npm"
 
 REM Bump type: patch (bug fix), minor (new feature), major (breaking change)
 set "BUMP_TYPE=patch"
 
 REM Which packages? Comma-separated folder names, or "all" for everything
 REM Examples: email-rule-engine | email-rule-engine,core | all
-set "PACKAGES=email-account-manager,email-rule-engine"
+set "PACKAGES=all"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

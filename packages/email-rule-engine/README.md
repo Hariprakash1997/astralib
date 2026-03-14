@@ -100,23 +100,23 @@ The `createEmailRuleEngine(config)` factory accepts an `EmailRuleEngineConfig` o
 | `hooks` | No | Callbacks at key execution points |
 | `logger` | No | Logger with `info`, `warn`, `error` methods |
 
-See [docs/configuration.md](docs/configuration.md) for the full reference with examples.
+See [docs/configuration.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/configuration.md) for the full reference with examples.
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [Configuration](docs/configuration.md) | Full config reference -- db, redis, adapters, platforms, options, hooks, logger |
-| [Adapters](docs/adapters.md) | All 6 adapters with type signatures and example implementations |
-| [Templates](docs/templates.md) | Creating templates, MJML + Handlebars syntax, built-in helpers |
-| [Rules](docs/rules.md) | Targeting conditions, operators, sendOnce/resend, dry runs |
-| [Throttling](docs/throttling.md) | Per-user limits, global caps, bypass rules, tracking |
-| [API Routes](docs/api-routes.md) | All REST endpoints with curl examples |
-| [Programmatic API](docs/programmatic-api.md) | Using services directly -- runner, templateService, ruleService |
-| [Execution Flow](docs/execution-flow.md) | Step-by-step runner flow and error behavior |
-| [Error Handling](docs/error-handling.md) | All error classes with codes and when thrown |
-| [Constants](docs/constants.md) | All exported constants and derived types |
-| [Migration v1 to v2](docs/migration-v1-to-v2.md) | Breaking changes from v1 |
+| [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/configuration.md) | Full config reference -- db, redis, adapters, platforms, options, hooks, logger |
+| [Adapters](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/adapters.md) | All 6 adapters with type signatures and example implementations |
+| [Templates](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/templates.md) | Creating templates, MJML + Handlebars syntax, built-in helpers |
+| [Rules](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/rules.md) | Targeting conditions, operators, sendOnce/resend, dry runs |
+| [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/throttling.md) | Per-user limits, global caps, bypass rules, tracking |
+| [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/api-routes.md) | All REST endpoints with curl examples |
+| [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/programmatic-api.md) | Using services directly -- runner, templateService, ruleService |
+| [Execution Flow](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/execution-flow.md) | Step-by-step runner flow and error behavior |
+| [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/error-handling.md) | All error classes with codes and when thrown |
+| [Constants](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/constants.md) | All exported constants and derived types |
+| [Migration v1 to v2](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/migration-v1-to-v2.md) | Breaking changes from v1 |
 
 ## License
 
