@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/email-account-manager",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Reusable email account management with Gmail + SES support, BullMQ queues, health tracking, warmup, and optional approval workflow",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
@@ -27,7 +27,6 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/",
-
     "clean": "rm -rf dist"
   },
   "keywords": [
