@@ -1,5 +1,11 @@
 # @astralibx/email-account-manager
 
+## 2.0.1
+
+### Patch Changes
+
+- 1378fd4: fix CI publish by removing prepublishOnly, update root README
+
 ## 2.0.0
 
 ### Major Changes
