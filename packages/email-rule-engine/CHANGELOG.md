@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 9.0.0
+
+### Major Changes
+
+- 23a2b04: fix UI-backend route mismatches: move run-history to /runner/logs, throttle to top-level PUT, toggle/approve/reject to POST
+
 ## 8.0.0
 
 ### Major Changes
