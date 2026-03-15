@@ -75,27 +75,20 @@ import { createEmailAnalytics } from '@astralibx/email-analytics';
 
 const analytics = createEmailAnalytics({ db: { connection: conn } });
 const accountManager = createEmailAccountManager({ db: { connection: conn } });
-const ruleEngine = createEmailRuleEngine({ db: { connection: conn } });
 
-// Record events from rule engine execution
-ruleEngine.on('emailSent', async (detail) => {
-  await analytics.events.record({
-    type: 'sent',
-    accountId: detail.accountId,
-    ruleId: detail.ruleId,
-    templateId: detail.templateId,
-    recipientEmail: detail.recipientEmail,
-  });
-});
-
-ruleEngine.on('emailFailed', async (detail) => {
-  await analytics.events.record({
-    type: 'failed',
-    accountId: detail.accountId,
-    ruleId: detail.ruleId,
-    recipientEmail: detail.recipientEmail,
-    metadata: { error: detail.error },
-  });
+// Record events via rule engine hooks config
+const ruleEngine = createEmailRuleEngine({
+  db: { connection: conn },
+  hooks: {
+    onSend: async ({ ruleId, ruleName, email, status }) => {
+      await analytics.events.record({
+        type: status === 'sent' ? 'sent' : 'failed',
+        accountId: '...', // from your send context
+        recipientEmail: email,
+        ruleId,
+      });
+    },
+  },
 });
 ```
 

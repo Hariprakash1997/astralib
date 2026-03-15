@@ -7,36 +7,63 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=add multi-variant templates, beforeSend hook, list-mode targeting, run status/cancel, account metadata"
+set "COMMIT_MSG=add multi-variant templates, beforeSend hook, list-mode targeting, run status/cancel, account metadata, fix docs across all packages"
 
-REM Bump type: patch (bug fix), minor (new feature), major (breaking change)
-set "BUMP_TYPE=major"
+REM Default bump type: used when package has no :type suffix
+set "DEFAULT_BUMP=patch"
 
-REM Which packages? Comma-separated folder names, or "all" for everything
-REM Examples: email-rule-engine | email-rule-engine,core | all
-set "PACKAGES=email-rule-engine,email-account-manager"
+REM Which packages? Comma-separated, with optional :bump suffix per package
+REM Format: name:bump  (bump = patch | minor | major)
+REM If no :bump suffix, DEFAULT_BUMP is used
+REM Examples:
+REM   email-rule-engine:major,email-account-manager:minor,email-analytics:patch
+REM   email-rule-engine,core              (both use DEFAULT_BUMP)
+REM   all                                 (all packages use DEFAULT_BUMP)
+REM   all:minor                           (all packages use minor)
+set "PACKAGES=email-rule-engine:major,email-account-manager:major,email-analytics:patch,email-ui:patch"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE
 REM ============================================================
 
-REM --- Resolve package list ---
-if /i "%PACKAGES%"=="all" (
-    set "PKG_LIST=core,email-rule-engine,email-account-manager,email-analytics,email-ui"
-) else (
-    set "PKG_LIST=%PACKAGES%"
+REM --- Resolve "all" shorthand ---
+set "RAW_PACKAGES=%PACKAGES%"
+for /f "tokens=1,2 delims=:" %%a in ("%RAW_PACKAGES%") do (
+    if /i "%%a"=="all" (
+        if "%%b"=="" (
+            set "RAW_PACKAGES=core:%DEFAULT_BUMP%,email-rule-engine:%DEFAULT_BUMP%,email-account-manager:%DEFAULT_BUMP%,email-analytics:%DEFAULT_BUMP%,email-ui:%DEFAULT_BUMP%"
+        ) else (
+            set "RAW_PACKAGES=core:%%b,email-rule-engine:%%b,email-account-manager:%%b,email-analytics:%%b,email-ui:%%b"
+        )
+    )
 )
 
-REM --- Count packages ---
+REM --- Parse packages and bumps ---
 set "PKG_COUNT=0"
 set "PKG_DISPLAY="
-for %%p in (%PKG_LIST%) do (
+set "COMMIT_PREFIX="
+for %%e in (%RAW_PACKAGES%) do (
+    set "ENTRY=%%e"
+    set "PKG_NAME="
+    set "PKG_BUMP="
+    for /f "tokens=1,2 delims=:" %%a in ("%%e") do (
+        set "PKG_NAME=%%a"
+        if "%%b"=="" (
+            set "PKG_BUMP=!DEFAULT_BUMP!"
+        ) else (
+            set "PKG_BUMP=%%b"
+        )
+    )
     set /a PKG_COUNT+=1
     if defined PKG_DISPLAY (
-        set "PKG_DISPLAY=!PKG_DISPLAY!, @astralibx/%%p"
+        set "PKG_DISPLAY=!PKG_DISPLAY!, @astralibx/!PKG_NAME!:!PKG_BUMP!"
     ) else (
-        set "PKG_DISPLAY=@astralibx/%%p"
+        set "PKG_DISPLAY=@astralibx/!PKG_NAME!:!PKG_BUMP!"
     )
+    REM Track highest bump for commit prefix
+    if /i "!PKG_BUMP!"=="major" set "COMMIT_PREFIX=major"
+    if /i "!PKG_BUMP!"=="minor" if not "!COMMIT_PREFIX!"=="major" set "COMMIT_PREFIX=minor"
+    if /i "!PKG_BUMP!"=="patch" if not "!COMMIT_PREFIX!"=="major" if not "!COMMIT_PREFIX!"=="minor" set "COMMIT_PREFIX=patch"
 )
 
 echo.
@@ -45,7 +72,6 @@ echo   @astralibx Deploy Pipeline
 echo  ========================================
 echo   Packages: !PKG_DISPLAY!
 echo   Count:    %PKG_COUNT% package(s)
-echo   Bump:     %BUMP_TYPE%
 echo   Message:  %COMMIT_MSG%
 echo  ========================================
 echo.
@@ -74,8 +100,14 @@ set "CHANGESET_FILE=%CHANGESET_DIR%\deploy-%TIMESTAMP%.md"
 
 (
 echo ---
-for %%p in (%PKG_LIST%) do (
-    echo "@astralibx/%%p": %BUMP_TYPE%
+for %%e in (%RAW_PACKAGES%) do (
+    for /f "tokens=1,2 delims=:" %%a in ("%%e") do (
+        if "%%b"=="" (
+            echo "@astralibx/%%a": %DEFAULT_BUMP%
+        ) else (
+            echo "@astralibx/%%a": %%b
+        )
+    )
 )
 echo ---
 echo.
@@ -90,7 +122,7 @@ git add .changeset\ packages\ package.json package-lock.json .gitignore .prettie
 
 REM --- Step 4: Commit locally first (before pull) ---
 echo [3/7] Committing...
-git commit -m "%BUMP_TYPE%: %COMMIT_MSG%"
+git commit -m "%COMMIT_PREFIX%: %COMMIT_MSG%"
 if errorlevel 1 (
     echo [ERROR] Commit failed. Check if there are changes to commit.
     exit /b 1

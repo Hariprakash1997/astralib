@@ -36,6 +36,46 @@ The `target` object defines the audience:
 }
 ```
 
+## Target Mode
+
+The `target.mode` field controls how recipients are resolved. It is required and must be either `'query'` or `'list'`.
+
+### Query Mode
+
+Query mode uses `queryUsers` to find recipients by conditions. This is the standard approach for targeting users based on dynamic criteria.
+
+```typescript
+{
+  target: {
+    mode: 'query',
+    role: 'customer',
+    platform: 'web',
+    conditions: [
+      { field: 'subscription.status', operator: 'eq', value: 'expired' },
+    ],
+  },
+}
+```
+
+### List Mode
+
+List mode targets an explicit list of email addresses. The engine skips `queryUsers` entirely and instead calls `findIdentifier` for each email in the list to resolve contact/identifier records. The `sendOnce` deduplication check is applied per resolved identifier, same as in query mode.
+
+```typescript
+{
+  target: {
+    mode: 'list',
+    emails: [
+      'alice@example.com',
+      'bob@example.com',
+      'carol@example.com',
+    ],
+  },
+}
+```
+
+List mode is useful for one-off campaigns, manual outreach, or when the recipient list is managed externally. The `role`, `platform`, and `conditions` fields are ignored in list mode.
+
 ## Condition Operators
 
 Conditions are filters passed to your `queryUsers` adapter. They use AND logic -- a user must match **all** conditions.

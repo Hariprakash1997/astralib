@@ -4,13 +4,13 @@ Reusable utility packages for Node.js applications — email automation, account
 
 ## Packages
 
-| Package | Description | Version |
-|---------|-------------|---------|
-| [@astralibx/core](./packages/core) | Shared errors, types, and validation for all packages | `0.1.0` |
-| [@astralibx/email-rule-engine](./packages/email-rule-engine) | Rule-based email automation with MJML + Handlebars templates, throttling, and distributed locking | `2.0.0` |
-| [@astralibx/email-account-manager](./packages/email-account-manager) | Email account lifecycle — SMTP pooling, warmup, health tracking, bounce detection, SES webhooks | `1.0.0` |
-| [@astralibx/email-analytics](./packages/email-analytics) | Event recording, timezone-aware aggregation, and query API for email metrics | `1.0.0` |
-| [@astralibx/email-ui](./packages/email-ui) | 22 Lit Web Components for managing accounts, rules, and analytics dashboards | `1.0.0` |
+| Package | Description |
+|---------|-------------|
+| [@astralibx/core](./packages/core) | Shared errors, types, and validation for all packages |
+| [@astralibx/email-rule-engine](./packages/email-rule-engine) | Rule-based email automation with MJML + Handlebars templates, throttling, and distributed locking |
+| [@astralibx/email-account-manager](./packages/email-account-manager) | Email account lifecycle — SMTP pooling, warmup, health tracking, bounce detection, SES webhooks |
+| [@astralibx/email-analytics](./packages/email-analytics) | Event recording, timezone-aware aggregation, and query API for email metrics |
+| [@astralibx/email-ui](./packages/email-ui) | 22 Lit Web Components for managing accounts, rules, and analytics dashboards |
 
 ## Installation
 

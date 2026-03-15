@@ -52,6 +52,15 @@ app.use('/webhooks/ses', eam.webhookRoutes.ses);
 // Unsubscribe pages (public)
 app.use('/unsubscribe', eam.unsubscribeRoutes);
 
+// Create an account with metadata
+await eam.accounts.create({
+  email: 'outreach@yourdomain.com',
+  senderName: 'Your Company',
+  provider: 'gmail',
+  smtp: { host: 'smtp.gmail.com', port: 587, user: 'outreach@yourdomain.com', pass: 'app-password' },
+  metadata: { sender_names: ['Sales', 'Support'], contact_number: '+1-555-0100' },
+});
+
 // Send an email programmatically
 const result = await eam.smtp.send({
   to: 'recipient@example.com',
@@ -66,7 +75,7 @@ app.listen(3000);
 
 ## Features
 
-- **Multi-account management** -- Gmail and AWS SES providers with credential storage and status tracking. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/account-management.md)
+- **Multi-account management** -- Gmail and AWS SES providers with credential storage, status tracking, and freeform metadata. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/account-management.md)
 - **Health tracking** -- Automatic scoring (+1/-5/-10) with auto-disable on threshold breach. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/health-tracking.md)
 - **Account warmup** -- Phased volume ramp-up with configurable schedules stored per-account. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/warmup-system.md)
 - **Capacity-based rotation** -- Health-weighted account selection with daily limit enforcement. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/capacity-selection.md)

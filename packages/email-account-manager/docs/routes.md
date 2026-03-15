@@ -37,6 +37,7 @@ Create a new email account. Starts in `warmup` status.
 | `limits.dailyMax` | number | no | Daily send limit (default 450) |
 | `health.thresholds` | object | no | `{ minScore, maxBounceRate, maxConsecutiveErrors }` |
 | `warmup.schedule` | array | no | Warmup schedule entries |
+| `metadata` | object | no | Freeform project-specific data (e.g., `{ sender_names: [...], contact_numbers: [...] }`). Max 64KB. Keys `__proto__`, `constructor`, `prototype` are stripped. |
 
 **Response:** `201 { success, data: { account } }`
 
@@ -92,6 +93,7 @@ Update an account by ID.
 | `imap` | object | IMAP settings (empty pass is ignored) |
 | `ses` | object | SES settings |
 | `limits.dailyMax` | number | Daily send limit |
+| `metadata` | object | Freeform project-specific data. Max 64KB. |
 
 **Response:** `{ success, data: { account } }`
 
@@ -167,13 +169,44 @@ Update health thresholds for an account.
 
 ### Identifiers
 
+**Identifier statuses:** `active`, `bounced`, `unsubscribed`, `blocked`, `invalid`
+
+**Bounce types** (stored in `bounceType` field when status is `bounced`): `hard`, `soft`, `inbox_full`, `invalid_email`
+
+**Identifier object shape:**
+
+| Field | Type | Description |
+|---|---|---|
+| `email` | string | Email address (lowercase) |
+| `status` | string | Current status |
+| `sentCount` | number | Total emails sent |
+| `bounceCount` | number | Total bounces |
+| `bounceType` | string | Most recent bounce classification |
+| `lastSentAt` | Date | When last email was sent |
+| `lastBouncedAt` | Date | When last bounce occurred |
+| `unsubscribedAt` | Date | When unsubscribed |
+| `metadata` | object | Custom data |
+
+**How statuses are set automatically:**
+
+| Trigger | Status | bounceType |
+|---|---|---|
+| IMAP: "inbox full" / "mailbox full" | `bounced` | `inbox_full` |
+| IMAP: "address not found" / "user unknown" | `bounced` | `invalid_email` |
+| IMAP: other bounce | `bounced` | `soft` |
+| SES: Permanent bounce (noemail/general) | `invalid` | `hard` |
+| SES: Transient bounce (mailboxfull) | `bounced` | `inbox_full` |
+| SES: Transient bounce (other) | `bounced` | `soft` |
+| SES: Complaint | `blocked` | -- |
+| Unsubscribe link | `unsubscribed` | -- |
+
 #### `GET /identifiers`
 
 List recipient identifiers with pagination.
 
 | Query Param | Type | Default | Description |
 |---|---|---|---|
-| `status` | string | -- | Filter by status |
+| `status` | string | -- | Filter by status (e.g., `bounced`, `active`) |
 | `page` | number | 1 | Page number |
 | `limit` | number | 50 | Items per page |
 
@@ -191,9 +224,9 @@ Update the status of an identifier.
 
 **Request body:**
 
-| Field | Type | Required |
-|---|---|---|
-| `status` | string | yes |
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `status` | string | yes | One of: `active`, `bounced`, `unsubscribed`, `blocked`, `invalid` |
 
 **Response:** `{ success: true }`
 

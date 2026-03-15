@@ -20,87 +20,61 @@ const analytics = createEmailAnalytics({
 
 const accountManager = createEmailAccountManager({
   db: { connection: conn },
+  // hooks are configured here -- see "Wiring Account Manager Hooks" below
 });
 
 const ruleEngine = createEmailRuleEngine({
   db: { connection: conn },
+  // hooks are configured here -- see "Wiring Rule Engine Hooks" below
 });
 ```
 
 ## Wiring Rule Engine Hooks
 
-Record events based on rule engine execution results:
+Record events using the `hooks` config when creating the rule engine:
 
 ```typescript
-ruleEngine.on('emailSent', async (detail) => {
-  await analytics.events.record({
-    type: 'sent',
-    accountId: detail.accountId,
-    ruleId: detail.ruleId,
-    templateId: detail.templateId,
-    recipientEmail: detail.recipientEmail,
-    identifierId: detail.identifierId,
-  });
-});
-
-ruleEngine.on('emailDelivered', async (detail) => {
-  await analytics.events.record({
-    type: 'delivered',
-    accountId: detail.accountId,
-    ruleId: detail.ruleId,
-    recipientEmail: detail.recipientEmail,
-  });
-});
-
-ruleEngine.on('emailBounced', async (detail) => {
-  await analytics.events.record({
-    type: 'bounced',
-    accountId: detail.accountId,
-    ruleId: detail.ruleId,
-    recipientEmail: detail.recipientEmail,
-    metadata: { bounceType: detail.bounceType, reason: detail.reason },
-  });
-});
-
-ruleEngine.on('emailFailed', async (detail) => {
-  await analytics.events.record({
-    type: 'failed',
-    accountId: detail.accountId,
-    ruleId: detail.ruleId,
-    recipientEmail: detail.recipientEmail,
-    metadata: { error: detail.error },
-  });
+const ruleEngine = createEmailRuleEngine({
+  db: { connection: conn },
+  hooks: {
+    onSend: async ({ ruleId, ruleName, email, status }) => {
+      await analytics.events.record({
+        type: status === 'sent' ? 'sent' : 'failed',
+        accountId: '...', // from your send context
+        recipientEmail: email,
+        ruleId,
+      });
+    },
+  },
 });
 ```
 
+The `onSend` hook is called for every send attempt with a `status` of `'sent'`, `'error'`, `'skipped'`, `'invalid'`, or `'throttled'`. Other available hooks: `onRunStart`, `onRuleStart`, `onRuleComplete`, `onRunComplete`, `beforeSend`.
+
 ## Wiring Account Manager Hooks
 
-Track delivery and complaint events from email provider webhooks:
+Track delivery and bounce events using the `hooks` config when creating the account manager:
 
 ```typescript
-accountManager.on('delivered', async (detail) => {
-  await analytics.events.record({
-    type: 'delivered',
-    accountId: detail.accountId,
-    recipientEmail: detail.recipientEmail,
-  });
-});
-
-accountManager.on('bounced', async (detail) => {
-  await analytics.events.record({
-    type: 'bounced',
-    accountId: detail.accountId,
-    recipientEmail: detail.recipientEmail,
-    metadata: { bounceType: detail.bounceType },
-  });
-});
-
-accountManager.on('complained', async (detail) => {
-  await analytics.events.record({
-    type: 'complained',
-    accountId: detail.accountId,
-    recipientEmail: detail.recipientEmail,
-  });
+const accountManager = createEmailAccountManager({
+  db: { connection: conn },
+  hooks: {
+    onDelivery: async ({ accountId, email }) => {
+      await analytics.events.record({
+        type: 'delivered',
+        accountId,
+        recipientEmail: email,
+      });
+    },
+    onBounce: async ({ accountId, email, bounceType }) => {
+      await analytics.events.record({
+        type: 'bounced',
+        accountId,
+        recipientEmail: email,
+        metadata: { bounceType },
+      });
+    },
+  },
 });
 ```
 
@@ -178,29 +152,30 @@ const analytics = createEmailAnalytics({
   options: { eventTTLDays: 180, timezone: 'Asia/Kolkata' },
 });
 
-const accountManager = createEmailAccountManager({ db: { connection: conn } });
-const ruleEngine = createEmailRuleEngine({ db: { connection: conn } });
-
-// Wire hooks
-ruleEngine.on('emailSent', (d) =>
-  analytics.events.record({
-    type: 'sent',
-    accountId: d.accountId,
-    ruleId: d.ruleId,
-    templateId: d.templateId,
-    recipientEmail: d.recipientEmail,
-  }),
-);
-
-ruleEngine.on('emailFailed', (d) =>
-  analytics.events.record({
-    type: 'failed',
-    accountId: d.accountId,
-    ruleId: d.ruleId,
-    recipientEmail: d.recipientEmail,
-    metadata: { error: d.error },
-  }),
-);
+const accountManager = createEmailAccountManager({
+  db: { connection: conn },
+  hooks: {
+    onDelivery: async ({ accountId, email }) => {
+      await analytics.events.record({ type: 'delivered', accountId, recipientEmail: email });
+    },
+    onBounce: async ({ accountId, email, bounceType }) => {
+      await analytics.events.record({ type: 'bounced', accountId, recipientEmail: email, metadata: { bounceType } });
+    },
+  },
+});
+const ruleEngine = createEmailRuleEngine({
+  db: { connection: conn },
+  hooks: {
+    onSend: async ({ ruleId, email, status }) => {
+      await analytics.events.record({
+        type: status === 'sent' ? 'sent' : 'failed',
+        accountId: '...', // from your send context
+        recipientEmail: email,
+        ruleId,
+      });
+    },
+  },
+});
 
 // Mount routes
 app.use('/api/analytics', analytics.routes);

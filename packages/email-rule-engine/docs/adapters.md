@@ -126,11 +126,11 @@ async function sendEmail(params: SendEmailParams) {
 
 ## selectAgent
 
-Picks which sending account to use for a given recipient. Return `null` to skip the recipient.
+Picks which sending account to use for a given recipient. Return `null` to skip the recipient. The returned object must include `accountId`, `email`, and `metadata` -- these are used for sender identification and are available in the `beforeSend` hook.
 
 ```typescript
 (identifierId: string, context?: { ruleId: string; templateId: string }) => Promise<AgentSelection | null>
-// AgentSelection = { accountId: string }
+// AgentSelection = { accountId: string; email: string; metadata: Record<string, unknown> }
 ```
 
 ```typescript
@@ -140,7 +140,12 @@ async function selectAgent(identifierId: string) {
     dailySentCount: { $lt: 450 },
   }).sort({ dailySentCount: 1 });
 
-  return account ? { accountId: account._id.toString() } : null;
+  if (!account) return null;
+  return {
+    accountId: account._id.toString(),
+    email: account.email,
+    metadata: account.metadata || {},
+  };
 }
 ```
 

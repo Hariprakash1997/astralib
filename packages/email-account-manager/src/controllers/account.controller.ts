@@ -8,6 +8,18 @@ import type { ImapBounceChecker } from '../services/imap-bounce-checker';
 import type { EmailAccountManagerConfig } from '../types/config.types';
 import type { EmailAccountModel } from '../schemas/email-account.schema';
 
+const MAX_METADATA_SIZE = 64_000;
+
+function sanitizeMetadata(raw: Record<string, unknown>): Record<string, unknown> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return {};
+  const json = JSON.stringify(raw);
+  if (json.length > MAX_METADATA_SIZE) {
+    throw new Error(`metadata exceeds ${MAX_METADATA_SIZE} byte limit`);
+  }
+  const { __proto__: _a, constructor: _b, prototype: _c, ...safe } = raw;
+  return safe;
+}
+
 export function createAccountController(
   EmailAccount: EmailAccountModel,
   capacityManager: CapacityManager,
@@ -84,6 +96,7 @@ export function createAccountController(
             schedule: input.warmup?.schedule || warmupDefaults || [],
           },
           status: 'warmup',
+          ...(input.metadata !== undefined ? { metadata: sanitizeMetadata(input.metadata) } : {}),
           totalEmailsSent: 0,
         };
 
@@ -122,6 +135,7 @@ export function createAccountController(
           }
         }
         if (input.limits?.dailyMax !== undefined) updates['limits.dailyMax'] = input.limits.dailyMax;
+        if (input.metadata !== undefined) updates.metadata = sanitizeMetadata(input.metadata);
 
         const account = await EmailAccount.findByIdAndUpdate(
           req.params.id,

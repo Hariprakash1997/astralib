@@ -27,6 +27,10 @@ const account = await eam.accounts.create({
     region: 'us-east-1',
     configurationSet: 'my-config-set',
   },
+  metadata: {                          // Optional freeform data
+    sender_names: ['Sales', 'Support'],
+    contact_number: '+1-555-0100',
+  },
   limits: { dailyMax: 450 },          // Default: 450
   warmup: {
     schedule: [/* custom phases */],   // Falls back to config default
@@ -79,6 +83,33 @@ const account = await eam.accounts.create({
 | `disabled` | Auto-disabled by health checks or manually disabled |
 | `quota_exceeded` | Daily send limit reached, resets next day |
 | `error` | Temporary error state, may recover |
+
+## Metadata
+
+Each account has an optional `metadata` field (`Record<string, unknown>`) for storing freeform, project-specific data -- for example, sender names, contact numbers, internal tags, or team assignments.
+
+- **Type**: `Record<string, unknown>` (arbitrary key-value pairs)
+- **Max size**: 64KB (serialized JSON). Exceeding this limit throws an error.
+- **Sanitization**: Dangerous keys (`__proto__`, `constructor`, `prototype`) are automatically stripped.
+- **Default**: `{}` (empty object)
+
+```ts
+await eam.accounts.create({
+  email: 'outreach@yourdomain.com',
+  provider: 'gmail',
+  smtp: { host: 'smtp.gmail.com', port: 587, user: '...', pass: '...' },
+  metadata: {
+    sender_names: ['Sales Team', 'Support'],
+    contact_number: '+1-555-0100',
+    region: 'us-west',
+  },
+});
+
+// Update metadata later
+await eam.accounts.update(accountId, {
+  metadata: { sender_names: ['Marketing'], region: 'eu-central' },
+});
+```
 
 ## Programmatic Account Operations
 

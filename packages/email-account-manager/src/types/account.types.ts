@@ -60,6 +60,8 @@ export interface EmailAccount {
   health: AccountHealthData;
   warmup: AccountWarmupData;
 
+  metadata?: Record<string, unknown>;
+
   totalEmailsSent: number;
   lastSuccessfulSendAt?: Date;
 
@@ -78,6 +80,7 @@ export interface CreateEmailAccountInput {
   warmup?: {
     schedule?: WarmupPhase[];
   };
+  metadata?: Record<string, unknown>;
   health?: {
     thresholds?: Partial<HealthThresholds>;
   };
@@ -91,6 +94,7 @@ export interface UpdateEmailAccountInput {
   ses?: Partial<SesConfig>;
   limits?: Partial<AccountLimits>;
   warmup?: Partial<AccountWarmupData>;
+  metadata?: Record<string, unknown>;
   health?: {
     thresholds?: Partial<HealthThresholds>;
   };

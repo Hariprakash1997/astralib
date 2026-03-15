@@ -54,3 +54,51 @@ If your hook handler only checks for `'sent'` and `'error'`, it will continue to
 ### 5. `categories` config option added
 
 A new optional `categories` config field allows restricting valid template categories at the Mongoose schema level, similar to how `platforms` and `audiences` work.
+
+### 6. `subject`/`body` replaced with `subjects[]`/`bodies[]` on templates
+
+Templates now use arrays for subjects and bodies to support A/B variant testing. Single-element arrays work identically to the old singular fields.
+
+```typescript
+// v1
+{ subject: 'Hello {{user.name}}', body: '<mj-text>Welcome!</mj-text>' }
+
+// v2
+{ subjects: ['Hello {{user.name}}'], bodies: ['<mj-text>Welcome!</mj-text>'] }
+```
+
+### 7. `target.mode` is now required
+
+Rules must specify `target.mode` as either `'query'` (condition-based targeting) or `'list'` (explicit email list). Existing rules using condition-based targeting need `mode: 'query'` added to their `target` object.
+
+```typescript
+// v1
+{ target: { role: 'customer', platform: 'web', conditions: [...] } }
+
+// v2
+{ target: { mode: 'query', role: 'customer', platform: 'web', conditions: [...] } }
+```
+
+### 8. `AgentSelection` now requires `email` and `metadata` fields
+
+The `selectAgent` adapter must now return `{ accountId, email, metadata }` instead of just `{ accountId }`. These fields are used for sender identification and are available in the `beforeSend` hook.
+
+```typescript
+// v1
+return { accountId: account._id.toString() };
+
+// v2
+return { accountId: account._id.toString(), email: account.email, metadata: account.metadata || {} };
+```
+
+### 9. `runAllRules()` returns `{ runId: string }` instead of void
+
+The runner methods now return a `runId` that can be used to track progress or cancel a run.
+
+```typescript
+// v1
+await engine.runner.runAllRules('cron');
+
+// v2
+const { runId } = await engine.runner.runAllRules('cron');
+```

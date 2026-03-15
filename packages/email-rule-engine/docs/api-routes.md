@@ -38,8 +38,8 @@ curl -X POST http://localhost:3000/api/email-rules/templates \
     "category": "onboarding",
     "audience": "customer",
     "platform": "web",
-    "subject": "Welcome to {{platform.name}}, {{user.name}}!",
-    "body": "<mj-text>Hi {{user.name}}, welcome aboard!</mj-text>"
+    "subjects": ["Welcome to {{platform.name}}, {{user.name}}!"],
+    "bodies": ["<mj-text>Hi {{user.name}}, welcome aboard!</mj-text>"]
   }'
 ```
 
@@ -49,8 +49,8 @@ curl -X POST http://localhost:3000/api/email-rules/templates \
 curl -X POST http://localhost:3000/api/email-rules/templates/preview \
   -H "Content-Type: application/json" \
   -d '{
-    "subject": "Hello {{user.name}}",
-    "body": "<mj-text>Welcome, {{user.name}}!</mj-text>",
+    "subjects": ["Hello {{user.name}}"],
+    "bodies": ["<mj-text>Welcome, {{user.name}}!</mj-text>"],
     "sampleData": { "user": { "name": "John" } }
   }'
 ```
@@ -96,8 +96,10 @@ curl -X POST http://localhost:3000/api/email-rules/rules \
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/runner` | Trigger a manual run (fire-and-forget, returns immediately) |
+| `POST` | `/runner` | Trigger a manual run (non-blocking, returns `{ runId }` immediately) |
 | `GET` | `/runner/status` | Get the most recent run log entry |
+| `GET` | `/runner/status/:runId` | Get progress for a specific run |
+| `POST` | `/runner/cancel/:runId` | Gracefully cancel a running execution |
 
 **Run history response:**
 

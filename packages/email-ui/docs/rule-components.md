@@ -63,11 +63,11 @@ Create or edit email templates with MJML/Handlebars body, variable management, a
 | `alx-template-saved` | API response object | Template created or updated |
 
 ### Features
-- Fields: name, slug, category, audience, platform, subject, body (MJML), text body
+- Fields: name, slug, category, audience, platform, subjects (array), bodies (array, MJML), text body
 - Category/audience/platform render as dropdowns when options are provided, text inputs otherwise
 - Variable tag management (add/remove, displayed as `{{variableName}}` chips)
-- "Preview" button renders MJML body via the API and displays in an iframe
-- Monospace font for body textarea
+- "Preview" button renders MJML bodies via the API and displays in an iframe
+- Monospace font for bodies textarea
 
 ### Usage
 

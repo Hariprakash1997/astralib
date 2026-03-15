@@ -75,6 +75,9 @@ Callbacks fired at key points during rule execution. All hooks are optional and 
 | `onSend` | After each send attempt | `{ ruleId: string, ruleName: string, email: string, status: 'sent' \| 'error' \| 'skipped' \| 'invalid' \| 'throttled' }` |
 | `onRuleComplete` | After a rule finishes | `{ ruleId: string, ruleName: string, stats: RuleRunStats }` |
 | `onRunComplete` | After run log is saved | `{ duration: number, totalStats: RuleRunStats, perRuleStats: PerRuleStats[] }` |
+| `beforeSend` | Before each email is delivered | `{ htmlBody: string, textBody: string, subject: string, account: { id: string, email: string, metadata: Record<string, unknown> }, user: { id: string, email: string, name: string } }` |
+
+The `beforeSend` hook is special -- it must return `{ htmlBody, textBody, subject }` and can modify the rendered content before delivery. This is useful for replacing account-level placeholders that are not available at template render time.
 
 ```typescript
 hooks: {
@@ -86,6 +89,13 @@ hooks: {
   },
   onRunComplete: ({ duration, totalStats }) => {
     console.log(`Done in ${duration}ms: ${totalStats.sent} sent, ${totalStats.errors} errors`);
+  },
+  beforeSend: async ({ htmlBody, textBody, subject, account, user }) => {
+    // Replace account-level placeholders after template rendering
+    const modified = htmlBody
+      .replace(/\{\{sender_name\}\}/g, account.metadata.sender_names?.[Math.floor(Math.random() * account.metadata.sender_names.length)] || account.email)
+      .replace(/\{\{contact_number\}\}/g, account.metadata.contact_numbers?.[0] || '');
+    return { htmlBody: modified, textBody, subject };
   },
 },
 ```
@@ -117,7 +127,7 @@ const engine = createEmailRuleEngine({
     queryUsers: async (target, limit) => { /* ... */ },
     resolveData: (user) => ({ /* ... */ }),
     sendEmail: async (params) => { /* ... */ },
-    selectAgent: async (identifierId, context) => ({ accountId: 'default' }),
+    selectAgent: async (identifierId, context) => ({ accountId: 'default', email: 'noreply@example.com', metadata: {} }),
     findIdentifier: async (email) => { /* ... */ },
     sendTestEmail: async (to, subject, html, text) => { /* ... */ },
   },

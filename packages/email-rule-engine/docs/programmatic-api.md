@@ -5,11 +5,34 @@ The engine instance exposes services for direct use outside of REST routes.
 ## RuleRunnerService
 
 ```typescript
-// Trigger a full run
-await engine.runner.runAllRules('cron');  // or 'manual'
+// Trigger a full run (blocking, waits for completion)
+const { runId } = await engine.runner.runAllRules('cron');  // or 'manual'
 ```
 
 The runner acquires a distributed Redis lock, processes active rules in `sortOrder`, and releases the lock in a `finally` block. If the lock is held by another process, the run is silently skipped.
+
+### Non-blocking trigger
+
+```typescript
+// Fire-and-forget -- returns immediately with a runId
+const { runId } = await engine.runner.trigger('manual');
+```
+
+### Run status
+
+```typescript
+// Check progress of a specific run
+const status = await engine.runner.getStatus(runId);
+// { runId, state: 'running' | 'completed' | 'cancelled' | 'failed', progress: { rulesProcessed, totalRules, sent, errors }, startedAt, completedAt? }
+```
+
+### Cancel a run
+
+```typescript
+// Gracefully cancel a running execution
+await engine.runner.cancel(runId);
+// The runner will finish the current send and stop processing further users/rules
+```
 
 ## TemplateService
 
@@ -24,12 +47,12 @@ const template = await engine.templateService.create({
   category: 'onboarding',
   audience: 'customer',
   platform: 'web',
-  subject: 'Hello {{user.name}}',
-  body: '<mj-text>Welcome!</mj-text>',
+  subjects: ['Hello {{user.name}}'],
+  bodies: ['<mj-text>Welcome!</mj-text>'],
 });
 
 // Update (auto-increments version if content changes)
-await engine.templateService.update(template._id, { subject: 'Hi {{user.name}}' });
+await engine.templateService.update(template._id, { subjects: ['Hi {{user.name}}'] });
 
 // Preview with sample data
 const rendered = await engine.templateService.preview(template._id, {

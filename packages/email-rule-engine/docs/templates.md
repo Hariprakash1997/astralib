@@ -12,8 +12,8 @@ Templates combine [MJML](https://mjml.io/) for responsive HTML email rendering w
 | `category` | `TemplateCategory` | Yes | `'onboarding'`, `'engagement'`, `'transactional'`, `'re-engagement'`, `'announcement'` |
 | `audience` | `TemplateAudience` | Yes | `'customer'`, `'provider'`, `'all'` |
 | `platform` | `string` | Yes | Must match one of the configured `platforms` |
-| `subject` | `string` | Yes | Handlebars subject line |
-| `body` | `string` | Yes | MJML + Handlebars body |
+| `subjects` | `string[]` | Yes | Handlebars subject lines (supports multiple for A/B variants) |
+| `bodies` | `string[]` | Yes | MJML + Handlebars bodies (supports multiple for A/B variants) |
 | `textBody` | `string` | No | Plain text override (auto-generated from HTML if omitted) |
 | `variables` | `string[]` | Auto | Extracted Handlebars variables (computed on save) |
 | `version` | `number` | Auto | Increments on content updates |
@@ -80,3 +80,42 @@ Programmatic validation:
 const result = await engine.templateService.validate('<mj-text>{{user.name}}</mj-text>');
 // { valid: true, errors: [], variables: ['user.name'] }
 ```
+
+## A/B Variants
+
+Templates support multiple subjects and bodies for content variety. When a template has more than one subject or body, the engine randomly selects one per user using `Math.random()`.
+
+### How it works
+
+- Each template has `subjects[]` and `bodies[]` arrays
+- For each recipient, the engine picks a random `subjectIndex` and `bodyIndex`
+- The selected indices are logged in the `EmailRuleSend` record for tracking and analysis
+- Single-element arrays work identically to non-variant templates -- no special handling needed
+
+### Example
+
+```typescript
+{
+  name: 'Welcome Email',
+  slug: 'welcome-email',
+  category: 'onboarding',
+  audience: 'customer',
+  platform: 'web',
+  subjects: [
+    'Welcome to {{platform.name}}, {{user.name}}!',
+    'Hey {{user.name}}, glad to have you on {{platform.name}}!',
+    '{{user.name}}, your {{platform.name}} account is ready',
+  ],
+  bodies: [
+    '<mj-text>Hi {{user.name}}, welcome aboard!</mj-text>',
+    '<mj-text>Great to see you here, {{user.name}}. Let us get started.</mj-text>',
+  ],
+}
+```
+
+In this example, each user receives one of 3 subject lines and one of 2 body variants, selected independently at random. The `EmailRuleSend` record stores:
+
+- `subjectIndex` -- which subject was used (0, 1, or 2)
+- `bodyIndex` -- which body was used (0 or 1)
+
+This data can be queried to compare open/click rates across variants.
