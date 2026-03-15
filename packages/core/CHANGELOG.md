@@ -1,5 +1,11 @@
 # @astralibx/core
 
+## 1.1.3
+
+### Patch Changes
+
+- 70ad0c4: add repository field, findById on identifiers, advanceAllAccounts warmup helper, IMAP autoStart, npm links in README
+
 ## 1.1.2
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @astralibx/email-analytics
 
+## 2.0.6
+
+### Patch Changes
+
+- 70ad0c4: add repository field, findById on identifiers, advanceAllAccounts warmup helper, IMAP autoStart, npm links in README
+- Updated dependencies [70ad0c4]
+  - @astralibx/core@1.1.3
+
 ## 2.0.5
 
 ### Patch Changes
