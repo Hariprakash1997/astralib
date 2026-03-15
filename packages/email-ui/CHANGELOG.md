@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.0.6
+
+### Patch Changes
+
+- fce647f: fix duplicate Mongoose indexes, rename reserved errors field to errorCount, fix account creation defaults, fix UI response envelope unwrapping
+
 ## 2.0.5
 
 ### Patch Changes

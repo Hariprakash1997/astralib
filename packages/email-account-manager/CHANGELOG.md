@@ -1,5 +1,11 @@
 # @astralibx/email-account-manager
 
+## 10.0.0
+
+### Major Changes
+
+- fce647f: fix duplicate Mongoose indexes, rename reserved errors field to errorCount, fix account creation defaults, fix UI response envelope unwrapping
+
 ## 9.0.0
 
 ### Major Changes
