@@ -54,8 +54,8 @@ export function createAdminRoutes(deps: AdminRoutesDeps): Router {
   router.post('/drafts/bulk-approve', approvalController.bulkApprove);
   router.post('/drafts/bulk-reject', approvalController.bulkReject);
   router.get('/drafts/:id', approvalController.getDraftById);
-  router.patch('/drafts/:id/approve', approvalController.approve);
-  router.patch('/drafts/:id/reject', approvalController.reject);
+  router.post('/drafts/:id/approve', approvalController.approve);
+  router.post('/drafts/:id/reject', approvalController.reject);
   router.post('/drafts/:id/send-now', approvalController.sendNow);
   router.patch('/drafts/:id/content', approvalController.updateContent);
 

@@ -52,11 +52,10 @@ export function createRoutes(deps: RoutesDeps): Router {
   const ruleRouter = Router();
   ruleRouter.get('/', ruleCtrl.list);
   ruleRouter.post('/', ruleCtrl.create);
-  ruleRouter.get('/run-history', ruleCtrl.runHistory);
   ruleRouter.get('/:id', ruleCtrl.getById);
   ruleRouter.patch('/:id', ruleCtrl.update);
   ruleRouter.delete('/:id', ruleCtrl.remove);
-  ruleRouter.patch('/:id/toggle', ruleCtrl.toggleActive);
+  ruleRouter.post('/:id/toggle', ruleCtrl.toggleActive);
   ruleRouter.post('/:id/dry-run', ruleCtrl.dryRun);
 
   const runnerRouter = Router();
@@ -64,15 +63,13 @@ export function createRoutes(deps: RoutesDeps): Router {
   runnerRouter.get('/status', runnerCtrl.getLatestRun);
   runnerRouter.get('/status/:runId', runnerCtrl.getStatusByRunId);
   runnerRouter.post('/cancel/:runId', runnerCtrl.cancelRun);
-
-  const settingsRouter = Router();
-  settingsRouter.get('/throttle', settingsCtrl.getThrottleConfig);
-  settingsRouter.patch('/throttle', settingsCtrl.updateThrottleConfig);
+  runnerRouter.get('/logs', ruleCtrl.runHistory);
 
   router.use('/templates', templateRouter);
   router.use('/rules', ruleRouter);
   router.use('/runner', runnerRouter);
-  router.use('/settings', settingsRouter);
+  router.get('/throttle', settingsCtrl.getThrottleConfig);
+  router.put('/throttle', settingsCtrl.updateThrottleConfig);
 
   return router;
 }

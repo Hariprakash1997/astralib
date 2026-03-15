@@ -84,11 +84,11 @@ curl -X POST http://localhost:3000/api/email-rules/templates/preview \
 |--------|------|-------------|
 | `GET` | `/rules` | List all rules (with populated template name/slug) |
 | `POST` | `/rules` | Create a new rule (validates template compatibility). Accepts optional `validFrom` and `validTill` (Date) for time-windowed activation |
-| `GET` | `/rules/run-history` | Get execution history (`?limit=20`) |
+| `GET` | `/runner/logs` | Get execution history (`?limit=20`) |
 | `GET` | `/rules/:id` | Get rule by ID |
 | `PATCH` | `/rules/:id` | Update a rule (accepts `validFrom` and `validTill`) |
 | `DELETE` | `/rules/:id` | Delete rule (disables instead if it has send history) |
-| `PATCH` | `/rules/:id/toggle` | Toggle `isActive` (validates template is active before enabling) |
+| `POST` | `/rules/:id/toggle` | Toggle `isActive` (validates template is active before enabling) |
 | `POST` | `/rules/:id/dry-run` | Count matching users without sending |
 
 **Create rule request body:**
@@ -160,12 +160,12 @@ curl -X POST http://localhost:3000/api/email-rules/rules \
 }
 ```
 
-## Settings
+## Throttle
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/settings/throttle` | Get current throttle config |
-| `PATCH` | `/settings/throttle` | Update throttle config (all fields optional) |
+| `GET` | `/throttle` | Get current throttle config |
+| `PUT` | `/throttle` | Update throttle config (all fields optional) |
 
 **Update throttle request body (all optional):**
 

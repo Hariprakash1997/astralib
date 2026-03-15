@@ -43,10 +43,10 @@ Use the settings API endpoints:
 
 ```bash
 # Get current throttle config
-curl http://localhost:3000/api/email-rules/settings/throttle
+curl http://localhost:3000/api/email-rules/throttle
 
 # Update throttle config
-curl -X PATCH http://localhost:3000/api/email-rules/settings/throttle \
+curl -X PUT http://localhost:3000/api/email-rules/throttle \
   -H "Content-Type: application/json" \
   -d '{ "maxPerUserPerDay": 3, "maxPerUserPerWeek": 10 }'
 ```

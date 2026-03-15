@@ -113,8 +113,8 @@ Mount behind your authentication middleware. All paths below are relative to the
 | `POST` | `/drafts/bulk-approve` | Bulk approve drafts |
 | `POST` | `/drafts/bulk-reject` | Bulk reject drafts |
 | `GET` | `/drafts/:id` | Get draft by ID |
-| `PATCH` | `/drafts/:id/approve` | Approve a draft |
-| `PATCH` | `/drafts/:id/reject` | Reject a draft |
+| `POST` | `/drafts/:id/approve` | Approve a draft |
+| `POST` | `/drafts/:id/reject` | Reject a draft |
 | `POST` | `/drafts/:id/send-now` | Send draft immediately |
 | `PATCH` | `/drafts/:id/content` | Update draft content |
 
