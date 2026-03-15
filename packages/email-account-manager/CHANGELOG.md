@@ -1,5 +1,11 @@
 # @astralibx/email-account-manager
 
+## 8.0.1
+
+### Patch Changes
+
+- f65b73f: fix duplicate Mongoose indexes, rename reserved errors field to errorCount
+
 ## 8.0.0
 
 ### Major Changes
