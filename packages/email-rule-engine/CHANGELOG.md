@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 11.0.0
+
+### Major Changes
+
+- 30751dc: fix duplicate Mongoose indexes, rename reserved errors field to errorCount, fix account creation defaults
+
 ## 10.0.0
 
 ### Major Changes
