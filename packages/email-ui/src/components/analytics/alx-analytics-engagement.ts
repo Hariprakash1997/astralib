@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxCardStyles,
   alxLoadingStyles,
   alxTypographyStyles,
@@ -19,6 +20,7 @@ interface EngagementData {
 export class AlxAnalyticsEngagement extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxCardStyles,
     alxLoadingStyles,
     alxTypographyStyles,
@@ -27,20 +29,24 @@ export class AlxAnalyticsEngagement extends LitElement {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 1rem;
+        margin-bottom: var(--alx-density-gap, 1rem);
+      }
+
+      .header h3 {
+        font-size: var(--alx-density-header-size, 1.25rem);
       }
 
       .metrics-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 1rem;
+        gap: var(--alx-density-gap, 1rem);
       }
 
       .metric-card {
         background: var(--alx-surface);
         border: 1px solid var(--alx-border);
         border-radius: var(--alx-radius);
-        padding: 1.25rem;
+        padding: var(--alx-density-gap, 1.25rem);
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
@@ -89,6 +95,7 @@ export class AlxAnalyticsEngagement extends LitElement {
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ attribute: 'date-from' }) dateFrom = '';
   @property({ attribute: 'date-to' }) dateTo = '';
 

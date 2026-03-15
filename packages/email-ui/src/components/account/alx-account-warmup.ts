@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxButtonStyles,
   alxCardStyles,
   alxBadgeStyles,
@@ -29,13 +30,14 @@ interface WarmupStatus {
 export class AlxAccountWarmup extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxButtonStyles,
     alxCardStyles,
     alxBadgeStyles,
     alxLoadingStyles,
     css`
       .warmup-progress {
-        margin: 1.25rem 0;
+        margin: var(--alx-density-gap, 1rem) 0;
       }
       .progress-bar-track {
         width: 100%;
@@ -53,50 +55,50 @@ export class AlxAccountWarmup extends LitElement {
       .progress-info {
         display: flex;
         justify-content: space-between;
-        margin-top: 0.5rem;
-        font-size: 0.8rem;
+        margin-top: calc(var(--alx-density-gap, 1rem) / 2);
+        font-size: var(--alx-density-font-size, 0.875rem);
         color: var(--alx-text-muted);
       }
       .stats-row {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.25rem;
+        gap: var(--alx-density-gap, 1rem);
+        margin-bottom: var(--alx-density-gap, 1rem);
       }
       .stat-box {
         text-align: center;
-        padding: 0.75rem;
+        padding: var(--alx-density-padding, 0.75rem);
         background: var(--alx-bg);
         border-radius: var(--alx-radius);
         border: 1px solid var(--alx-border);
       }
       .stat-value {
-        font-size: 1.5rem;
+        font-size: var(--alx-density-header-size, 1.25rem);
         font-weight: 700;
         color: var(--alx-primary);
       }
       .stat-label {
-        font-size: 0.75rem;
+        font-size: var(--alx-density-font-size, 0.875rem);
         color: var(--alx-text-muted);
         margin-top: 0.25rem;
       }
       .actions {
         display: flex;
-        gap: 0.75rem;
-        margin-top: 1rem;
+        gap: var(--alx-density-gap, 1rem);
+        margin-top: var(--alx-density-gap, 1rem);
       }
       .schedule-list {
         list-style: none;
-        margin: 1rem 0 0;
+        margin: var(--alx-density-gap, 1rem) 0 0;
         padding: 0;
       }
       .schedule-item {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        padding: 0.5rem 0;
+        gap: var(--alx-density-gap, 1rem);
+        padding: calc(var(--alx-density-padding, 0.75rem) / 2) 0;
         border-bottom: 1px solid var(--alx-border);
-        font-size: 0.85rem;
+        font-size: var(--alx-density-font-size, 0.875rem);
       }
       .schedule-day {
         width: 60px;
@@ -113,6 +115,7 @@ export class AlxAccountWarmup extends LitElement {
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ attribute: 'account-id' }) accountId = '';
 
   @state() private warmup: WarmupStatus | null = null;

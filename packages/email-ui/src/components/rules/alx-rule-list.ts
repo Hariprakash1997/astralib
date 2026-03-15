@@ -1,7 +1,8 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxResetStyles,
   alxTypographyStyles,
   alxButtonStyles,
@@ -28,6 +29,7 @@ interface RuleRow {
 export class AlxRuleList extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxResetStyles,
     alxTypographyStyles,
     alxButtonStyles,
@@ -39,8 +41,8 @@ export class AlxRuleList extends LitElement {
       .toolbar {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
+        gap: var(--alx-density-gap, 0.75rem);
+        margin-bottom: var(--alx-density-gap, 1rem);
       }
 
       .spacer {
@@ -55,8 +57,8 @@ export class AlxRuleList extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 1rem;
-        margin-top: 1rem;
+        gap: var(--alx-density-gap, 1rem);
+        margin-top: var(--alx-density-gap, 1rem);
       }
 
       .toggle {
@@ -105,12 +107,26 @@ export class AlxRuleList extends LitElement {
       .stat {
         font-variant-numeric: tabular-nums;
       }
+
+      .action-group {
+        display: flex;
+        gap: 0.35rem;
+      }
+
+      .alx-success-msg {
+        color: var(--alx-success, #16a34a);
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+      }
     `,
   ];
+
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
 
   @state() private _rules: RuleRow[] = [];
   @state() private _loading = false;
   @state() private _error = '';
+  @state() private _successMsg = '';
   @state() private _page = 1;
   @state() private _totalPages = 1;
   @state() private _total = 0;
@@ -191,6 +207,31 @@ export class AlxRuleList extends LitElement {
     }
   }
 
+  private async _onDeleteRule(rule: RuleRow, e: Event): Promise<void> {
+    e.stopPropagation();
+    if (!confirm(`Delete rule "${rule.name}"? This cannot be undone.`)) return;
+    try {
+      await this._api.deleteRule(rule._id);
+      this.dispatchEvent(new CustomEvent('alx-rule-deleted', { detail: { id: rule._id }, bubbles: true, composed: true }));
+      await this._loadRules();
+    } catch (err) {
+      this._error = err instanceof Error ? err.message : 'Failed to delete rule';
+    }
+  }
+
+  private async _onRunNow(e: Event): Promise<void> {
+    e.stopPropagation();
+    this._successMsg = '';
+    this._error = '';
+    try {
+      const res = (await this._api.triggerRun()) as { data?: { runId?: string } };
+      const runId = res.data?.runId ?? 'unknown';
+      this._successMsg = `Run started (ID: ${runId})`;
+    } catch (err) {
+      this._error = err instanceof Error ? err.message : 'Failed to trigger run';
+    }
+  }
+
   private _goToPage(page: number): void {
     this._page = page;
     this._loadRules();
@@ -209,11 +250,15 @@ export class AlxRuleList extends LitElement {
         </div>
 
         <div class="toolbar">
+          <button class="alx-btn-sm" @click=${(e: Event) => this._onRunNow(e)}>Run Now</button>
           <span class="spacer"></span>
           <button class="alx-btn-primary" @click=${this._onCreateClick}>+ Create Rule</button>
         </div>
 
         ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
+        ${this._successMsg
+          ? html`<div class="alx-success-msg">${this._successMsg}</div>`
+          : nothing}
 
         ${this._loading
           ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
@@ -252,12 +297,20 @@ export class AlxRuleList extends LitElement {
                           <td class="stat">${r.totalSent}</td>
                           <td class="stat">${r.totalSkipped}</td>
                           <td>
-                            <button
-                              class="alx-btn-sm"
-                              @click=${(e: Event) => this._onDryRun(r, e)}
-                            >
-                              Dry Run
-                            </button>
+                            <div class="action-group">
+                              <button
+                                class="alx-btn-sm"
+                                @click=${(e: Event) => this._onDryRun(r, e)}
+                              >
+                                Dry Run
+                              </button>
+                              <button
+                                class="alx-btn-sm alx-btn-danger"
+                                @click=${(e: Event) => this._onDeleteRule(r, e)}
+                              >
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       `,

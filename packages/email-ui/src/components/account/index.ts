@@ -7,3 +7,4 @@ export { AlxSmtpTester } from './alx-smtp-tester.js';
 export { AlxBounceStatus } from './alx-bounce-status.js';
 export { AlxApprovalQueue } from './alx-approval-queue.js';
 export { AlxGlobalSettings } from './alx-global-settings.js';
+export { AlxMetadataEditor } from './alx-metadata-editor.js';

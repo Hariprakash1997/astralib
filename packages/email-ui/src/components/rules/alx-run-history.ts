@@ -1,7 +1,8 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxResetStyles,
   alxTypographyStyles,
   alxButtonStyles,
@@ -24,7 +25,9 @@ interface PerRuleStat {
 
 interface RunLog {
   _id: string;
+  runId?: string;
   runAt: string;
+  status?: string;
   triggeredBy: string;
   duration: number;
   rulesProcessed: number;
@@ -38,6 +41,7 @@ interface RunLog {
 export class AlxRunHistory extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxResetStyles,
     alxTypographyStyles,
     alxButtonStyles,
@@ -50,9 +54,9 @@ export class AlxRunHistory extends LitElement {
       .toolbar {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: var(--alx-density-gap, 0.75rem);
         flex-wrap: wrap;
-        margin-bottom: 1rem;
+        margin-bottom: var(--alx-density-gap, 1rem);
       }
 
       .toolbar input[type='date'] {
@@ -67,8 +71,8 @@ export class AlxRunHistory extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 1rem;
-        margin-top: 1rem;
+        gap: var(--alx-density-gap, 1rem);
+        margin-top: var(--alx-density-gap, 1rem);
       }
 
       .expandable {
@@ -102,12 +106,21 @@ export class AlxRunHistory extends LitElement {
         color: var(--alx-text-muted);
         font-size: 0.8rem;
       }
+
+      .alx-success-msg {
+        color: var(--alx-success, #16a34a);
+        font-size: 0.8rem;
+        margin-top: 0.5rem;
+      }
     `,
   ];
+
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
 
   @state() private _logs: RunLog[] = [];
   @state() private _loading = false;
   @state() private _error = '';
+  @state() private _successMsg = '';
   @state() private _page = 1;
   @state() private _totalPages = 1;
   @state() private _total = 0;
@@ -173,6 +186,30 @@ export class AlxRunHistory extends LitElement {
     this._loadLogs();
   }
 
+  private async _onRunNow(): Promise<void> {
+    this._successMsg = '';
+    this._error = '';
+    try {
+      const res = (await this._api.triggerRun()) as { data?: { runId?: string } };
+      const runId = res.data?.runId ?? 'unknown';
+      this._successMsg = `Run started (ID: ${runId})`;
+    } catch (err) {
+      this._error = err instanceof Error ? err.message : 'Failed to trigger run';
+    }
+  }
+
+  private async _onCancelRun(log: RunLog, e: Event): Promise<void> {
+    e.stopPropagation();
+    const runId = log.runId ?? log._id;
+    this._error = '';
+    try {
+      await this._api.cancelRun(runId);
+      await this._loadLogs();
+    } catch (err) {
+      this._error = err instanceof Error ? err.message : 'Failed to cancel run';
+    }
+  }
+
   private _formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleString();
   }
@@ -180,6 +217,19 @@ export class AlxRunHistory extends LitElement {
   private _formatDuration(ms: number): string {
     if (ms < 1000) return `${ms}ms`;
     return `${(ms / 1000).toFixed(1)}s`;
+  }
+
+  private _renderStatusBadge(status?: string): unknown {
+    if (!status) return nothing;
+    const cls =
+      status === 'running'
+        ? 'alx-badge alx-badge-warning'
+        : status === 'failed'
+          ? 'alx-badge alx-badge-danger'
+          : status === 'cancelled'
+            ? 'alx-badge alx-badge-muted'
+            : 'alx-badge alx-badge-success';
+    return html`<span class="${cls}">${status}</span>`;
   }
 
   override render() {
@@ -209,9 +259,13 @@ export class AlxRunHistory extends LitElement {
             }}
           />
           <span class="spacer"></span>
+          <button class="alx-btn-sm" @click=${this._onRunNow}>Run Now</button>
         </div>
 
         ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
+        ${this._successMsg
+          ? html`<div class="alx-success-msg">${this._successMsg}</div>`
+          : nothing}
 
         ${this._loading
           ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
@@ -223,12 +277,14 @@ export class AlxRunHistory extends LitElement {
                     <tr>
                       <th></th>
                       <th>Run At</th>
+                      <th>Status</th>
                       <th>Triggered By</th>
                       <th>Duration</th>
                       <th>Rules</th>
                       <th>Sent</th>
                       <th>Skipped</th>
                       <th>Errors</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -240,6 +296,7 @@ export class AlxRunHistory extends LitElement {
                             <span class="expand-icon ${expanded ? 'open' : ''}">&#9654;</span>
                           </td>
                           <td>${this._formatDate(log.runAt)}</td>
+                          <td>${this._renderStatusBadge(log.status)}</td>
                           <td>${log.triggeredBy}</td>
                           <td class="duration">${this._formatDuration(log.duration)}</td>
                           <td class="stat">${log.rulesProcessed}</td>
@@ -250,11 +307,23 @@ export class AlxRunHistory extends LitElement {
                               ? html`<span class="alx-badge alx-badge-danger">${log.totalErrors}</span>`
                               : '0'}
                           </td>
+                          <td>
+                            ${log.status === 'running'
+                              ? html`
+                                  <button
+                                    class="alx-btn-sm alx-btn-danger"
+                                    @click=${(e: Event) => this._onCancelRun(log, e)}
+                                  >
+                                    Cancel
+                                  </button>
+                                `
+                              : nothing}
+                          </td>
                         </tr>
                         ${expanded && log.perRuleStats?.length > 0
                           ? html`
                               <tr>
-                                <td colspan="8" class="sub-table">
+                                <td colspan="10" class="sub-table">
                                   <table>
                                     <thead>
                                       <tr>

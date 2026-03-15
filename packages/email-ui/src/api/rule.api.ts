@@ -65,6 +65,14 @@ export class RuleAPI {
     return this.http.post('/runner');
   }
 
+  cancelRun(runId: string): Promise<any> {
+    return this.http.post(`/runner/cancel/${runId}`);
+  }
+
+  getRunStatus(runId?: string): Promise<any> {
+    return this.http.get(runId ? `/runner/status/${runId}` : '/runner/status');
+  }
+
   getRunHistory(params?: PaginationParams & Record<string, unknown>): Promise<any> {
     return this.http.get('/runner/logs', params);
   }

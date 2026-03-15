@@ -32,6 +32,7 @@ export {
   AlxBounceStatus,
   AlxApprovalQueue,
   AlxGlobalSettings,
+  AlxMetadataEditor,
 } from './components/account/index.js';
 
 export {

@@ -2,17 +2,20 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxButtonStyles,
   alxInputStyles,
   alxCardStyles,
   alxLoadingStyles,
 } from '../../styles/shared.js';
 import { AccountAPI } from '../../api/account.api.js';
+import './alx-metadata-editor.js';
 
 @customElement('alx-account-form')
 export class AlxAccountForm extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxButtonStyles,
     alxInputStyles,
     alxCardStyles,
@@ -21,7 +24,7 @@ export class AlxAccountForm extends LitElement {
       .form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1rem;
+        gap: var(--alx-density-gap, 1rem);
       }
       .form-group {
         display: flex;
@@ -41,16 +44,28 @@ export class AlxAccountForm extends LitElement {
       }
       .actions {
         display: flex;
-        gap: 0.75rem;
+        gap: var(--alx-density-gap, 0.75rem);
         justify-content: flex-end;
-        margin-top: 1.25rem;
+        margin-top: var(--alx-density-gap, 1.25rem);
       }
       input[type='number'] {
         width: 100%;
       }
+      .actions-left {
+        display: flex;
+        gap: 0.75rem;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1.25rem;
+      }
+      .actions-right {
+        display: flex;
+        gap: 0.75rem;
+      }
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ attribute: 'account-id' }) accountId = '';
 
   @state() private email = '';
@@ -64,6 +79,8 @@ export class AlxAccountForm extends LitElement {
   @state() private imapPort = 993;
   @state() private imapUser = '';
   @state() private imapPass = '';
+  @state() private metadata: Record<string, string | string[]> = {};
+  @state() private imapTouched = false;
   @state() private loading = false;
   @state() private saving = false;
   @state() private error = '';
@@ -97,6 +114,7 @@ export class AlxAccountForm extends LitElement {
       this.imapPort = (imap['port'] as number) ?? 993;
       this.imapUser = (imap['user'] as string) ?? '';
       this.imapPass = (imap['pass'] as string) ?? '';
+      this.metadata = (account['metadata'] as Record<string, string | string[]>) ?? {};
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to load account';
     } finally {
@@ -124,6 +142,7 @@ export class AlxAccountForm extends LitElement {
         user: this.smtpUser,
         pass: this.smtpPass,
       },
+      metadata: this.metadata,
     };
 
     if (this.provider === 'gmail') {
@@ -163,6 +182,52 @@ export class AlxAccountForm extends LitElement {
         composed: true,
       }),
     );
+  }
+
+  private async onDelete(): Promise<void> {
+    if (!this.accountId) return;
+    if (!confirm('Delete this account?')) return;
+    this.saving = true;
+    this.error = '';
+    try {
+      await this.api.remove(this.accountId);
+      this.dispatchEvent(
+        new CustomEvent('alx-account-deleted', {
+          detail: { _id: this.accountId },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : 'Failed to delete account';
+    } finally {
+      this.saving = false;
+    }
+  }
+
+  private onSmtpFieldChange(field: 'host' | 'port' | 'user' | 'pass', value: string): void {
+    if (field === 'host') this.smtpHost = value;
+    else if (field === 'port') this.smtpPort = Number(value);
+    else if (field === 'user') this.smtpUser = value;
+    else this.smtpPass = value;
+    if (this.provider === 'gmail' && !this.imapTouched) {
+      this.imapHost = 'imap.gmail.com';
+      this.imapPort = 993;
+      this.imapUser = this.smtpUser;
+      this.imapPass = this.smtpPass;
+    }
+  }
+
+  private onImapFieldChange(field: 'host' | 'port' | 'user' | 'pass', value: string): void {
+    this.imapTouched = true;
+    if (field === 'host') this.imapHost = value;
+    else if (field === 'port') this.imapPort = Number(value);
+    else if (field === 'user') this.imapUser = value;
+    else this.imapPass = value;
+  }
+
+  private onMetadataChange(e: Event): void {
+    this.metadata = (e as CustomEvent).detail;
   }
 
   private showImap(): boolean {
@@ -220,7 +285,7 @@ export class AlxAccountForm extends LitElement {
               <input
                 type="text"
                 .value=${this.smtpHost}
-                @input=${(e: Event) => (this.smtpHost = (e.target as HTMLInputElement).value)}
+                @input=${(e: Event) => this.onSmtpFieldChange('host', (e.target as HTMLInputElement).value)}
                 placeholder="smtp.gmail.com"
               />
             </div>
@@ -229,7 +294,7 @@ export class AlxAccountForm extends LitElement {
               <input
                 type="number"
                 .value=${String(this.smtpPort)}
-                @input=${(e: Event) => (this.smtpPort = Number((e.target as HTMLInputElement).value))}
+                @input=${(e: Event) => this.onSmtpFieldChange('port', (e.target as HTMLInputElement).value)}
               />
             </div>
             <div class="form-group">
@@ -237,7 +302,7 @@ export class AlxAccountForm extends LitElement {
               <input
                 type="text"
                 .value=${this.smtpUser}
-                @input=${(e: Event) => (this.smtpUser = (e.target as HTMLInputElement).value)}
+                @input=${(e: Event) => this.onSmtpFieldChange('user', (e.target as HTMLInputElement).value)}
                 placeholder="user@gmail.com"
               />
             </div>
@@ -246,7 +311,7 @@ export class AlxAccountForm extends LitElement {
               <input
                 type="password"
                 .value=${this.smtpPass}
-                @input=${(e: Event) => (this.smtpPass = (e.target as HTMLInputElement).value)}
+                @input=${(e: Event) => this.onSmtpFieldChange('pass', (e.target as HTMLInputElement).value)}
                 placeholder="App password"
               />
             </div>
@@ -259,7 +324,7 @@ export class AlxAccountForm extends LitElement {
                     <input
                       type="text"
                       .value=${this.imapHost}
-                      @input=${(e: Event) => (this.imapHost = (e.target as HTMLInputElement).value)}
+                      @input=${(e: Event) => this.onImapFieldChange('host', (e.target as HTMLInputElement).value)}
                       placeholder="imap.gmail.com"
                     />
                   </div>
@@ -268,7 +333,7 @@ export class AlxAccountForm extends LitElement {
                     <input
                       type="number"
                       .value=${String(this.imapPort)}
-                      @input=${(e: Event) => (this.imapPort = Number((e.target as HTMLInputElement).value))}
+                      @input=${(e: Event) => this.onImapFieldChange('port', (e.target as HTMLInputElement).value)}
                     />
                   </div>
                   <div class="form-group">
@@ -276,7 +341,7 @@ export class AlxAccountForm extends LitElement {
                     <input
                       type="text"
                       .value=${this.imapUser}
-                      @input=${(e: Event) => (this.imapUser = (e.target as HTMLInputElement).value)}
+                      @input=${(e: Event) => this.onImapFieldChange('user', (e.target as HTMLInputElement).value)}
                       placeholder="user@gmail.com"
                     />
                   </div>
@@ -285,19 +350,39 @@ export class AlxAccountForm extends LitElement {
                     <input
                       type="password"
                       .value=${this.imapPass}
-                      @input=${(e: Event) => (this.imapPass = (e.target as HTMLInputElement).value)}
+                      @input=${(e: Event) => this.onImapFieldChange('pass', (e.target as HTMLInputElement).value)}
                       placeholder="App password"
                     />
                   </div>
                 `
               : ''}
+
+            <div class="section-title">Metadata</div>
+            <div class="form-group full">
+              <alx-metadata-editor
+                .value=${this.metadata}
+                @metadata-change=${this.onMetadataChange}
+              ></alx-metadata-editor>
+            </div>
           </div>
 
-          <div class="actions">
-            <button type="button" @click=${this.onCancel}>Cancel</button>
-            <button type="submit" class="alx-btn-primary" ?disabled=${this.saving}>
-              ${this.saving ? 'Saving...' : this.accountId ? 'Update' : 'Create'}
-            </button>
+          <div class="actions-left">
+            <div>
+              ${this.accountId
+                ? html`<button
+                    type="button"
+                    class="alx-btn-danger"
+                    ?disabled=${this.saving}
+                    @click=${this.onDelete}
+                  >Delete Account</button>`
+                : ''}
+            </div>
+            <div class="actions-right">
+              <button type="button" @click=${this.onCancel}>Cancel</button>
+              <button type="submit" class="alx-btn-primary" ?disabled=${this.saving}>
+                ${this.saving ? 'Saving...' : this.accountId ? 'Update' : 'Create'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

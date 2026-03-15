@@ -1,7 +1,8 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxResetStyles,
   alxTypographyStyles,
   alxButtonStyles,
@@ -27,6 +28,7 @@ const DEFAULT_THROTTLE: ThrottleData = {
 export class AlxThrottleSettings extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxResetStyles,
     alxTypographyStyles,
     alxButtonStyles,
@@ -37,7 +39,7 @@ export class AlxThrottleSettings extends LitElement {
       .form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr 1fr;
-        gap: 1rem;
+        gap: var(--alx-density-gap, 1rem);
       }
 
       .form-group {
@@ -64,6 +66,8 @@ export class AlxThrottleSettings extends LitElement {
       }
     `,
   ];
+
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
 
   @state() private _form: ThrottleData = { ...DEFAULT_THROTTLE };
   @state() private _loading = false;

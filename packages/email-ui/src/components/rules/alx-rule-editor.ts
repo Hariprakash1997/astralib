@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxResetStyles,
   alxTypographyStyles,
   alxButtonStyles,
@@ -28,8 +29,10 @@ interface RuleData {
   templateId: string;
   platform: string;
   audience: string;
+  targetMode: 'query' | 'list';
   target: {
     conditions: Condition[];
+    identifiers?: string[];
   };
   behavior: {
     sendOnce: boolean;
@@ -39,6 +42,8 @@ interface RuleData {
     emailType: string;
     bypassThrottle: boolean;
   };
+  validFrom?: string;
+  validTill?: string;
   isActive: boolean;
 }
 
@@ -47,7 +52,8 @@ const EMPTY_RULE: RuleData = {
   templateId: '',
   platform: '',
   audience: '',
-  target: { conditions: [] },
+  targetMode: 'query',
+  target: { conditions: [], identifiers: [] },
   behavior: {
     sendOnce: true,
     resendAfterDays: null,
@@ -56,6 +62,8 @@ const EMPTY_RULE: RuleData = {
     emailType: 'marketing',
     bypassThrottle: false,
   },
+  validFrom: '',
+  validTill: '',
   isActive: true,
 };
 
@@ -65,6 +73,7 @@ const OPERATORS = ['equals', 'not_equals', 'contains', 'gt', 'gte', 'lt', 'lte',
 export class AlxRuleEditor extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxResetStyles,
     alxTypographyStyles,
     alxButtonStyles,
@@ -75,7 +84,7 @@ export class AlxRuleEditor extends LitElement {
       .form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1rem;
+        gap: var(--alx-density-gap, 1rem);
       }
 
       .form-group {
@@ -130,15 +139,55 @@ export class AlxRuleEditor extends LitElement {
         gap: 0.75rem;
         margin-top: 1.5rem;
       }
+
+      .mode-toggle {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        grid-column: 1 / -1;
+      }
+
+      .mode-toggle label {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        margin-bottom: 0;
+        cursor: pointer;
+      }
+
+      .mode-toggle input[type='radio'] {
+        width: auto;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 100px;
+        font-family: monospace;
+        font-size: 0.85rem;
+        resize: vertical;
+      }
+
+      .helper-text {
+        font-size: 0.75rem;
+        color: var(--alx-text-muted);
+        margin-top: 0.25rem;
+      }
+
+      .actions-right {
+        margin-left: auto;
+      }
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ attribute: 'rule-id' }) ruleId = '';
 
   @state() private _form: RuleData = JSON.parse(JSON.stringify(EMPTY_RULE));
   @state() private _templates: TemplateOption[] = [];
   @state() private _loading = false;
   @state() private _saving = false;
+  @state() private _deleting = false;
   @state() private _error = '';
 
   private __api?: RuleAPI;
@@ -190,6 +239,18 @@ export class AlxRuleEditor extends LitElement {
   }
 
   private _updateField(field: keyof RuleData, value: unknown): void {
+    if (field === 'targetMode') {
+      const target = { ...this._form.target };
+      if (value === 'list') {
+        delete (target as any).conditions;
+        delete (target as any).platform;
+        delete (target as any).audience;
+      } else {
+        delete (target as any).identifiers;
+      }
+      this._form = { ...this._form, [field]: value, target };
+      return;
+    }
     this._form = { ...this._form, [field]: value };
   }
 
@@ -244,6 +305,42 @@ export class AlxRuleEditor extends LitElement {
     }
   }
 
+  private async _onDelete(): Promise<void> {
+    if (!this._form._id) return;
+    if (!confirm('Delete this rule? This cannot be undone.')) return;
+    this._deleting = true;
+    this._error = '';
+    try {
+      await this._api.deleteRule(this._form._id);
+      this.dispatchEvent(
+        new CustomEvent('alx-rule-deleted', {
+          detail: { _id: this._form._id },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+    } catch (err) {
+      this._error = err instanceof Error ? err.message : 'Failed to delete rule';
+    } finally {
+      this._deleting = false;
+    }
+  }
+
+  private _getIdentifiersText(): string {
+    return (this._form.target.identifiers ?? []).join('\n');
+  }
+
+  private _setIdentifiersText(text: string): void {
+    const identifiers = text
+      .split(/[\n,]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    this._form = {
+      ...this._form,
+      target: { ...this._form.target, identifiers },
+    };
+  }
+
   override render() {
     if (this._loading) {
       return html`<div class="alx-loading"><div class="alx-spinner"></div></div>`;
@@ -287,66 +384,145 @@ export class AlxRuleEditor extends LitElement {
             </select>
           </div>
 
+          <!-- Target Mode -->
+          <div class="section-title">Targeting</div>
+
+          <div class="mode-toggle">
+            <label>
+              <input
+                type="radio"
+                name="targetMode"
+                value="query"
+                .checked=${this._form.targetMode !== 'list'}
+                @change=${() => this._updateField('targetMode', 'query')}
+              />
+              Query
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="targetMode"
+                value="list"
+                .checked=${this._form.targetMode === 'list'}
+                @change=${() => this._updateField('targetMode', 'list')}
+              />
+              List
+            </label>
+          </div>
+
+          ${this._form.targetMode === 'list'
+            ? html`
+                <div class="form-group form-group-full">
+                  <label>Identifiers</label>
+                  <textarea
+                    .value=${this._getIdentifiersText()}
+                    @input=${(e: Event) =>
+                      this._setIdentifiersText((e.target as HTMLTextAreaElement).value)}
+                    placeholder="user@example.com"
+                  ></textarea>
+                  <span class="helper-text">Enter email addresses, one per line</span>
+                </div>
+              `
+            : html`
+                <div class="form-group">
+                  <label>Platform</label>
+                  <input
+                    type="text"
+                    .value=${this._form.platform}
+                    @input=${(e: Event) =>
+                      this._updateField('platform', (e.target as HTMLInputElement).value)}
+                    placeholder="Platform"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label>Audience</label>
+                  <input
+                    type="text"
+                    .value=${this._form.audience}
+                    @input=${(e: Event) =>
+                      this._updateField('audience', (e.target as HTMLInputElement).value)}
+                    placeholder="Audience"
+                  />
+                </div>
+
+                <!-- Conditions -->
+                <div class="section-title">Target Conditions</div>
+
+                <div class="form-group form-group-full">
+                  ${this._form.target.conditions.map(
+                    (c, i) => html`
+                      <div class="condition-row">
+                        <input
+                          type="text"
+                          .value=${c.field}
+                          @input=${(e: Event) =>
+                            this._updateCondition(i, 'field', (e.target as HTMLInputElement).value)}
+                          placeholder="Field path"
+                        />
+                        <select
+                          .value=${c.operator}
+                          @change=${(e: Event) =>
+                            this._updateCondition(
+                              i,
+                              'operator',
+                              (e.target as HTMLSelectElement).value,
+                            )}
+                        >
+                          ${OPERATORS.map(
+                            (op) =>
+                              html`<option value=${op} ?selected=${c.operator === op}>
+                                ${op}
+                              </option>`,
+                          )}
+                        </select>
+                        <input
+                          type="text"
+                          .value=${c.value}
+                          @input=${(e: Event) =>
+                            this._updateCondition(i, 'value', (e.target as HTMLInputElement).value)}
+                          placeholder="Value"
+                        />
+                        <button
+                          class="alx-btn-sm alx-btn-danger"
+                          @click=${() => this._removeCondition(i)}
+                        >
+                          &times;
+                        </button>
+                      </div>
+                    `,
+                  )}
+                  <button class="alx-btn-sm" @click=${this._addCondition}>+ Add Condition</button>
+                </div>
+              `}
+
+          <!-- Validity Dates -->
+          <div class="section-title">Validity</div>
+
           <div class="form-group">
-            <label>Platform</label>
+            <label>Valid From</label>
             <input
-              type="text"
-              .value=${this._form.platform}
+              type="date"
+              .value=${this._form.validFrom ?? ''}
               @input=${(e: Event) =>
-                this._updateField('platform', (e.target as HTMLInputElement).value)}
-              placeholder="Platform"
+                this._updateField('validFrom', (e.target as HTMLInputElement).value)}
             />
           </div>
 
           <div class="form-group">
-            <label>Audience</label>
+            <label>Valid Till</label>
             <input
-              type="text"
-              .value=${this._form.audience}
+              type="date"
+              .value=${this._form.validTill ?? ''}
               @input=${(e: Event) =>
-                this._updateField('audience', (e.target as HTMLInputElement).value)}
-              placeholder="Audience"
+                this._updateField('validTill', (e.target as HTMLInputElement).value)}
             />
           </div>
-
-          <!-- Conditions -->
-          <div class="section-title">Target Conditions</div>
 
           <div class="form-group form-group-full">
-            ${this._form.target.conditions.map(
-              (c, i) => html`
-                <div class="condition-row">
-                  <input
-                    type="text"
-                    .value=${c.field}
-                    @input=${(e: Event) =>
-                      this._updateCondition(i, 'field', (e.target as HTMLInputElement).value)}
-                    placeholder="Field path"
-                  />
-                  <select
-                    .value=${c.operator}
-                    @change=${(e: Event) =>
-                      this._updateCondition(i, 'operator', (e.target as HTMLSelectElement).value)}
-                  >
-                    ${OPERATORS.map(
-                      (op) =>
-                        html`<option value=${op} ?selected=${c.operator === op}>${op}</option>`,
-                    )}
-                  </select>
-                  <input
-                    type="text"
-                    .value=${c.value}
-                    @input=${(e: Event) =>
-                      this._updateCondition(i, 'value', (e.target as HTMLInputElement).value)}
-                    placeholder="Value"
-                  />
-                  <button class="alx-btn-sm alx-btn-danger" @click=${() => this._removeCondition(i)}>
-                    &times;
-                  </button>
-                </div>
-              `,
-            )}
-            <button class="alx-btn-sm" @click=${this._addCondition}>+ Add Condition</button>
+            <span class="helper-text"
+              >Rule only runs within this date range. Leave empty for always active.</span
+            >
           </div>
 
           <!-- Behavior -->
@@ -446,6 +622,17 @@ export class AlxRuleEditor extends LitElement {
           >
             ${this._saving ? 'Saving...' : isEdit ? 'Update Rule' : 'Create Rule'}
           </button>
+          ${isEdit
+            ? html`
+                <button
+                  class="alx-btn-danger actions-right"
+                  ?disabled=${this._deleting}
+                  @click=${this._onDelete}
+                >
+                  ${this._deleting ? 'Deleting...' : 'Delete Rule'}
+                </button>
+              `
+            : nothing}
         </div>
       </div>
     `;

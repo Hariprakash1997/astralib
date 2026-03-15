@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxResetStyles,
   alxTypographyStyles,
   alxButtonStyles,
@@ -28,6 +29,7 @@ interface TemplateRow {
 export class AlxTemplateList extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxResetStyles,
     alxTypographyStyles,
     alxButtonStyles,
@@ -40,9 +42,9 @@ export class AlxTemplateList extends LitElement {
       .toolbar {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
+        gap: var(--alx-density-gap, 0.75rem);
         flex-wrap: wrap;
-        margin-bottom: 1rem;
+        margin-bottom: var(--alx-density-gap, 1rem);
       }
 
       .toolbar select {
@@ -62,8 +64,8 @@ export class AlxTemplateList extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 1rem;
-        margin-top: 1rem;
+        gap: var(--alx-density-gap, 1rem);
+        margin-top: var(--alx-density-gap, 1rem);
       }
 
       .toggle {
@@ -108,9 +110,25 @@ export class AlxTemplateList extends LitElement {
       .toggle input:checked + .toggle-slider::before {
         transform: translateX(16px);
       }
+
+      .delete-btn {
+        background: none;
+        border: none;
+        color: var(--alx-text-muted);
+        cursor: pointer;
+        font-size: 1rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: var(--alx-radius);
+      }
+
+      .delete-btn:hover {
+        color: var(--alx-danger, #e53e3e);
+        background: color-mix(in srgb, var(--alx-danger, #e53e3e) 10%, transparent);
+      }
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ type: String }) categories = '';
   @property({ type: String }) audiences = '';
   @property({ type: String }) platforms = '';
@@ -190,6 +208,24 @@ export class AlxTemplateList extends LitElement {
       await this._loadTemplates();
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to toggle template';
+    }
+  }
+
+  private async _onDelete(template: TemplateRow, e: Event): Promise<void> {
+    e.stopPropagation();
+    if (!confirm(`Delete template "${template.name}"? This cannot be undone.`)) return;
+    try {
+      await this._api.deleteTemplate(template._id);
+      this.dispatchEvent(
+        new CustomEvent('alx-template-deleted', {
+          detail: { _id: template._id },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+      await this._loadTemplates();
+    } catch (err) {
+      this._error = err instanceof Error ? err.message : 'Failed to delete template';
     }
   }
 
@@ -277,6 +313,7 @@ export class AlxTemplateList extends LitElement {
                       <th>Audience</th>
                       <th>Platform</th>
                       <th>Active</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -297,6 +334,9 @@ export class AlxTemplateList extends LitElement {
                               />
                               <span class="toggle-slider"></span>
                             </label>
+                          </td>
+                          <td>
+                            <button class="delete-btn" title="Delete" @click=${(e: Event) => this._onDelete(t, e)}>&times;</button>
                           </td>
                         </tr>
                       `,

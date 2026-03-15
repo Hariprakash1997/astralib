@@ -1,7 +1,8 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxButtonStyles,
   alxInputStyles,
   alxCardStyles,
@@ -31,6 +32,7 @@ interface Settings {
 export class AlxGlobalSettings extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxButtonStyles,
     alxInputStyles,
     alxCardStyles,
@@ -134,6 +136,8 @@ export class AlxGlobalSettings extends LitElement {
       }
     `,
   ];
+
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
 
   @state() private settings: Settings = {};
   @state() private loading = false;

@@ -2,6 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxResetStyles,
   alxTypographyStyles,
   alxButtonStyles,
@@ -18,8 +19,10 @@ interface TemplateData {
   category: string;
   audience: string;
   platform: string;
-  subject: string;
-  body: string;
+  subjects: string[];
+  bodies: string[];
+  preheaders: string[];
+  fields: Record<string, string>;
   textBody: string;
   variables: string[];
   isActive: boolean;
@@ -31,8 +34,10 @@ const EMPTY_TEMPLATE: TemplateData = {
   category: '',
   audience: '',
   platform: '',
-  subject: '',
-  body: '',
+  subjects: [''],
+  bodies: [''],
+  preheaders: [],
+  fields: {},
   textBody: '',
   variables: [],
   isActive: true,
@@ -42,6 +47,7 @@ const EMPTY_TEMPLATE: TemplateData = {
 export class AlxTemplateEditor extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxResetStyles,
     alxTypographyStyles,
     alxButtonStyles,
@@ -52,7 +58,7 @@ export class AlxTemplateEditor extends LitElement {
       .form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1rem;
+        gap: var(--alx-density-gap, 1rem);
       }
 
       .form-group {
@@ -115,6 +121,10 @@ export class AlxTemplateEditor extends LitElement {
         margin-top: 1.5rem;
       }
 
+      .actions .spacer {
+        flex: 1;
+      }
+
       .preview-frame {
         width: 100%;
         height: 400px;
@@ -123,21 +133,98 @@ export class AlxTemplateEditor extends LitElement {
         background: #fff;
         margin-top: 0.5rem;
       }
+
+      .multi-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .multi-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: start;
+      }
+
+      .multi-row input,
+      .multi-row textarea {
+        flex: 1;
+      }
+
+      .multi-row textarea {
+        min-height: 150px;
+      }
+
+      .multi-row .remove-btn {
+        background: none;
+        border: none;
+        color: var(--alx-text-muted);
+        cursor: pointer;
+        font-size: 1.1rem;
+        padding: 0.25rem;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+
+      .multi-row .remove-btn:hover {
+        color: var(--alx-danger, #e53e3e);
+      }
+
+      .kv-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .kv-row input {
+        flex: 1;
+      }
+
+      .kv-row .remove-btn {
+        background: none;
+        border: none;
+        color: var(--alx-text-muted);
+        cursor: pointer;
+        font-size: 1.1rem;
+        padding: 0.25rem;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+
+      .kv-row .remove-btn:hover {
+        color: var(--alx-danger, #e53e3e);
+      }
+
+      .helper-text {
+        font-size: 0.75rem;
+        color: var(--alx-text-muted);
+        margin-top: 0.25rem;
+      }
+
+      .section-label {
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+        color: var(--alx-text-secondary, var(--alx-text-muted));
+      }
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ attribute: 'template-id' }) templateId = '';
   @property({ type: String }) categories = '';
   @property({ type: String }) audiences = '';
   @property({ type: String }) platforms = '';
 
-  @state() private _form: TemplateData = { ...EMPTY_TEMPLATE };
+  @state() private _form: TemplateData = { ...EMPTY_TEMPLATE, subjects: [''], bodies: [''], preheaders: [], fields: {} };
   @state() private _loading = false;
   @state() private _saving = false;
+  @state() private _deleting = false;
   @state() private _error = '';
   @state() private _previewHtml = '';
   @state() private _previewing = false;
   @state() private _newVariable = '';
+  @state() private _newFieldKey = '';
 
   private __api?: RuleAPI;
   private get _api(): RuleAPI {
@@ -172,10 +259,17 @@ export class AlxTemplateEditor extends LitElement {
     this._error = '';
     try {
       const res = await this._api.listTemplates({ _id: this.templateId, limit: 1 }) as {
-        templates: TemplateData[];
+        templates: (TemplateData & { subject?: string; body?: string })[];
       };
       if (res.templates && res.templates.length > 0) {
-        this._form = { ...res.templates[0] };
+        const t = res.templates[0];
+        this._form = {
+          ...t,
+          subjects: t.subjects?.length ? [...t.subjects] : t.subject ? [t.subject] : [''],
+          bodies: t.bodies?.length ? [...t.bodies] : t.body ? [t.body] : [''],
+          preheaders: t.preheaders ? [...t.preheaders] : [],
+          fields: t.fields ? { ...t.fields } : {},
+        };
       }
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to load template';
@@ -187,6 +281,44 @@ export class AlxTemplateEditor extends LitElement {
   private _updateField(field: keyof TemplateData, value: unknown): void {
     this._form = { ...this._form, [field]: value };
   }
+
+  // --- Multi-value helpers ---
+
+  private _updateArrayItem(field: 'subjects' | 'bodies' | 'preheaders', index: number, value: string): void {
+    const arr = [...this._form[field]];
+    arr[index] = value;
+    this._form = { ...this._form, [field]: arr };
+  }
+
+  private _addArrayItem(field: 'subjects' | 'bodies' | 'preheaders'): void {
+    this._form = { ...this._form, [field]: [...this._form[field], ''] };
+  }
+
+  private _removeArrayItem(field: 'subjects' | 'bodies' | 'preheaders', index: number): void {
+    const arr = this._form[field];
+    if ((field === 'subjects' || field === 'bodies') && arr.length <= 1) return;
+    this._form = { ...this._form, [field]: arr.filter((_, i) => i !== index) };
+  }
+
+  // --- Fields (key-value) helpers ---
+
+  private _addFieldEntry(): void {
+    const key = this._newFieldKey.trim();
+    if (!key || key in this._form.fields) return;
+    this._form = { ...this._form, fields: { ...this._form.fields, [key]: '' } };
+    this._newFieldKey = '';
+  }
+
+  private _updateFieldValue(key: string, value: string): void {
+    this._form = { ...this._form, fields: { ...this._form.fields, [key]: value } };
+  }
+
+  private _removeFieldEntry(key: string): void {
+    const { [key]: _, ...rest } = this._form.fields;
+    this._form = { ...this._form, fields: rest };
+  }
+
+  // --- Variables ---
 
   private _addVariable(): void {
     const v = this._newVariable.trim();
@@ -208,8 +340,8 @@ export class AlxTemplateEditor extends LitElement {
     this._error = '';
     try {
       const res = (await this._api.previewTemplate({
-        body: this._form.body,
-        subject: this._form.subject,
+        body: this._form.bodies[0] ?? '',
+        subject: this._form.subjects[0] ?? '',
         variables: this._form.variables,
       })) as { html: string };
       this._previewHtml = res.html;
@@ -248,6 +380,28 @@ export class AlxTemplateEditor extends LitElement {
     }
   }
 
+  private async _onDelete(): Promise<void> {
+    if (!this._form._id) return;
+    if (!confirm('Delete this template? This action cannot be undone.')) return;
+
+    this._deleting = true;
+    this._error = '';
+    try {
+      await this._api.deleteTemplate(this._form._id);
+      this.dispatchEvent(
+        new CustomEvent('alx-template-deleted', {
+          detail: { _id: this._form._id },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+    } catch (err) {
+      this._error = err instanceof Error ? err.message : 'Failed to delete template';
+    } finally {
+      this._deleting = false;
+    }
+  }
+
   private _renderSelect(
     label: string,
     field: keyof TemplateData,
@@ -264,6 +418,104 @@ export class AlxTemplateEditor extends LitElement {
           <option value="">Select ${label.toLowerCase()}</option>
           ${options.map((o) => html`<option value=${o} ?selected=${value === o}>${o}</option>`)}
         </select>
+      </div>
+    `;
+  }
+
+  private _renderMultiInput(label: string, field: 'subjects' | 'preheaders', placeholder: string, required: boolean) {
+    const items = this._form[field];
+    return html`
+      <div class="form-group form-group-full">
+        <label class="section-label">${label}</label>
+        <div class="multi-list">
+          ${items.map(
+            (val, i) => html`
+              <div class="multi-row">
+                <input
+                  type="text"
+                  .value=${val}
+                  @input=${(e: Event) => this._updateArrayItem(field, i, (e.target as HTMLInputElement).value)}
+                  placeholder=${placeholder}
+                />
+                ${!required || items.length > 1
+                  ? html`<button class="remove-btn" @click=${() => this._removeArrayItem(field, i)} title="Remove">&times;</button>`
+                  : nothing}
+              </div>
+            `,
+          )}
+          <div>
+            <button class="alx-btn-sm" @click=${() => this._addArrayItem(field)}>+ Add ${label.replace(/s$/, '')}</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderMultiTextarea(label: string, field: 'bodies', placeholder: string) {
+    const items = this._form[field];
+    return html`
+      <div class="form-group form-group-full">
+        <label class="section-label">${label}</label>
+        <div class="multi-list">
+          ${items.map(
+            (val, i) => html`
+              <div class="multi-row">
+                <textarea
+                  .value=${val}
+                  @input=${(e: Event) => this._updateArrayItem(field, i, (e.target as HTMLTextAreaElement).value)}
+                  placeholder=${placeholder}
+                ></textarea>
+                ${items.length > 1
+                  ? html`<button class="remove-btn" @click=${() => this._removeArrayItem(field, i)} title="Remove">&times;</button>`
+                  : nothing}
+              </div>
+            `,
+          )}
+          <div>
+            <button class="alx-btn-sm" @click=${() => this._addArrayItem(field)}>+ Add Body</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private _renderFieldsEditor() {
+    const entries = Object.entries(this._form.fields);
+    return html`
+      <div class="form-group form-group-full">
+        <label class="section-label">Fields</label>
+        <span class="helper-text">Default placeholder values. Overridden by candidate data.</span>
+        <div class="multi-list" style="margin-top:0.5rem">
+          ${entries.map(
+            ([key, val]) => html`
+              <div class="kv-row">
+                <input type="text" .value=${key} disabled placeholder="Key" />
+                <input
+                  type="text"
+                  .value=${val}
+                  @input=${(e: Event) => this._updateFieldValue(key, (e.target as HTMLInputElement).value)}
+                  placeholder="Default value"
+                />
+                <button class="remove-btn" @click=${() => this._removeFieldEntry(key)} title="Remove">&times;</button>
+              </div>
+            `,
+          )}
+          <div class="kv-row">
+            <input
+              type="text"
+              .value=${this._newFieldKey}
+              @input=${(e: Event) => (this._newFieldKey = (e.target as HTMLInputElement).value)}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  this._addFieldEntry();
+                }
+              }}
+              placeholder="New field key"
+            />
+            <button class="alx-btn-sm" @click=${this._addFieldEntry}>+ Add Field</button>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -287,6 +539,7 @@ export class AlxTemplateEditor extends LitElement {
         ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
 
         <div class="form-grid">
+          <!-- Basic Info -->
           <div class="form-group">
             <label>Name</label>
             <input
@@ -352,29 +605,29 @@ export class AlxTemplateEditor extends LitElement {
                 </div>
               `}
 
-          <div class="form-group">
-            <label>Subject</label>
-            <input
-              type="text"
-              .value=${this._form.subject}
-              @input=${(e: Event) =>
-                this._updateField('subject', (e.target as HTMLInputElement).value)}
-              placeholder="Email subject (supports {{variables}})"
-            />
-          </div>
+          <!-- Subjects -->
+          ${this._renderMultiInput('Subjects', 'subjects', 'Email subject (supports {{variables}})', true)}
 
-          <div class="form-group form-group-full">
-            <label>Body (MJML / Handlebars)</label>
-            <textarea
-              .value=${this._form.body}
-              @input=${(e: Event) =>
-                this._updateField('body', (e.target as HTMLTextAreaElement).value)}
-              placeholder="<mjml>...</mjml>"
-            ></textarea>
-          </div>
+          <!-- Bodies -->
+          ${this._renderMultiTextarea('Bodies', 'bodies', '<mjml>...</mjml>')}
 
+          <!-- Preheaders -->
+          ${this._renderMultiInput('Preheaders', 'preheaders', 'Preview text', false)}
+          ${this._form.preheaders.length === 0
+            ? html`
+                <div class="form-group form-group-full" style="margin-top:-0.5rem">
+                  <span class="helper-text">Preview text shown in inbox listings</span>
+                  <div><button class="alx-btn-sm" @click=${() => this._addArrayItem('preheaders')}>+ Add Preheader</button></div>
+                </div>
+              `
+            : html`<div class="form-group form-group-full" style="margin-top:-0.75rem"><span class="helper-text">Preview text shown in inbox listings</span></div>`}
+
+          <!-- Fields -->
+          ${this._renderFieldsEditor()}
+
+          <!-- Text Body -->
           <div class="form-group form-group-full">
-            <label>Text Body (plain text fallback)</label>
+            <label class="section-label">Text Body (plain text fallback)</label>
             <textarea
               .value=${this._form.textBody}
               @input=${(e: Event) =>
@@ -384,8 +637,9 @@ export class AlxTemplateEditor extends LitElement {
             ></textarea>
           </div>
 
+          <!-- Variables -->
           <div class="form-group form-group-full">
-            <label>Variables</label>
+            <label class="section-label">Variables</label>
             <div class="variables-input">
               ${this._form.variables.map(
                 (v) => html`
@@ -437,11 +691,23 @@ export class AlxTemplateEditor extends LitElement {
             ${this._saving ? 'Saving...' : isEdit ? 'Update Template' : 'Create Template'}
           </button>
           <button
-            ?disabled=${this._previewing || !this._form.body}
+            ?disabled=${this._previewing || !this._form.bodies[0]}
             @click=${this._onPreview}
           >
             ${this._previewing ? 'Loading...' : 'Preview'}
           </button>
+          ${isEdit
+            ? html`
+                <span class="spacer"></span>
+                <button
+                  class="alx-btn-danger"
+                  ?disabled=${this._deleting}
+                  @click=${this._onDelete}
+                >
+                  ${this._deleting ? 'Deleting...' : 'Delete'}
+                </button>
+              `
+            : nothing}
         </div>
       </div>
     `;

@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxButtonStyles,
   alxCardStyles,
   alxBadgeStyles,
@@ -23,6 +24,7 @@ interface BounceInfo {
 export class AlxBounceStatus extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxButtonStyles,
     alxCardStyles,
     alxBadgeStyles,
@@ -32,7 +34,7 @@ export class AlxBounceStatus extends LitElement {
       .single-view {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: var(--alx-density-gap, 0.75rem);
       }
       .info-row {
         display: flex;
@@ -50,6 +52,7 @@ export class AlxBounceStatus extends LitElement {
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ attribute: 'account-id' }) accountId = '';
 
   @state() private accounts: BounceInfo[] = [];

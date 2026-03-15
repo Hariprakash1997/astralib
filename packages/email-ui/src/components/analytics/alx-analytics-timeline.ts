@@ -1,7 +1,7 @@
 import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
-import { alxLoadingStyles, alxTypographyStyles } from '../../styles/shared.js';
+import { alxDensityStyles, alxLoadingStyles, alxTypographyStyles } from '../../styles/shared.js';
 import { AnalyticsAPI } from '../../api/analytics.api.js';
 
 interface TimelineEntry {
@@ -13,6 +13,7 @@ interface TimelineEntry {
 export class AlxAnalyticsTimeline extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxLoadingStyles,
     alxTypographyStyles,
     css`
@@ -20,14 +21,18 @@ export class AlxAnalyticsTimeline extends LitElement {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 1rem;
+        margin-bottom: var(--alx-density-gap, 1rem);
+      }
+
+      .header h3 {
+        font-size: var(--alx-density-header-size, 1.25rem);
       }
 
       .chart-container {
         background: var(--alx-surface);
         border: 1px solid var(--alx-border);
         border-radius: var(--alx-radius);
-        padding: 1.25rem;
+        padding: var(--alx-density-gap, 1.25rem);
       }
 
       .chart {
@@ -111,6 +116,7 @@ export class AlxAnalyticsTimeline extends LitElement {
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ attribute: 'date-from' }) dateFrom = '';
   @property({ attribute: 'date-to' }) dateTo = '';
   @property() interval: 'daily' | 'weekly' | 'monthly' = 'daily';

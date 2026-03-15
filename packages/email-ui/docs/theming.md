@@ -81,6 +81,41 @@ alx-analytics-overview {
 }
 ```
 
+## Density
+
+All components support a `density` attribute to control spacing and sizing. Two presets are available: `"default"` and `"compact"`.
+
+### Usage
+
+```html
+<alx-account-list density="compact"></alx-account-list>
+```
+
+### CSS Custom Properties
+
+| Property | Default | Compact | Description |
+|----------|---------|---------|-------------|
+| `--alx-density-padding` | `0.75rem` | `0.375rem` | Inner padding |
+| `--alx-density-gap` | `1rem` | `0.5rem` | Gap between elements |
+| `--alx-density-font-size` | `0.875rem` | `0.75rem` | Base font size |
+| `--alx-density-row-height` | `2.5rem` | `1.75rem` | Table/list row height |
+| `--alx-density-header-size` | `1.25rem` | `1rem` | Header font size |
+
+### Custom Override
+
+You can override individual density properties without using a preset:
+
+```html
+<style>
+  alx-account-list {
+    --alx-density-padding: 0.25rem;
+    --alx-density-font-size: 0.7rem;
+  }
+</style>
+```
+
+---
+
 ## Shared Style Exports
 
 For building custom components that match the design system:

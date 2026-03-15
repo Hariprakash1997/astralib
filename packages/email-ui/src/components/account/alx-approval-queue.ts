@@ -1,7 +1,8 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxButtonStyles,
   alxTableStyles,
   alxBadgeStyles,
@@ -22,6 +23,7 @@ interface Draft {
 export class AlxApprovalQueue extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxButtonStyles,
     alxTableStyles,
     alxBadgeStyles,
@@ -31,8 +33,8 @@ export class AlxApprovalQueue extends LitElement {
       .toolbar {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
+        gap: var(--alx-density-gap, 0.75rem);
+        margin-bottom: var(--alx-density-gap, 1rem);
         flex-wrap: wrap;
       }
       .spacer {
@@ -55,6 +57,8 @@ export class AlxApprovalQueue extends LitElement {
       }
     `,
   ];
+
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
 
   @state() private drafts: Draft[] = [];
   @state() private loading = false;

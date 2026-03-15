@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxCardStyles,
   alxLoadingStyles,
   alxBadgeStyles,
@@ -23,6 +24,7 @@ interface AccountHealth {
 export class AlxAccountHealth extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxCardStyles,
     alxLoadingStyles,
     alxBadgeStyles,
@@ -30,13 +32,13 @@ export class AlxAccountHealth extends LitElement {
       .health-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1rem;
+        gap: var(--alx-density-gap, 1rem);
       }
       .health-item {
         background: var(--alx-surface);
         border: 1px solid var(--alx-border);
         border-radius: var(--alx-radius);
-        padding: 1rem;
+        padding: var(--alx-density-padding, 1rem);
       }
       .health-header {
         display: flex;
@@ -86,6 +88,7 @@ export class AlxAccountHealth extends LitElement {
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ type: Number, attribute: 'refresh-interval' }) refreshInterval = 30;
 
   @state() private accounts: AccountHealth[] = [];

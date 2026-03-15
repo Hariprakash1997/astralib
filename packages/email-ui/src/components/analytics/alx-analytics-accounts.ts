@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxLoadingStyles,
   alxTableStyles,
   alxTypographyStyles,
@@ -24,6 +25,7 @@ type SortKey = 'email' | 'sent' | 'delivered' | 'bounced' | 'failed' | 'delivery
 export class AlxAnalyticsAccounts extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxTableStyles,
     alxLoadingStyles,
     alxTypographyStyles,
@@ -32,7 +34,11 @@ export class AlxAnalyticsAccounts extends LitElement {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 1rem;
+        margin-bottom: var(--alx-density-gap, 1rem);
+      }
+
+      .header h3 {
+        font-size: var(--alx-density-header-size, 1.25rem);
       }
 
       .table-wrapper {
@@ -62,6 +68,7 @@ export class AlxAnalyticsAccounts extends LitElement {
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ attribute: 'date-from' }) dateFrom = '';
   @property({ attribute: 'date-to' }) dateTo = '';
 

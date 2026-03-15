@@ -1,5 +1,23 @@
 import { css } from 'lit';
 
+export const alxDensityStyles = css`
+  :host {
+    --alx-density-padding: 0.75rem;
+    --alx-density-gap: 1rem;
+    --alx-density-font-size: 0.875rem;
+    --alx-density-row-height: 2.5rem;
+    --alx-density-header-size: 1.25rem;
+  }
+
+  :host([density="compact"]) {
+    --alx-density-padding: 0.375rem;
+    --alx-density-gap: 0.5rem;
+    --alx-density-font-size: 0.75rem;
+    --alx-density-row-height: 1.75rem;
+    --alx-density-header-size: 1rem;
+  }
+`;
+
 export const alxResetStyles = css`
   *,
   *::before,
@@ -41,14 +59,14 @@ export const alxButtonStyles = css`
   button, .alx-btn {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    gap: var(--alx-density-gap, 0.5rem);
+    padding: var(--alx-density-padding, 0.5rem) var(--alx-density-gap, 1rem);
     border: 1px solid var(--alx-border);
     border-radius: var(--alx-radius);
     background: var(--alx-surface);
     color: var(--alx-text);
     font-family: var(--alx-font-family);
-    font-size: 0.875rem;
+    font-size: var(--alx-density-font-size, 0.875rem);
     cursor: pointer;
     transition: background 0.15s, border-color 0.15s;
   }
@@ -89,13 +107,13 @@ export const alxButtonStyles = css`
 export const alxInputStyles = css`
   input, select, textarea {
     width: 100%;
-    padding: 0.5rem 0.75rem;
+    padding: var(--alx-density-padding, 0.5rem) var(--alx-density-padding, 0.75rem);
     border: 1px solid var(--alx-border);
     border-radius: var(--alx-radius);
     background: var(--alx-bg);
     color: var(--alx-text);
     font-family: var(--alx-font-family);
-    font-size: 0.875rem;
+    font-size: var(--alx-density-font-size, 0.875rem);
     transition: border-color 0.15s;
   }
 
@@ -120,22 +138,22 @@ export const alxTableStyles = css`
   table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.875rem;
+    font-size: var(--alx-density-font-size, 0.875rem);
   }
 
   th {
     text-align: left;
-    padding: 0.625rem 0.75rem;
+    padding: var(--alx-density-padding, 0.625rem) var(--alx-density-padding, 0.75rem);
     border-bottom: 2px solid var(--alx-border);
     color: var(--alx-text-muted);
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: calc(var(--alx-density-font-size, 0.875rem) * 0.9);
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
 
   td {
-    padding: 0.625rem 0.75rem;
+    padding: var(--alx-density-padding, 0.625rem) var(--alx-density-padding, 0.75rem);
     border-bottom: 1px solid var(--alx-border);
     color: var(--alx-text);
   }
@@ -150,14 +168,18 @@ export const alxCardStyles = css`
     background: var(--alx-surface);
     border: 1px solid var(--alx-border);
     border-radius: var(--alx-radius);
-    padding: 1.25rem;
+    padding: var(--alx-density-gap, 1.25rem);
   }
 
   .alx-card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 1rem;
+    margin-bottom: var(--alx-density-gap, 1rem);
+  }
+
+  .alx-card-header h3 {
+    font-size: var(--alx-density-header-size, 1.25rem);
   }
 `;
 

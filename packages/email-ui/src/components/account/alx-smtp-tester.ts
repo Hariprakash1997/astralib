@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxButtonStyles,
   alxCardStyles,
   alxLoadingStyles,
@@ -12,6 +13,7 @@ import { AccountAPI } from '../../api/account.api.js';
 export class AlxSmtpTester extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxButtonStyles,
     alxCardStyles,
     alxLoadingStyles,
@@ -47,6 +49,7 @@ export class AlxSmtpTester extends LitElement {
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ attribute: 'account-id' }) accountId = '';
 
   @state() private testing = false;

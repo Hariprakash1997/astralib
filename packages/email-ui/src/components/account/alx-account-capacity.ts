@@ -1,7 +1,8 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state } from 'lit/decorators.js';
+import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxCardStyles,
   alxLoadingStyles,
   alxButtonStyles,
@@ -27,6 +28,7 @@ interface CapacityResponse {
 export class AlxAccountCapacity extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxCardStyles,
     alxLoadingStyles,
     alxButtonStyles,
@@ -34,12 +36,12 @@ export class AlxAccountCapacity extends LitElement {
       .aggregate {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-        margin-bottom: 1.25rem;
+        gap: var(--alx-density-gap, 1rem);
+        margin-bottom: var(--alx-density-gap, 1.25rem);
       }
       .aggregate-box {
         text-align: center;
-        padding: 1rem;
+        padding: var(--alx-density-padding, 1rem);
         background: var(--alx-bg);
         border: 1px solid var(--alx-border);
         border-radius: var(--alx-radius);
@@ -56,13 +58,13 @@ export class AlxAccountCapacity extends LitElement {
       .capacity-list {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: var(--alx-density-gap, 0.75rem);
       }
       .capacity-item {
         display: flex;
         align-items: center;
-        gap: 1rem;
-        padding: 0.75rem;
+        gap: var(--alx-density-gap, 1rem);
+        padding: var(--alx-density-padding, 0.75rem);
         background: var(--alx-surface);
         border: 1px solid var(--alx-border);
         border-radius: var(--alx-radius);
@@ -108,6 +110,8 @@ export class AlxAccountCapacity extends LitElement {
       }
     `,
   ];
+
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
 
   @state() private capacity: CapacityResponse | null = null;
   @state() private loading = false;

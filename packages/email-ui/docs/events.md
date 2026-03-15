@@ -75,6 +75,21 @@ el.addEventListener('alx-account-cancelled', () => {
 });
 ```
 
+### `alx-account-deleted`
+
+Dispatched by `<alx-account-list>` or `<alx-account-form>` when an account is deleted.
+
+```typescript
+interface Detail { id: string }
+```
+
+```javascript
+el.addEventListener('alx-account-deleted', (e) => {
+  console.log('Deleted account:', e.detail.id);
+  refreshAccountList();
+});
+```
+
 ---
 
 ## Template Events
@@ -121,6 +136,21 @@ Dispatched by `<alx-template-editor>` after a successful create or update.
 el.addEventListener('alx-template-saved', (e) => {
   console.log('Template saved:', e.detail.name);
   navigateToTemplateList();
+});
+```
+
+### `alx-template-deleted`
+
+Dispatched by `<alx-template-list>` or `<alx-template-editor>` when a template is deleted.
+
+```typescript
+interface Detail { id: string }
+```
+
+```javascript
+el.addEventListener('alx-template-deleted', (e) => {
+  console.log('Deleted template:', e.detail.id);
+  refreshTemplateList();
 });
 ```
 
@@ -176,6 +206,39 @@ Dispatched by `<alx-rule-editor>` after a successful create or update.
 
 ```typescript
 // detail: API response object (the created/updated rule)
+```
+
+### `alx-rule-deleted`
+
+Dispatched by `<alx-rule-list>` or `<alx-rule-editor>` when a rule is deleted.
+
+```typescript
+interface Detail { id: string }
+```
+
+```javascript
+el.addEventListener('alx-rule-deleted', (e) => {
+  console.log('Deleted rule:', e.detail.id);
+  refreshRuleList();
+});
+```
+
+---
+
+## Metadata Events
+
+### `metadata-change`
+
+Dispatched by `<alx-metadata-editor>` on any add, edit, or remove of a key-value row.
+
+```typescript
+type Detail = Record<string, string | string[]>;
+```
+
+```javascript
+el.addEventListener('metadata-change', (e) => {
+  console.log('Metadata:', e.detail);
+});
 ```
 
 ---
@@ -306,13 +369,17 @@ document.querySelector('alx-account-list')
 | `alx-account-create` | `<alx-account-list>` | `undefined` |
 | `alx-account-saved` | `<alx-account-form>` | API response |
 | `alx-account-cancelled` | `<alx-account-form>` | `undefined` |
+| `alx-account-deleted` | `<alx-account-list>`, `<alx-account-form>` | `{ id }` |
 | `alx-template-selected` | `<alx-template-list>` | Template object |
 | `alx-template-create` | `<alx-template-list>` | `undefined` |
 | `alx-template-saved` | `<alx-template-editor>` | API response |
+| `alx-template-deleted` | `<alx-template-list>`, `<alx-template-editor>` | `{ id }` |
 | `alx-rule-selected` | `<alx-rule-list>` | Rule object |
 | `alx-rule-create` | `<alx-rule-list>` | `undefined` |
 | `alx-rule-dry-run` | `<alx-rule-list>` | `{ ruleId, result }` |
 | `alx-rule-saved` | `<alx-rule-editor>` | API response |
+| `alx-rule-deleted` | `<alx-rule-list>`, `<alx-rule-editor>` | `{ id }` |
+| `metadata-change` | `<alx-metadata-editor>` | `Record<string, string \| string[]>` |
 | `alx-draft-approved` | `<alx-approval-queue>` | `{ id }` or `{ ids }` |
 | `alx-draft-rejected` | `<alx-approval-queue>` | `{ id }` or `{ ids }` |
 | `alx-draft-view` | `<alx-approval-queue>` | Draft object |

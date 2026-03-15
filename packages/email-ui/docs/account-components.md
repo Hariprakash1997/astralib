@@ -23,12 +23,15 @@ Paginated table of email accounts with status badges, health bars, capacity indi
 |-------|--------|-------------|
 | `alx-account-selected` | `{ _id, email, provider, status, ... }` | Row clicked |
 | `alx-account-create` | `undefined` | "Create" button clicked |
+| `alx-account-deleted` | `{ id: string }` | Account deleted via row delete button |
 
 ### Features
 - Status/provider dropdown filters
 - Health score bar (color-coded: green >80, yellow >50, red)
 - Capacity usage bar (sent/limit ratio)
 - Warmup active/off badge
+- Connection column showing SMTP/IMAP host:port per account
+- Delete button per row (dispatches `alx-account-deleted`)
 - Pagination controls
 
 ### Usage
@@ -62,11 +65,15 @@ Create or edit an email account with SMTP and optional IMAP configuration.
 |-------|--------|-------------|
 | `alx-account-saved` | API response object | Account created or updated |
 | `alx-account-cancelled` | `undefined` | Cancel button clicked |
+| `alx-account-deleted` | `{ id: string }` | Account deleted via delete button in form |
 
 ### Features
 - Provider selection (Gmail / AWS SES)
 - SMTP config fields: host, port, user, password
 - IMAP config fields (shown only for Gmail provider)
+- Gmail auto-fill: when provider is Gmail, IMAP host/port/user auto-populate from SMTP fields (user can override)
+- Delete button in edit mode (dispatches `alx-account-deleted`)
+- Embedded `<alx-metadata-editor>` for account-level key-value metadata
 - Auto-loads account data when `account-id` is set
 
 ### Usage
@@ -295,6 +302,42 @@ None.
   document.querySelector('alx-global-settings')
     .addEventListener('alx-settings-saved', (e) => {
       console.log(`Saved ${e.detail.section}:`, e.detail.data);
+    });
+</script>
+```
+
+---
+
+## `<alx-metadata-editor>`
+
+Key-value metadata editor for attaching arbitrary data to an account. Embedded inside `<alx-account-form>` but can also be used standalone.
+
+### Attributes
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `metadata` | `string` | `'{}'` | JSON object of initial metadata key-value pairs |
+
+### Events
+
+| Event | Detail | Description |
+|-------|--------|-------------|
+| `metadata-change` | `Record<string, string \| string[]>` | Fired on any add, edit, or remove of a key-value row |
+
+### Features
+- Add/remove key-value rows
+- Per-row type toggle: text (single string) or list (array of strings)
+- Dispatches `metadata-change` on every change with the full metadata object
+
+### Usage
+
+```html
+<alx-metadata-editor metadata='{"region":"us-east","tags":["vip","beta"]}'></alx-metadata-editor>
+
+<script>
+  document.querySelector('alx-metadata-editor')
+    .addEventListener('metadata-change', (e) => {
+      console.log('Metadata updated:', e.detail);
     });
 </script>
 ```

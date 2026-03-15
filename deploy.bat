@@ -7,7 +7,7 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=add repository field, findById on identifiers, advanceAllAccounts warmup helper, IMAP autoStart, npm links in README"
+set "COMMIT_MSG=add delete, metadata editor, Gmail auto-fill, template variants, list-mode rules, validity dates, run trigger/cancel, compact density mode"
 
 REM Default bump type: used when package has no :type suffix
 set "DEFAULT_BUMP=patch"
@@ -20,7 +20,7 @@ REM   email-rule-engine:major,email-account-manager:minor,email-analytics:patch
 REM   email-rule-engine,core              (both use DEFAULT_BUMP)
 REM   all                                 (all packages use DEFAULT_BUMP)
 REM   all:minor                           (all packages use minor)
-set "PACKAGES=core:patch,email-rule-engine:patch,email-account-manager:minor,email-analytics:patch,email-ui:patch"
+set "PACKAGES=email-ui:minor"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE
@@ -118,7 +118,7 @@ echo    Created: %CHANGESET_FILE%
 
 REM --- Step 3: Stage specific files ---
 echo [2/7] Staging changes...
-git add .changeset\ packages\ package.json package-lock.json .gitignore .prettierrc eslint.config.mjs CONTRIBUTING.md README.md deploy.bat turbo.json tsconfig.base.json 2>nul
+git add . 2>nul
 
 REM --- Step 4: Commit locally first (before pull) ---
 echo [3/7] Committing...

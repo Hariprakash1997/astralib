@@ -2,6 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
+  alxDensityStyles,
   alxButtonStyles,
   alxInputStyles,
   alxTableStyles,
@@ -21,12 +22,15 @@ interface Account {
   dailyLimit?: number;
   sentToday?: number;
   warmupActive?: boolean;
+  smtpConfig?: { host?: string; port?: number; user?: string };
+  imapConfig?: { host?: string; port?: number; user?: string };
 }
 
 @customElement('alx-account-list')
 export class AlxAccountList extends LitElement {
   static override styles = [
     alxBaseStyles,
+    alxDensityStyles,
     alxButtonStyles,
     alxInputStyles,
     alxTableStyles,
@@ -37,8 +41,8 @@ export class AlxAccountList extends LitElement {
       .toolbar {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-        margin-bottom: 1rem;
+        gap: var(--alx-density-gap, 0.75rem);
+        margin-bottom: var(--alx-density-gap, 1rem);
         flex-wrap: wrap;
       }
       .toolbar select {
@@ -80,16 +84,34 @@ export class AlxAccountList extends LitElement {
         height: 100%;
         border-radius: 4px;
       }
+      .email-cell-sub {
+        font-size: 0.75rem;
+        color: var(--alx-text-muted);
+        margin-top: 0.15rem;
+      }
+      .btn-delete {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.75rem;
+        background: transparent;
+        border: 1px solid var(--alx-danger);
+        color: var(--alx-danger);
+        border-radius: var(--alx-radius);
+        cursor: pointer;
+      }
+      .btn-delete:hover {
+        background: color-mix(in srgb, var(--alx-danger) 15%, transparent);
+      }
       .pagination {
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 0.75rem;
-        margin-top: 1rem;
+        gap: var(--alx-density-gap, 0.75rem);
+        margin-top: var(--alx-density-gap, 1rem);
       }
     `,
   ];
 
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
   @property({ type: Number }) page = 1;
   @property({ type: Number }) limit = 20;
 
@@ -179,6 +201,35 @@ export class AlxAccountList extends LitElement {
     }
   }
 
+  private async onDelete(e: Event, account: Account): Promise<void> {
+    e.stopPropagation();
+    if (!confirm(`Delete account "${account.email}"?`)) return;
+    try {
+      await this.api.remove(account._id);
+      this.dispatchEvent(
+        new CustomEvent('alx-account-deleted', {
+          detail: account,
+          bubbles: true,
+          composed: true,
+        }),
+      );
+      this.load();
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : 'Failed to delete account';
+    }
+  }
+
+  private connectionInfo(account: Account): string {
+    const parts: string[] = [];
+    if (account.smtpConfig?.host) {
+      parts.push(`SMTP ${account.smtpConfig.host}:${account.smtpConfig.port ?? 587}`);
+    }
+    if (account.imapConfig?.host) {
+      parts.push(`IMAP ${account.imapConfig.host}:${account.imapConfig.port ?? 993}`);
+    }
+    return parts.join(' | ');
+  }
+
   private onCreate(): void {
     this.dispatchEvent(
       new CustomEvent('alx-account-create', {
@@ -256,10 +307,12 @@ export class AlxAccountList extends LitElement {
                     <tr>
                       <th>Email</th>
                       <th>Provider</th>
+                      <th>Connection</th>
                       <th>Status</th>
                       <th>Health</th>
                       <th>Capacity</th>
                       <th>Warmup</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -271,6 +324,11 @@ export class AlxAccountList extends LitElement {
                         >
                           <td>${a.email}</td>
                           <td>${a.provider}</td>
+                          <td>
+                            <span class="text-small text-muted">
+                              ${this.connectionInfo(a) || '\u2014'}
+                            </span>
+                          </td>
                           <td>
                             <span class=${this.statusBadgeClass(a.status)}>
                               ${a.status}
@@ -298,6 +356,12 @@ export class AlxAccountList extends LitElement {
                             ${a.warmupActive
                               ? html`<span class="alx-badge alx-badge-warning">Active</span>`
                               : html`<span class="alx-badge alx-badge-muted">Off</span>`}
+                          </td>
+                          <td>
+                            <button
+                              class="btn-delete"
+                              @click=${(e: Event) => this.onDelete(e, a)}
+                            >Delete</button>
                           </td>
                         </tr>
                       `,
