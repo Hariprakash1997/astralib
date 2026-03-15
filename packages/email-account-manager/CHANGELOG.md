@@ -1,5 +1,11 @@
 # @astralibx/email-account-manager
 
+## 4.0.0
+
+### Major Changes
+
+- 966d464: add multi-variant templates, beforeSend hook, list-mode targeting, run status/cancel, account metadata, fix docs across all packages
+
 ## 3.0.0
 
 ### Major Changes
