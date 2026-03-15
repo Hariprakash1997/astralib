@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/email-rule-engine",
-  "version": "5.0.0",
+  "version": "6.0.0",
   "description": "Rule-based email automation engine with MJML + Handlebars templates, throttling, and distributed locking",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
