@@ -70,8 +70,8 @@ const api = new AccountAPI();
 
 // List active accounts
 const result = await api.list({ page: 1, limit: 20, status: 'active' });
-console.log(result.data);    // Account[]
-console.log(result.total);   // number
+console.log(result.accounts);  // Account[]
+console.log(result.total);     // number
 
 // Create account
 const account = await api.create({
@@ -184,6 +184,23 @@ const timeline = await api.getTimeline({
 });
 // [{ date: '2025-01-01', count: 150 }, ...]
 ```
+
+---
+
+## Response Envelope Handling
+
+The backend packages return responses wrapped in `{ success: true, data: { ... } }`. The API client automatically unwraps this envelope — you always receive the inner `data` object directly:
+
+```typescript
+// Backend returns:  { success: true, data: { accounts: [...], total: 5 } }
+// API client gives: { accounts: [...], total: 5 }
+
+const result = await api.list();
+console.log(result.accounts); // Account[] — not result.data.accounts
+console.log(result.total);    // 5
+```
+
+If the backend returns `{ success: false, error: "..." }`, the client throws an `HttpClientError` with the error message.
 
 ---
 
