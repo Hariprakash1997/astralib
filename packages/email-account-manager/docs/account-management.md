@@ -31,15 +31,15 @@ const account = await eam.accounts.create({
     sender_names: ['Sales', 'Support'],
     contact_number: '+1-555-0100',
   },
-  limits: { dailyMax: 450 },          // Default: 450
+  limits: { dailyMax: 50 },           // Default: 50
   warmup: {
     schedule: [/* custom phases */],   // Falls back to config default
   },
   health: {
     thresholds: {                      // Falls back to config defaults
       minScore: 50,
-      maxBounceRate: 5,
-      maxConsecutiveErrors: 10,
+      maxBounceRate: 0.1,
+      maxConsecutiveErrors: 5,
     },
   },
 });
@@ -126,6 +126,28 @@ await eam.accounts.update(accountId, { senderName: 'New Name' });
 // Delete
 await eam.accounts.remove(accountId);
 ```
+
+## Default Values
+
+When creating an account with minimal input (`email`, `senderName`, `provider`, `smtp`), these defaults apply:
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `status` | `warmup` | New accounts always start in warmup |
+| `limits.dailyMax` | `50` | Conservative starting limit |
+| `health.score` | `100` | Full health |
+| `health.consecutiveErrors` | `0` | No errors yet |
+| `health.bounceCount` | `0` | No bounces yet |
+| `health.thresholds.minScore` | `50` | Disable below 50% health |
+| `health.thresholds.maxBounceRate` | `0.1` | Disable above 10% bounce rate |
+| `health.thresholds.maxConsecutiveErrors` | `5` | Disable after 5 consecutive errors |
+| `warmup.enabled` | `true` | Warmup active |
+| `warmup.currentDay` | `1` | Start from day 1 |
+| `warmup.schedule` | Config default or `[]` | Set via `config.options.warmup.defaultSchedule` |
+| `totalEmailsSent` | `0` | Fresh counter |
+| `metadata` | `{}` | Empty |
+
+Health thresholds can be overridden per-account at creation or via config-level `healthDefaults`.
 
 ## Related
 

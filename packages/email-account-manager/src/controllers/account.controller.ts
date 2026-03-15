@@ -78,15 +78,15 @@ export function createAccountController(
           smtp: input.smtp,
           ...(input.imap ? { imap: input.imap } : {}),
           ...(input.ses ? { ses: input.ses } : {}),
-          limits: { dailyMax: input.limits?.dailyMax || 450 },
+          limits: { dailyMax: input.limits?.dailyMax ?? 50 },
           health: {
             score: 100,
             consecutiveErrors: 0,
             bounceCount: 0,
             thresholds: {
               minScore: input.health?.thresholds?.minScore ?? healthDefaults?.minScore ?? 50,
-              maxBounceRate: input.health?.thresholds?.maxBounceRate ?? healthDefaults?.maxBounceRate ?? 5,
-              maxConsecutiveErrors: input.health?.thresholds?.maxConsecutiveErrors ?? healthDefaults?.maxConsecutiveErrors ?? 10,
+              maxBounceRate: input.health?.thresholds?.maxBounceRate ?? healthDefaults?.maxBounceRate ?? 0.1,
+              maxConsecutiveErrors: input.health?.thresholds?.maxConsecutiveErrors ?? healthDefaults?.maxConsecutiveErrors ?? 5,
             },
           },
           warmup: {

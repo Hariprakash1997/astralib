@@ -106,7 +106,7 @@ export function createEmailAccountSchema(options?: CreateEmailAccountSchemaOptio
 
       limits: {
         type: {
-          dailyMax: { type: Number, required: true, default: 100 },
+          dailyMax: { type: Number, required: true, default: 50 },
         },
         required: true,
         _id: false,
@@ -120,8 +120,8 @@ export function createEmailAccountSchema(options?: CreateEmailAccountSchemaOptio
           thresholds: {
             type: {
               minScore: { type: Number, default: 50 },
-              maxBounceRate: { type: Number, default: 5 },
-              maxConsecutiveErrors: { type: Number, default: 10 },
+              maxBounceRate: { type: Number, default: 0.1 },
+              maxConsecutiveErrors: { type: Number, default: 5 },
             },
             _id: false,
           },

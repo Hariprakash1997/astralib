@@ -102,7 +102,7 @@ All services are also available programmatically via the returned `eam` object. 
 ## Getting Started Guide
 
 1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/configuration.md) — Set up database, Redis, queues, and hooks
-2. [Account Management](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/account-management.md) — Create and manage email accounts
+2. [Account Management](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/account-management.md) — Create and manage email accounts (see [default values](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/account-management.md#default-values))
 3. [Warmup System](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/warmup-system.md) — Gradually increase sending volume (**requires daily `advanceDay()` cron**)
 4. [Health Tracking](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/health-tracking.md) — Monitor account health and auto-disable unhealthy accounts
 5. [Email Sending](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/email-sending.md) — Send emails via SMTP with queue-based processing
