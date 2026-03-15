@@ -65,6 +65,23 @@ describe('HttpClient', () => {
       const result = await client.get('/items/123');
       expect(result).toEqual({ id: '123', name: 'test' });
     });
+
+    it('unwraps { success, data } envelope', async () => {
+      globalThis.fetch = mockFetchResponse({
+        success: true,
+        data: { accounts: [{ id: '1' }], total: 1 },
+      });
+      const result = await client.get<{ accounts: unknown[]; total: number }>('/accounts');
+      expect(result).toEqual({ accounts: [{ id: '1' }], total: 1 });
+    });
+
+    it('throws on { success: false } envelope', async () => {
+      globalThis.fetch = mockFetchResponse({
+        success: false,
+        error: 'Something went wrong',
+      });
+      await expect(client.get('/fail')).rejects.toThrow('Something went wrong');
+    });
   });
 
   describe('post()', () => {

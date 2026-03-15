@@ -57,7 +57,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
     );
   }
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  const json = await response.json();
+  if (json && typeof json === 'object' && 'success' in json) {
+    if (json.success === false) {
+      throw new HttpClientError(
+        json.error ?? json.message ?? 'Request failed',
+        response.status,
+        json,
+      );
+    }
+    return (json.data ?? json) as T;
+  }
+  return json as T;
 }
 
 export class HttpClient {
