@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.0.7
+
+### Patch Changes
+
+- 4bf7db0: fix UI response envelope unwrapping in handleResponse
+
 ## 2.0.6
 
 ### Patch Changes
