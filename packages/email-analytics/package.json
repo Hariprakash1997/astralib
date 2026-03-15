@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/email-analytics",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Email analytics with event recording, aggregation, time-series, and querying",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
