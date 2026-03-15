@@ -51,7 +51,45 @@ Mount behind your authentication middleware. All paths below are relative to the
 | `POST` | `/accounts/:id/warmup/reset` | Reset warmup |
 | `PUT` | `/accounts/:id/health/thresholds` | Update health thresholds |
 
+**Create account request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | string | yes | Email address |
+| `senderName` | string | yes | Display name |
+| `provider` | string | no | Provider identifier |
+| `smtp` | object | no | `{ host, port, user, pass, secure? }` |
+| `imap` | object | no | `{ host, port, user, pass }` |
+| `ses` | object | no | SES configuration |
+| `limits.dailyMax` | number | no | Daily send limit (default 450) |
+| `health.thresholds` | object | no | `{ minScore, maxBounceRate, maxConsecutiveErrors }` |
+| `warmup.schedule` | array | no | Warmup schedule entries |
+| `metadata` | object | no | Freeform project-specific data (e.g., `{ sender_names: [...], contact_numbers: [...] }`). Max 64KB. Keys `__proto__`, `constructor`, `prototype` are stripped. |
+
+**Update account request body:** Same fields as create (all optional). Empty password values in `smtp` and `imap` are ignored.
+
+**Bulk update request body:** `{ accountIds: string[], updates: { status?, dailyMax? } }`
+
+**Update health thresholds request body:** `{ thresholds: { minScore?, maxBounceRate?, maxConsecutiveErrors? } }`
+
 ### Identifiers
+
+**Identifier statuses:** `active`, `bounced`, `unsubscribed`, `blocked`, `invalid`
+
+**Bounce types:** `hard`, `soft`, `inbox_full`, `invalid_email`
+
+**How statuses are set automatically:**
+
+| Trigger | Status | bounceType |
+|---|---|---|
+| IMAP: "inbox full" / "mailbox full" | `bounced` | `inbox_full` |
+| IMAP: "address not found" / "user unknown" | `bounced` | `invalid_email` |
+| IMAP: other bounce | `bounced` | `soft` |
+| SES: Permanent bounce (noemail/general) | `invalid` | `hard` |
+| SES: Transient bounce (mailboxfull) | `bounced` | `inbox_full` |
+| SES: Transient bounce (other) | `bounced` | `soft` |
+| SES: Complaint | `blocked` | -- |
+| Unsubscribe link | `unsubscribed` | -- |
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -59,6 +97,12 @@ Mount behind your authentication middleware. All paths below are relative to the
 | `GET` | `/identifiers/:email` | Get identifier by email |
 | `PATCH` | `/identifiers/:email/status` | Update identifier status |
 | `POST` | `/identifiers/merge` | Merge two identifiers |
+
+**Identifier query params:** `?status=` (filter by status), `?page=` (default 1), `?limit=` (default 50)
+
+**Update identifier status request body:** `{ status: "active" | "bounced" | "unsubscribed" | "blocked" | "invalid" }`
+
+**Merge identifiers request body:** `{ sourceEmail: string, targetEmail: string }`
 
 ### Drafts
 
@@ -73,6 +117,10 @@ Mount behind your authentication middleware. All paths below are relative to the
 | `PATCH` | `/drafts/:id/reject` | Reject a draft |
 | `POST` | `/drafts/:id/send-now` | Send draft immediately |
 | `PATCH` | `/drafts/:id/content` | Update draft content |
+
+**Draft query params:** `?status=` (filter by status), `?page=` (default 1), `?limit=` (default 50)
+
+**Bulk approve/reject request body:** `{ draftIds: string[], reason?: string }` (reason for reject only)
 
 ### Settings
 

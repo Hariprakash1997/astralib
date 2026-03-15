@@ -138,6 +138,44 @@ describe('TemplateRenderService', () => {
     });
   });
 
+  describe('compileBatchVariants with preheaders', () => {
+    it('compiles preheaders into preheaderFns array with correct length', () => {
+      const result = service.compileBatchVariants(
+        ['Subject {{name}}'],
+        ['<p>Body {{name}}</p>'],
+        undefined,
+        ['Preview {{name}}', 'Check this out, {{name}}!']
+      );
+
+      expect(result.preheaderFns).toBeDefined();
+      expect(result.preheaderFns).toHaveLength(2);
+
+      const data = { name: 'Alice' };
+      expect(result.preheaderFns![0](data)).toBe('Preview Alice');
+      expect(result.preheaderFns![1](data)).toBe('Check this out, Alice!');
+    });
+
+    it('returns undefined preheaderFns when no preheaders provided', () => {
+      const result = service.compileBatchVariants(
+        ['Subject {{name}}'],
+        ['<p>Body {{name}}</p>']
+      );
+
+      expect(result.preheaderFns).toBeUndefined();
+    });
+
+    it('returns undefined preheaderFns when preheaders is empty array', () => {
+      const result = service.compileBatchVariants(
+        ['Subject {{name}}'],
+        ['<p>Body {{name}}</p>'],
+        undefined,
+        []
+      );
+
+      expect(result.preheaderFns).toBeUndefined();
+    });
+  });
+
   describe('extractVariables', () => {
     it('finds all {{variable}} patterns, ignores helpers (#if, /if, etc.)', () => {
       const template = '{{name}} {{#if active}}{{email}}{{/if}} {{! comment}} {{> partial}}';

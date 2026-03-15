@@ -6,11 +6,11 @@ Reusable utility packages for Node.js applications — email automation, account
 
 | Package | Description |
 |---------|-------------|
-| [@astralibx/core](./packages/core) | Shared errors, types, and validation for all packages |
-| [@astralibx/email-rule-engine](./packages/email-rule-engine) | Rule-based email automation with MJML + Handlebars templates, throttling, and distributed locking |
-| [@astralibx/email-account-manager](./packages/email-account-manager) | Email account lifecycle — SMTP pooling, warmup, health tracking, bounce detection, SES webhooks |
-| [@astralibx/email-analytics](./packages/email-analytics) | Event recording, timezone-aware aggregation, and query API for email metrics |
-| [@astralibx/email-ui](./packages/email-ui) | 22 Lit Web Components for managing accounts, rules, and analytics dashboards |
+| [@astralibx/core](https://github.com/Hariprakash1997/astralib/tree/main/packages/core) | Shared errors, types, and validation for all packages |
+| [@astralibx/email-rule-engine](https://github.com/Hariprakash1997/astralib/tree/main/packages/email-rule-engine) | Rule-based email automation with MJML + Handlebars templates, throttling, and distributed locking |
+| [@astralibx/email-account-manager](https://github.com/Hariprakash1997/astralib/tree/main/packages/email-account-manager) | Email account lifecycle — SMTP pooling, warmup, health tracking, bounce detection, SES webhooks |
+| [@astralibx/email-analytics](https://github.com/Hariprakash1997/astralib/tree/main/packages/email-analytics) | Event recording, timezone-aware aggregation, and query API for email metrics |
+| [@astralibx/email-ui](https://github.com/Hariprakash1997/astralib/tree/main/packages/email-ui) | 22 Lit Web Components for managing accounts, rules, and analytics dashboards |
 
 ## Installation
 
@@ -36,7 +36,7 @@ npm run test
 npm run changeset
 ```
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed development and publishing workflows.
+See [CONTRIBUTING.md](https://github.com/Hariprakash1997/astralib/blob/main/CONTRIBUTING.md) for detailed development and publishing workflows.
 
 ## License
 

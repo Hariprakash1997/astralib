@@ -165,8 +165,9 @@ export class TemplateRenderService {
   compileBatchVariants(
     subjects: string[],
     bodies: string[],
-    textBody?: string
-  ): { subjectFns: HandlebarsTemplateDelegate[]; bodyFns: HandlebarsTemplateDelegate[]; textBodyFn?: HandlebarsTemplateDelegate } {
+    textBody?: string,
+    preheaders?: string[]
+  ): { subjectFns: HandlebarsTemplateDelegate[]; bodyFns: HandlebarsTemplateDelegate[]; textBodyFn?: HandlebarsTemplateDelegate; preheaderFns?: HandlebarsTemplateDelegate[] } {
     const subjectFns = subjects.map(s => Handlebars.compile(s, { strict: true }));
     const bodyFns = bodies.map(b => {
       const mjmlSource = wrapInMjml(b);
@@ -174,7 +175,10 @@ export class TemplateRenderService {
       return Handlebars.compile(htmlWithHandlebars, { strict: true });
     });
     const textBodyFn = textBody ? Handlebars.compile(textBody, { strict: true }) : undefined;
-    return { subjectFns, bodyFns, textBodyFn };
+    const preheaderFns = preheaders && preheaders.length > 0
+      ? preheaders.map(p => Handlebars.compile(p, { strict: true }))
+      : undefined;
+    return { subjectFns, bodyFns, textBodyFn, preheaderFns };
   }
 
   renderFromCompiled(

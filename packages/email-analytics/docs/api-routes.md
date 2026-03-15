@@ -229,6 +229,36 @@ or
 { "success": true, "message": "Range aggregation complete" }
 ```
 
+## Getting Today's Sent Count
+
+The analytics endpoints query pre-aggregated daily stats. To get accurate numbers you need to ensure aggregation has run first.
+
+**Step 1 -- Aggregate today's data:**
+
+```
+POST /aggregate
+```
+
+Call with no body (or schedule via cron). This processes raw events into the daily stats collection.
+
+**Step 2 -- Query total sent today:**
+
+```
+GET /overview?from=2026-03-14&to=2026-03-14
+```
+
+Pass today's date as both `from` and `to` to get stats for today only. The response `data.sent` field contains today's total sent count.
+
+**Step 3 -- Query per-account sent today:**
+
+```
+GET /accounts?from=2026-03-14&to=2026-03-14
+```
+
+Returns an array with each account's stats for today, including per-account `sent` counts.
+
+**Important:** If `POST /aggregate` has not been called since the last emails were sent, the query endpoints will return stale data. In production, schedule aggregation via cron (e.g., every 5-15 minutes) to keep stats current.
+
 ## Error Responses
 
 All endpoints return errors in the same shape:

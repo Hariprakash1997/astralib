@@ -39,8 +39,19 @@ export function createEmailTemplateSchema(
       textBody: String,
       subjects: { type: [{ type: String }], required: true, validate: [(v: string[]) => v.length >= 1, 'At least one subject is required'] },
       bodies: { type: [{ type: String }], required: true, validate: [(v: string[]) => v.length >= 1, 'At least one body is required'] },
+      preheaders: [{ type: String }],
 
-      fields: { type: Schema.Types.Mixed, default: {} },
+      fields: {
+        type: Schema.Types.Mixed,
+        default: {},
+        validate: {
+          validator: (v: any) => {
+            if (!v || typeof v !== 'object') return true;
+            return Object.values(v).every(val => typeof val === 'string');
+          },
+          message: 'All field values must be strings'
+        }
+      },
       variables: [{ type: String }],
       version: { type: Number, default: 1 },
       isActive: { type: Boolean, default: true, index: true }
@@ -80,6 +91,7 @@ export function createEmailTemplateSchema(
             textBody: input.textBody,
             subjects: input.subjects,
             bodies: input.bodies,
+            preheaders: input.preheaders || [],
             fields: input.fields || {},
             variables: input.variables || [],
             version: 1,

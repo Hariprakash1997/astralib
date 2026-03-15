@@ -12,6 +12,7 @@ export interface IEmailRuleSend {
   subject?: string;
   subjectIndex?: number;
   bodyIndex?: number;
+  preheaderIndex?: number;
   failureReason?: string;
 }
 
@@ -25,7 +26,7 @@ export interface EmailRuleSendStatics {
     userId: string | Types.ObjectId,
     emailIdentifierId?: string | Types.ObjectId,
     messageId?: string | Types.ObjectId,
-    extra?: { status?: string; accountId?: string; senderName?: string; subject?: string; subjectIndex?: number; bodyIndex?: number; failureReason?: string }
+    extra?: { status?: string; accountId?: string; senderName?: string; subject?: string; subjectIndex?: number; bodyIndex?: number; preheaderIndex?: number; failureReason?: string }
   ): Promise<EmailRuleSendDocument>;
 }
 
@@ -45,6 +46,7 @@ export function createEmailRuleSendSchema(collectionPrefix?: string) {
       subject: { type: String },
       subjectIndex: { type: Number },
       bodyIndex: { type: Number },
+      preheaderIndex: { type: Number },
       failureReason: { type: String },
     },
     {
@@ -68,7 +70,7 @@ export function createEmailRuleSendSchema(collectionPrefix?: string) {
           userId: string | Types.ObjectId,
           emailIdentifierId?: string | Types.ObjectId,
           messageId?: string | Types.ObjectId,
-          extra?: { status?: string; accountId?: string; senderName?: string; subject?: string; subjectIndex?: number; bodyIndex?: number; failureReason?: string }
+          extra?: { status?: string; accountId?: string; senderName?: string; subject?: string; subjectIndex?: number; bodyIndex?: number; preheaderIndex?: number; failureReason?: string }
         ) {
           return this.create({
             ruleId,

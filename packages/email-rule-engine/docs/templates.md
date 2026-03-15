@@ -17,6 +17,7 @@ Templates combine [MJML](https://mjml.io/) for responsive HTML email rendering w
 | `textBody` | `string` | No | Plain text override (auto-generated from HTML if omitted) |
 | `variables` | `string[]` | Auto | Extracted Handlebars variables (computed on save) |
 | `version` | `number` | Auto | Increments on content updates |
+| `preheaders` | `string[]` | No | Preheader text variants (supports multiple for A/B variants, Handlebars variables) |
 | `fields` | `Record<string, string>` | No | Custom placeholder key-value pairs (see below) |
 | `isActive` | `boolean` | Auto | Defaults to `true` |
 
@@ -151,3 +152,46 @@ In this example, each user receives one of 3 subject lines and one of 2 body var
 - `bodyIndex` -- which body was used (0 or 1)
 
 This data can be queried to compare open/click rates across variants.
+
+## Preheader Text
+
+Preheaders are the short summary text that appears after the subject line in email inbox listings. They give recipients a preview of the email content before opening.
+
+### How to use
+
+Add a `preheaders` array to your template. Like subjects and bodies, preheaders support multiple variants -- the engine randomly selects one per user using `Math.random()`.
+
+- Each entry is a Handlebars string, so dynamic variables like `{{user.name}}` work
+- For each recipient, the engine picks a random `preheaderIndex`
+- The selected preheader is injected as a hidden `<div>` at the beginning of the HTML body:
+  ```html
+  <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">Your preheader text</div>
+  ```
+- The `preheaderIndex` is logged in the `EmailRuleSend` record alongside `subjectIndex` and `bodyIndex`
+- Preheaders are entirely optional -- templates without a `preheaders` field (or with an empty array) work as before, with no hidden div injected
+
+### Example
+
+```typescript
+{
+  name: 'Welcome Email',
+  slug: 'welcome-email',
+  category: 'onboarding',
+  audience: 'customer',
+  platform: 'web',
+  subjects: [
+    'Welcome to {{platform.name}}, {{user.name}}!',
+    'Hey {{user.name}}, glad to have you on {{platform.name}}!',
+  ],
+  bodies: [
+    '<mj-text>Hi {{user.name}}, welcome aboard!</mj-text>',
+  ],
+  preheaders: [
+    'Your account is ready -- let us get started!',
+    'Welcome aboard, {{user.name}}. Here is what to do next.',
+    'You are all set on {{platform.name}}!',
+  ],
+}
+```
+
+In this example, each user receives one of 2 subject lines, 1 body, and one of 3 preheader variants, all selected independently at random.

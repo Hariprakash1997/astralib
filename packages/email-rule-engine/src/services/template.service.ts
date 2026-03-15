@@ -7,7 +7,7 @@ import { DuplicateSlugError, TemplateSyntaxError, TemplateNotFoundError } from '
 
 const UPDATEABLE_FIELDS = new Set([
   'name', 'description', 'category', 'audience', 'platform',
-  'textBody', 'subjects', 'bodies', 'variables', 'isActive', 'fields'
+  'textBody', 'subjects', 'bodies', 'preheaders', 'variables', 'isActive', 'fields'
 ]);
 
 function slugify(name: string): string {
@@ -69,7 +69,7 @@ export class TemplateService {
       }
     }
 
-    const allContent = [...subjects, ...bodies, input.textBody || ''].join(' ');
+    const allContent = [...subjects, ...bodies, ...(input.preheaders || []), input.textBody || ''].join(' ');
     const variables = input.variables || this.renderService.extractVariables(allContent);
 
     return this.EmailTemplate.createTemplate({
@@ -102,12 +102,13 @@ export class TemplateService {
       }
     }
 
-    if (input.textBody || input.subjects || input.bodies) {
+    if (input.textBody || input.subjects || input.bodies || input.preheaders) {
       const subjects = input.subjects ?? template.subjects;
       const bodies = input.bodies ?? template.bodies;
+      const preheaders = input.preheaders ?? (template as any).preheaders ?? [];
       const textBody = input.textBody ?? template.textBody;
 
-      const allContent = [...subjects, ...bodies, textBody || ''].join(' ');
+      const allContent = [...subjects, ...bodies, ...preheaders, textBody || ''].join(' ');
       input.variables = this.renderService.extractVariables(allContent);
     }
 
@@ -119,7 +120,7 @@ export class TemplateService {
     }
 
     const update: Record<string, unknown> = { $set: setFields };
-    if (input.textBody || input.subjects || input.bodies) {
+    if (input.textBody || input.subjects || input.bodies || input.preheaders) {
       update['$inc'] = { version: 1 };
     }
 

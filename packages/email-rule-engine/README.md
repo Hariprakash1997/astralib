@@ -102,21 +102,18 @@ The `createEmailRuleEngine(config)` factory accepts an `EmailRuleEngineConfig` o
 
 See [docs/configuration.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/configuration.md) for the full reference with examples.
 
-## Documentation
+## Getting Started Guide
 
-| Document | Description |
-|----------|-------------|
-| [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/configuration.md) | Full config reference -- db, redis, adapters, platforms, options, hooks, logger |
-| [Adapters](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/adapters.md) | All 6 adapters with type signatures and example implementations |
-| [Templates](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/templates.md) | Creating templates, MJML + Handlebars syntax, built-in helpers |
-| [Rules](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/rules.md) | Targeting conditions, operators, sendOnce/resend, dry runs |
-| [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/throttling.md) | Per-user limits, global caps, bypass rules, tracking |
-| [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/api-routes.md) | All REST endpoints with curl examples |
-| [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/programmatic-api.md) | Using services directly -- runner, templateService, ruleService |
-| [Execution Flow](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/execution-flow.md) | Step-by-step runner flow and error behavior |
-| [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/error-handling.md) | All error classes with codes and when thrown |
-| [Constants](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/constants.md) | All exported constants and derived types |
-| [Migration v1 to v2](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/migration-v1-to-v2.md) | Breaking changes from v1 |
+1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/configuration.md) — Set up database, Redis, and options
+2. [Adapters](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/adapters.md) — Implement the 6 required adapter functions
+3. [Templates](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/templates.md) — Create email templates with MJML + Handlebars
+4. [Rules](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/rules.md) — Define targeting rules with conditions or explicit lists
+5. [Execution Flow](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/execution-flow.md) — Understand how the runner processes rules
+6. [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/throttling.md) — Configure per-user send limits
+
+Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/types.md) | [Constants](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/constants.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/error-handling.md)
+
+> **Important:** Configure throttle settings before running rules. Default limits (1/day, 2/week) may be too restrictive. See [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/throttling.md).
 
 ## License
 

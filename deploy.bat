@@ -7,7 +7,7 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=add multi-variant templates, beforeSend hook, list-mode targeting, run status/cancel, account metadata, validity dates, template fields, auto-disable rules, fix docs"
+set "COMMIT_MSG=major: add multi-variant templates, beforeSend hook, list-mode targeting, run status/cancel, account metadata, validity dates, template fields, auto-disable rules, preheaders, fix docs across all packages"
 
 REM Default bump type: used when package has no :type suffix
 set "DEFAULT_BUMP=patch"

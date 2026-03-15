@@ -17,17 +17,38 @@ app.use('/api/email-rules', authMiddleware, engine.routes);
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/templates` | List templates (filter by `?category=`, `?audience=`, `?platform=`, `?isActive=`) |
-| `POST` | `/templates` | Create a new template. Accepts optional `fields` (`Record<string, string>`) for custom placeholder defaults |
+| `POST` | `/templates` | Create a new template (see request body below) |
 | `POST` | `/templates/validate` | Validate MJML + Handlebars syntax without saving |
 | `POST` | `/templates/preview` | Preview raw template with sample data (no save) |
 | `GET` | `/templates/:id` | Get template by ID |
-| `PUT` | `/templates/:id` | Update template (auto-increments `version`). Accepts `fields` (optional `Record<string, string>` of custom placeholder values) |
+| `PUT` | `/templates/:id` | Update template (auto-increments `version`). Accepts same fields as create (all optional) |
 | `DELETE` | `/templates/:id` | Delete template |
 | `PATCH` | `/templates/:id/toggle` | Toggle `isActive` on/off |
 | `POST` | `/templates/:id/preview` | Render saved template with sample data |
 | `POST` | `/templates/:id/test-email` | Send a test email (requires `sendTestEmail` adapter) |
 
-**Create template:**
+**Create template request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | Template name (must be unique) |
+| `subject` | string | yes | Email subject (supports Handlebars) |
+| `subjects` | string[] | no | Array of subject variants for A/B testing |
+| `body` | string | yes | Email HTML body (supports Handlebars) |
+| `bodies` | string[] | no | Array of body variants for A/B testing |
+| `category` | string | yes | Must be a valid category value |
+| `audience` | string | yes | Must be a valid audience value |
+| `platform` | string | yes | Must be a valid platform value |
+| `preheaders` | string[] | no | Array of preheader text variants for inbox preview (supports Handlebars) |
+| `fields` | `Record<string, string>` | no | Custom placeholder key-value pairs merged into render context as defaults |
+
+**Validate request body:** `{ body: string }` -- returns `{ success, data: { valid, errors? } }`
+
+**Preview request body:** `{ subject: string, body: string, textBody?: string, sampleData?: object }` -- returns `{ success, data: { subject, body, textBody? } }`
+
+**Test email request body:** `{ testEmail: string, sampleData?: object }`
+
+**Create template example:**
 
 ```bash
 curl -X POST http://localhost:3000/api/email-rules/templates \
@@ -40,7 +61,8 @@ curl -X POST http://localhost:3000/api/email-rules/templates \
     "platform": "web",
     "subjects": ["Welcome to {{platform.name}}, {{user.name}}!"],
     "bodies": ["<mj-text>Hi {{user.name}}, welcome aboard!</mj-text>"],
-    "fields": { "whatsapp_link": "https://wa.me/919876543210" }
+    "fields": { "whatsapp_link": "https://wa.me/919876543210" },
+    "preheaders": ["Your account is ready!", "Welcome aboard, {{user.name}}!"]
   }'
 ```
 
@@ -69,7 +91,18 @@ curl -X POST http://localhost:3000/api/email-rules/templates/preview \
 | `PATCH` | `/rules/:id/toggle` | Toggle `isActive` (validates template is active before enabling) |
 | `POST` | `/rules/:id/dry-run` | Count matching users without sending |
 
-**Create rule:**
+**Create rule request body:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `name` | string | yes | Rule name |
+| `target` | object | yes | `{ role, platform, conditions[], mode?, identifiers? }`. Set `mode: "list"` and provide `identifiers` (string array of emails) for list-mode targeting |
+| `templateId` | string | yes | ID of the template to use |
+| `emailType` | string | no | Must be a valid email type |
+| `validFrom` | Date | no | Rule is inactive before this date |
+| `validTill` | Date | no | Rule is inactive after this date |
+
+**Create rule example:**
 
 ```bash
 curl -X POST http://localhost:3000/api/email-rules/rules \
@@ -133,5 +166,13 @@ curl -X POST http://localhost:3000/api/email-rules/rules \
 |--------|------|-------------|
 | `GET` | `/settings/throttle` | Get current throttle config |
 | `PATCH` | `/settings/throttle` | Update throttle config (all fields optional) |
+
+**Update throttle request body (all optional):**
+
+| Field | Type | Constraints |
+|---|---|---|
+| `maxPerUserPerDay` | integer | >= 1 |
+| `maxPerUserPerWeek` | integer | >= 1, must be >= `maxPerUserPerDay` |
+| `minGapDays` | integer | >= 0 |
 
 Validation: `maxPerUserPerWeek` must be >= `maxPerUserPerDay`. Both must be positive integers. `minGapDays` must be a non-negative integer.

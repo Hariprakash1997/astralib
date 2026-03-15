@@ -16,6 +16,23 @@ const MS_PER_DAY = 86400000;
 const DEFAULT_LOCK_TTL_MS = 30 * 60 * 1000;
 const IDENTIFIER_CHUNK_SIZE = 50;
 
+function getLocalDate(date: Date, timezone?: string): Date {
+  if (!timezone) return date;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).formatToParts(date);
+
+  const get = (type: string) => parts.find(p => p.type === type)?.value || '0';
+  return new Date(`${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}:${get('second')}`);
+}
+
 async function processInChunks<T, R>(items: T[], fn: (item: T) => Promise<R>, chunkSize: number): Promise<R[]> {
   const results: R[] = [];
   for (let i = 0; i < items.length; i += chunkSize) {
@@ -104,9 +121,18 @@ export class RuleRunnerService {
       const allActiveRules = await this.EmailRule.findActive();
 
       const now = new Date();
+      const tz = this.config.options?.sendWindow?.timezone;
       const activeRules = allActiveRules.filter(rule => {
-        if (rule.validFrom && now < new Date(rule.validFrom)) return false;
-        if (rule.validTill && now > new Date(rule.validTill)) return false;
+        if (rule.validFrom) {
+          const localNow = getLocalDate(now, tz);
+          const localValidFrom = getLocalDate(new Date(rule.validFrom), tz);
+          if (localNow < localValidFrom) return false;
+        }
+        if (rule.validTill) {
+          const localNow = getLocalDate(now, tz);
+          const localValidTill = getLocalDate(new Date(rule.validTill), tz);
+          if (localNow > localValidTill) return false;
+        }
         return true;
       });
 
@@ -311,10 +337,12 @@ export class RuleRunnerService {
       }
     }
 
+    const preheaders: string[] = template.preheaders || [];
     const compiledVariants = this.templateRenderer.compileBatchVariants(
       template.subjects,
       template.bodies,
-      template.textBody
+      template.textBody,
+      preheaders
     );
 
     let totalProcessed = 0;
@@ -385,6 +413,16 @@ export class RuleRunnerService {
         let finalText = renderedText;
         let finalSubject = renderedSubject;
 
+        let pi: number | undefined;
+        if (compiledVariants.preheaderFns && compiledVariants.preheaderFns.length > 0) {
+          pi = Math.floor(Math.random() * compiledVariants.preheaderFns.length);
+          const renderedPreheader = compiledVariants.preheaderFns[pi](templateData);
+          if (renderedPreheader) {
+            const preheaderHtml = `<div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${renderedPreheader}</div>`;
+            finalHtml = finalHtml.replace(/(<body[^>]*>)/i, `$1${preheaderHtml}`);
+          }
+        }
+
         if (this.config.hooks?.beforeSend) {
           try {
             const modified = await this.config.hooks.beforeSend({
@@ -429,7 +467,7 @@ export class RuleRunnerService {
           dedupKey,
           identifier.id,
           undefined,
-          { status: 'sent', accountId: agentSelection.accountId, subject: finalSubject, subjectIndex: si, bodyIndex: bi }
+          { status: 'sent', accountId: agentSelection.accountId, subject: finalSubject, subjectIndex: si, bodyIndex: bi, preheaderIndex: pi }
         );
 
         const current = throttleMap.get(dedupKey) || { today: 0, thisWeek: 0, lastSentDate: null };
@@ -467,8 +505,11 @@ export class RuleRunnerService {
       $inc: { totalSent: stats.sent, totalSkipped: stats.skipped }
     });
 
+    // Auto-disable only applies to sendOnce rules — rules without sendOnce are meant to keep running
     if (rule.sendOnce) {
-      const allIdentifiers = rule.target.identifiers;
+      const allIdentifiers: string[] = rule.target.identifiers || [];
+      const totalIdentifiers = new Set(allIdentifiers.map((e: string) => e.toLowerCase().trim()).filter(Boolean)).size;
+
       const sends = await this.EmailRuleSend.find({
         ruleId: rule._id,
       }).lean();
@@ -478,19 +519,9 @@ export class RuleRunnerService {
         .map((s: any) => String(s.userId || s.emailIdentifierId))
       );
 
-      let pendingCount = 0;
-      for (const email of allIdentifiers) {
-        const identifier = identifierMap.get(email.toLowerCase().trim());
-        if (!identifier) continue;
-        if (!sentOrProcessedIds.has(String(identifier.id))) {
-          pendingCount++;
-        }
-      }
-
       const throttledCount = sends.filter((s: any) => s.status === 'throttled').length;
-      pendingCount += throttledCount;
 
-      if (pendingCount === 0) {
+      if (sentOrProcessedIds.size >= totalIdentifiers && throttledCount === 0) {
         await this.EmailRule.findByIdAndUpdate(rule._id, { $set: { isActive: false } });
         this.logger.info(`Rule '${rule.name}' auto-disabled — all identifiers processed`);
       }
@@ -554,10 +585,12 @@ export class RuleRunnerService {
       }
     }
 
+    const preheadersQ: string[] = template.preheaders || [];
     const compiledVariants = this.templateRenderer.compileBatchVariants(
       template.subjects,
       template.bodies,
-      template.textBody
+      template.textBody,
+      preheadersQ
     );
 
     const ruleId = rule._id.toString();
@@ -636,6 +669,16 @@ export class RuleRunnerService {
         let finalText = renderedText;
         let finalSubject = renderedSubject;
 
+        let pi: number | undefined;
+        if (compiledVariants.preheaderFns && compiledVariants.preheaderFns.length > 0) {
+          pi = Math.floor(Math.random() * compiledVariants.preheaderFns.length);
+          const renderedPreheader = compiledVariants.preheaderFns[pi](templateData);
+          if (renderedPreheader) {
+            const preheaderHtml = `<div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${renderedPreheader}</div>`;
+            finalHtml = finalHtml.replace(/(<body[^>]*>)/i, `$1${preheaderHtml}`);
+          }
+        }
+
         if (this.config.hooks?.beforeSend) {
           try {
             const modified = await this.config.hooks.beforeSend({
@@ -680,7 +723,7 @@ export class RuleRunnerService {
           userId,
           identifier.id,
           undefined,
-          { status: 'sent', accountId: agentSelection.accountId, subject: finalSubject, subjectIndex: si, bodyIndex: bi }
+          { status: 'sent', accountId: agentSelection.accountId, subject: finalSubject, subjectIndex: si, bodyIndex: bi, preheaderIndex: pi }
         );
 
         const current = throttleMap.get(userId) || { today: 0, thisWeek: 0, lastSentDate: null };

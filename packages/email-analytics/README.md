@@ -92,18 +92,17 @@ const ruleEngine = createEmailRuleEngine({
 });
 ```
 
-## Documentation
+## Getting Started Guide
 
-| Guide | Description |
-|-------|-------------|
-| [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/configuration.md) | Full config reference |
-| [Event Recording](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/event-recording.md) | Recording events, batch insert, TTL |
-| [Aggregation](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/aggregation.md) | Daily aggregation, range backfill |
-| [Querying](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/querying.md) | Overview, timeline, grouped stats |
-| [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/api-routes.md) | REST endpoints reference |
-| [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/programmatic-api.md) | Using services directly |
-| [Integration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/integration.md) | Wiring with account-manager and rule-engine |
-| [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/error-handling.md) | Error classes and codes |
+1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/configuration.md) — Set up database and timezone
+2. [Event Recording](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/event-recording.md) — Record email events (sent, delivered, bounced, etc.)
+3. [Aggregation](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/aggregation.md) — Aggregate events into queryable stats (**must be scheduled via cron**)
+4. [Querying](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/querying.md) — Query aggregated stats by date range, account, rule, or template
+5. [Integration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/integration.md) — Wire analytics to email-rule-engine and email-account-manager hooks
+
+Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/types.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/error-handling.md)
+
+> **Important:** Events must be aggregated before querying. Schedule `aggregateDaily()` via cron (hourly recommended). Without aggregation, query endpoints return empty results.
 
 ## Exported Types
 
