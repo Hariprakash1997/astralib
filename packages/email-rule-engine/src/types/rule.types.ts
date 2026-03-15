@@ -1,4 +1,4 @@
-import type { RuleOperator, EmailType, RunTrigger, TemplateAudience } from '../constants';
+import type { RuleOperator, EmailType, RunTrigger } from '../constants';
 
 export interface RuleCondition {
   field: string;
@@ -16,7 +16,7 @@ export interface RuleRunStats {
 
 export interface QueryTarget {
   mode: 'query';
-  role: TemplateAudience;
+  role: string;
   platform: string;
   conditions: RuleCondition[];
 }

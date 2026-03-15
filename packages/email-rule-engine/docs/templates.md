@@ -9,8 +9,8 @@ Templates combine [MJML](https://mjml.io/) for responsive HTML email rendering w
 | `name` | `string` | Yes | Display name (e.g., "Welcome Email") |
 | `slug` | `string` | Yes | Unique identifier (auto-generated from name if omitted) |
 | `description` | `string` | No | Internal notes |
-| `category` | `TemplateCategory` | Yes | `'onboarding'`, `'engagement'`, `'transactional'`, `'re-engagement'`, `'announcement'` |
-| `audience` | `TemplateAudience` | Yes | `'customer'`, `'provider'`, `'all'` |
+| `category` | `string` | Yes | Custom values via `categories` config. Defaults: `'onboarding'`, `'engagement'`, `'transactional'`, `'re-engagement'`, `'announcement'` |
+| `audience` | `string` | Yes | Custom values via `audiences` config. Defaults: `'customer'`, `'provider'`, `'all'` |
 | `platform` | `string` | Yes | Must match one of the configured `platforms` |
 | `subjects` | `string[]` | Yes | Handlebars subject lines (supports multiple for A/B variants) |
 | `bodies` | `string[]` | Yes | MJML + Handlebars bodies (supports multiple for A/B variants) |

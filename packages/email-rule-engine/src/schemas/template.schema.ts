@@ -1,6 +1,5 @@
 import { Schema, Model, HydratedDocument } from 'mongoose';
 import { TEMPLATE_CATEGORY, TEMPLATE_AUDIENCE } from '../constants';
-import type { TemplateCategory, TemplateAudience } from '../constants';
 import type { EmailTemplate, CreateEmailTemplateInput } from '../types/template.types';
 
 export interface IEmailTemplate extends Omit<EmailTemplate, '_id'> {}
@@ -10,8 +9,8 @@ export type EmailTemplateDocument = HydratedDocument<IEmailTemplate>;
 export interface EmailTemplateStatics {
   findBySlug(slug: string): Promise<EmailTemplateDocument | null>;
   findActive(): Promise<EmailTemplateDocument[]>;
-  findByCategory(category: TemplateCategory): Promise<EmailTemplateDocument[]>;
-  findByAudience(audience: TemplateAudience): Promise<EmailTemplateDocument[]>;
+  findByCategory(category: string): Promise<EmailTemplateDocument[]>;
+  findByAudience(audience: string): Promise<EmailTemplateDocument[]>;
   createTemplate(input: CreateEmailTemplateInput): Promise<EmailTemplateDocument>;
 }
 
@@ -69,11 +68,11 @@ export function createEmailTemplateSchema(
           return this.find({ isActive: true }).sort({ category: 1, name: 1 });
         },
 
-        findByCategory(category: TemplateCategory) {
+        findByCategory(category: string) {
           return this.find({ category, isActive: true }).sort({ name: 1 });
         },
 
-        findByAudience(audience: TemplateAudience) {
+        findByAudience(audience: string) {
           return this.find({
             $or: [{ audience }, { audience: TEMPLATE_AUDIENCE.All }],
             isActive: true

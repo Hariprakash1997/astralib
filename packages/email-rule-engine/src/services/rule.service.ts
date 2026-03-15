@@ -2,7 +2,6 @@ import type { EmailRuleModel, EmailRuleDocument } from '../schemas/rule.schema';
 import type { EmailTemplateModel, EmailTemplateDocument } from '../schemas/template.schema';
 import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
 import type { CreateEmailRuleInput, UpdateEmailRuleInput, RuleTarget, QueryTarget } from '../types/rule.types';
-import type { TemplateAudience } from '../constants';
 import type { EmailRuleEngineConfig } from '../types/config.types';
 import { TemplateNotFoundError, RuleNotFoundError, RuleTemplateIncompatibleError } from '../errors';
 
@@ -18,11 +17,11 @@ const UPDATEABLE_FIELDS = new Set([
 ]);
 
 function validateRuleTemplateCompat(
-  targetRole: TemplateAudience,
+  targetRole: string,
   targetPlatform: string,
   template: EmailTemplateDocument
 ): string | null {
-  const templateAudience = template.audience as TemplateAudience;
+  const templateAudience = template.audience;
   const templatePlatform = template.platform;
 
   if (templateAudience !== 'all') {

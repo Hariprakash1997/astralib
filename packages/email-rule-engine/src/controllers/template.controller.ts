@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { TEMPLATE_CATEGORY, TEMPLATE_AUDIENCE } from '../constants';
-import type { TemplateCategory, TemplateAudience } from '../constants';
+
 import type { TemplateService } from '../services/template.service';
 import { getParam } from '../utils/express-helpers';
 
@@ -29,8 +29,8 @@ export function createTemplateController(templateService: TemplateService, optio
     try {
       const { category, audience, platform, isActive } = req.query;
       const templates = await templateService.list({
-        category: category as TemplateCategory | undefined,
-        audience: audience as TemplateAudience | undefined,
+        category: category as string | undefined,
+        audience: audience as string | undefined,
         platform: platform as string | undefined,
         isActive: isActive !== undefined ? isActive === 'true' : undefined
       });

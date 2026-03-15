@@ -1,7 +1,6 @@
 import { TemplateRenderService } from './template-render.service';
 import type { EmailTemplateModel, EmailTemplateDocument } from '../schemas/template.schema';
 import type { CreateEmailTemplateInput, UpdateEmailTemplateInput } from '../types/template.types';
-import type { TemplateCategory, TemplateAudience } from '../constants';
 import type { EmailRuleEngineConfig } from '../types/config.types';
 import { DuplicateSlugError, TemplateSyntaxError, TemplateNotFoundError } from '../errors';
 
@@ -27,8 +26,8 @@ export class TemplateService {
   ) {}
 
   async list(filters?: {
-    category?: TemplateCategory;
-    audience?: TemplateAudience;
+    category?: string;
+    audience?: string;
     platform?: string;
     isActive?: boolean;
   }): Promise<EmailTemplateDocument[]> {

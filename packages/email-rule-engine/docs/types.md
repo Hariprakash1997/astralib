@@ -53,7 +53,7 @@ import {
 | `CreateEmailRuleInput` | Input for creating a rule. Required: `name`, `target`, `templateId`. All scheduling/throttle fields optional with sensible defaults. |
 | `UpdateEmailRuleInput` | Partial input for updating a rule. All fields optional including `isActive`. |
 | `RuleTarget` | Union type: `QueryTarget \| ListTarget`. |
-| `QueryTarget` | Query-based targeting. Fields: `mode: 'query'`, `role: TemplateAudience`, `platform: string`, `conditions: RuleCondition[]`. |
+| `QueryTarget` | Query-based targeting. Fields: `mode: 'query'`, `role: string`, `platform: string`, `conditions: RuleCondition[]`. |
 | `ListTarget` | List-based targeting. Fields: `mode: 'list'`, `identifiers: string[]`. |
 | `RuleCondition` | Single filter condition. Fields: `field: string`, `operator: RuleOperator`, `value: unknown`. |
 | `RuleRunStats` | Aggregated stats for a run. Fields: `matched`, `sent`, `skipped`, `skippedByThrottle`, `errors` (all `number`). |
@@ -139,6 +139,8 @@ Each constant is an object whose values form the corresponding union type.
 
 Type: `TemplateCategory = 'onboarding' | 'engagement' | 'transactional' | 're-engagement' | 'announcement'`
 
+Note: These are the default values. The `category` field on templates accepts `string` — custom values are validated at runtime via the `categories` config array.
+
 ### `TEMPLATE_AUDIENCE`
 
 | Key | Value |
@@ -148,6 +150,8 @@ Type: `TemplateCategory = 'onboarding' | 'engagement' | 'transactional' | 're-en
 | `All` | `'all'` |
 
 Type: `TemplateAudience = 'customer' | 'provider' | 'all'`
+
+Note: These are the default values. The `audience` and `role` fields accept `string` — custom values (e.g., `'client'`, `'therapist'`) are validated at runtime via the `audiences` config array.
 
 ### `RULE_OPERATOR`
 

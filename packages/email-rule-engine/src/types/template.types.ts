@@ -1,12 +1,11 @@
-import type { TemplateCategory, TemplateAudience } from '../constants';
 
 export interface EmailTemplate {
   _id: string;
   name: string;
   slug: string;
   description?: string;
-  category: TemplateCategory;
-  audience: TemplateAudience;
+  category: string;
+  audience: string;
   platform: string;
 
   textBody?: string;
@@ -27,8 +26,8 @@ export interface CreateEmailTemplateInput {
   name: string;
   slug: string;
   description?: string;
-  category: TemplateCategory;
-  audience: TemplateAudience;
+  category: string;
+  audience: string;
   platform: string;
   textBody?: string;
   subjects: string[];
@@ -41,8 +40,8 @@ export interface CreateEmailTemplateInput {
 export interface UpdateEmailTemplateInput {
   name?: string;
   description?: string;
-  category?: TemplateCategory;
-  audience?: TemplateAudience;
+  category?: string;
+  audience?: string;
   platform?: string;
   textBody?: string;
   subjects?: string[];
