@@ -1,5 +1,11 @@
 # @astralibx/email-analytics
 
+## 2.0.2
+
+### Patch Changes
+
+- 966d464: add multi-variant templates, beforeSend hook, list-mode targeting, run status/cancel, account metadata, fix docs across all packages
+
 ## 2.0.1
 
 ### Patch Changes
