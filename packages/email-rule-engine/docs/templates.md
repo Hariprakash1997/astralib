@@ -17,7 +17,39 @@ Templates combine [MJML](https://mjml.io/) for responsive HTML email rendering w
 | `textBody` | `string` | No | Plain text override (auto-generated from HTML if omitted) |
 | `variables` | `string[]` | Auto | Extracted Handlebars variables (computed on save) |
 | `version` | `number` | Auto | Increments on content updates |
+| `fields` | `Record<string, string>` | No | Custom placeholder key-value pairs (see below) |
 | `isActive` | `boolean` | Auto | Defaults to `true` |
+
+## Custom Fields
+
+Templates can include a `fields` object -- a key-value dictionary of custom placeholder values that are merged into the render context as defaults.
+
+Merge order:
+
+1. `template.fields` -- base defaults defined on the template
+2. `resolveData` result -- candidate-specific data overrides matching keys from step 1
+3. `beforeSend` hook -- account-level overrides applied last
+
+On key conflicts, later stages win. This lets you set template-wide defaults that individual candidates or accounts can override.
+
+```typescript
+{
+  name: 'Job Offer',
+  slug: 'job-offer',
+  category: 'engagement',
+  audience: 'customer',
+  platform: 'web',
+  subjects: ['Exciting opportunity at {{company}}'],
+  bodies: ['<mj-text>Hi {{user.name}}, check out the role in {{location}}. Salary: {{salary}}. Chat: {{whatsapp_link}}</mj-text>'],
+  fields: {
+    whatsapp_link: 'https://wa.me/919876543210',
+    salary: '12 LPA',
+    location: 'Bangalore',
+  },
+}
+```
+
+In this example, `whatsapp_link`, `salary`, and `location` are available as Handlebars variables. If `resolveData` returns a `salary` for a specific candidate, that value takes precedence over the template default.
 
 ## MJML + Handlebars
 

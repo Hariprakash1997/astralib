@@ -13,7 +13,8 @@ function isQueryTarget(target: RuleTarget): target is QueryTarget {
 const UPDATEABLE_FIELDS = new Set([
   'name', 'description', 'sortOrder', 'target', 'templateId',
   'sendOnce', 'resendAfterDays', 'cooldownDays', 'autoApprove',
-  'maxPerRun', 'bypassThrottle', 'emailType'
+  'maxPerRun', 'bypassThrottle', 'emailType',
+  'validFrom', 'validTill'
 ]);
 
 function validateRuleTemplateCompat(

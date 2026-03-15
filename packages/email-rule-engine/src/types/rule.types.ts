@@ -45,6 +45,9 @@ export interface EmailRule {
   autoApprove: boolean;
   maxPerRun?: number;
 
+  validFrom?: Date;
+  validTill?: Date;
+
   bypassThrottle: boolean;
   emailType: EmailType;
 
@@ -68,6 +71,8 @@ export interface CreateEmailRuleInput {
   cooldownDays?: number;
   autoApprove?: boolean;
   maxPerRun?: number;
+  validFrom?: Date;
+  validTill?: Date;
   bypassThrottle?: boolean;
   emailType?: EmailType;
 }
@@ -84,6 +89,8 @@ export interface UpdateEmailRuleInput {
   cooldownDays?: number;
   autoApprove?: boolean;
   maxPerRun?: number;
+  validFrom?: Date;
+  validTill?: Date;
   bypassThrottle?: boolean;
   emailType?: EmailType;
 }

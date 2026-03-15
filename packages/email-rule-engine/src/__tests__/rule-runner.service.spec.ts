@@ -901,4 +901,407 @@ describe('RuleRunnerService', () => {
       expect(stats.sent).toBe(0);
     });
   });
+
+  describe('rule validity dates (validFrom / validTill)', () => {
+    it('skips rule with validFrom in the future', async () => {
+      const models = createMockModels();
+      const futureDate = new Date(Date.now() + 7 * 86400000);
+      models.EmailRule.findActive.mockResolvedValue([makeRule({ validFrom: futureDate.toISOString() })]);
+      models.EmailTemplate.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([]) }));
+
+      const config = createMockConfig();
+      const { service } = createService(models, config);
+      await service.runAllRules();
+
+      expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rulesProcessed: 0,
+          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 },
+        })
+      );
+    });
+
+    it('skips rule with validTill in the past', async () => {
+      const models = createMockModels();
+      const pastDate = new Date(Date.now() - 7 * 86400000);
+      models.EmailRule.findActive.mockResolvedValue([makeRule({ validTill: pastDate.toISOString() })]);
+      models.EmailTemplate.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([]) }));
+
+      const config = createMockConfig();
+      const { service } = createService(models, config);
+      await service.runAllRules();
+
+      expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rulesProcessed: 0,
+          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 },
+        })
+      );
+    });
+
+    it('processes rule within validity window (validFrom in past, validTill in future)', async () => {
+      const models = createMockModels();
+      const pastDate = new Date(Date.now() - 7 * 86400000);
+      const futureDate = new Date(Date.now() + 7 * 86400000);
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+
+      const templateDoc = { _id: 'template-1', subjects: ['Hi'], bodies: ['<p>Hi</p>'] };
+      models.EmailRule.findActive.mockResolvedValue([makeRule({ validFrom: pastDate.toISOString(), validTill: futureDate.toISOString() })]);
+      models.EmailTemplate.findById.mockResolvedValue(templateDoc);
+      models.EmailTemplate.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([templateDoc]) }));
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+
+      const { service } = createService(models, config);
+      await service.runAllRules();
+
+      expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rulesProcessed: 1,
+          perRuleStats: expect.arrayContaining([
+            expect.objectContaining({ ruleId: 'rule-1' }),
+          ]),
+        })
+      );
+    });
+
+    it('processes rule with no validFrom/validTill (always valid)', async () => {
+      const models = createMockModels();
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+
+      const templateDoc = { _id: 'template-1', subjects: ['Hi'], bodies: ['<p>Hi</p>'] };
+      models.EmailRule.findActive.mockResolvedValue([makeRule()]);
+      models.EmailTemplate.findById.mockResolvedValue(templateDoc);
+      models.EmailTemplate.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([templateDoc]) }));
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+
+      const { service } = createService(models, config);
+      await service.runAllRules();
+
+      expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ rulesProcessed: 1 })
+      );
+    });
+
+    it('processes rule with only validFrom set (in past)', async () => {
+      const models = createMockModels();
+      const pastDate = new Date(Date.now() - 7 * 86400000);
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+
+      const templateDoc = { _id: 'template-1', subjects: ['Hi'], bodies: ['<p>Hi</p>'] };
+      models.EmailRule.findActive.mockResolvedValue([makeRule({ validFrom: pastDate.toISOString() })]);
+      models.EmailTemplate.findById.mockResolvedValue(templateDoc);
+      models.EmailTemplate.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([templateDoc]) }));
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+
+      const { service } = createService(models, config);
+      await service.runAllRules();
+
+      expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ rulesProcessed: 1 })
+      );
+    });
+
+    it('processes rule with only validTill set (in future)', async () => {
+      const models = createMockModels();
+      const futureDate = new Date(Date.now() + 7 * 86400000);
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+
+      const templateDoc = { _id: 'template-1', subjects: ['Hi'], bodies: ['<p>Hi</p>'] };
+      models.EmailRule.findActive.mockResolvedValue([makeRule({ validTill: futureDate.toISOString() })]);
+      models.EmailTemplate.findById.mockResolvedValue(templateDoc);
+      models.EmailTemplate.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([templateDoc]) }));
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+
+      const { service } = createService(models, config);
+      await service.runAllRules();
+
+      expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ rulesProcessed: 1 })
+      );
+    });
+  });
+
+  describe('template custom fields', () => {
+    it('template fields are included in render context', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({
+        subjects: ['Hi {{companyName}}'],
+        bodies: ['<p>Welcome to {{companyName}}</p>'],
+        fields: { companyName: 'Acme Corp', supportUrl: 'https://support.acme.com' },
+      });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+
+      const resolveDataMock = vi.fn().mockImplementation((user: any) => ({ name: user.name, email: user.email }));
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+        resolveData: resolveDataMock,
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(config.adapters.sendEmail).toHaveBeenCalled();
+      expect(resolveDataMock).toHaveBeenCalled();
+    });
+
+    it('candidate data from resolveData overrides template fields on key conflict', async () => {
+      const { TemplateRenderService } = await import('../services/template-render.service');
+      const capturedData: any[] = [];
+      const mockSubjectFn = vi.fn().mockImplementation((data: any) => { capturedData.push({ ...data }); return 'Rendered Subject'; });
+      (TemplateRenderService as any).mockImplementation(() => ({
+        compileBatchVariants: vi.fn().mockReturnValue({
+          subjectFns: [mockSubjectFn],
+          bodyFns: [vi.fn().mockReturnValue('<p>Rendered HTML</p>')],
+          textBodyFn: vi.fn().mockReturnValue('Rendered Text'),
+        }),
+        htmlToText: vi.fn().mockReturnValue('Rendered Text'),
+      }));
+
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({
+        subjects: ['Hi {{name}}'],
+        bodies: ['<p>Hello</p>'],
+        fields: { name: 'Default Name', extra: 'templateValue' },
+      });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+        resolveData: vi.fn().mockImplementation((user: any) => ({ name: user.name, email: user.email })),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(mockSubjectFn).toHaveBeenCalled();
+      const renderData = capturedData[0];
+      expect(renderData.name).toBe('Alice');
+      expect(renderData.extra).toBe('templateValue');
+
+      // Restore default mock
+      (TemplateRenderService as any).mockImplementation(() => ({
+        compileBatch: vi.fn().mockReturnValue({ subjectFn: vi.fn(), bodyFn: vi.fn(), textBodyFn: vi.fn() }),
+        compileBatchVariants: vi.fn().mockReturnValue({
+          subjectFns: [vi.fn().mockReturnValue('Rendered Subject')],
+          bodyFns: [vi.fn().mockReturnValue('<p>Rendered HTML</p>')],
+          textBodyFn: vi.fn().mockReturnValue('Rendered Text'),
+        }),
+        renderFromCompiled: vi.fn().mockReturnValue({ subject: 'Rendered Subject', html: '<p>Rendered HTML</p>', text: 'Rendered Text' }),
+        htmlToText: vi.fn().mockReturnValue('Rendered Text'),
+      }));
+    });
+
+    it('template with no fields (undefined) works fine', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({
+        subjects: ['Hi'],
+        bodies: ['<p>Hello</p>'],
+      });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      const stats = await service.executeRule(makeRule(), new Map(), throttleConfig);
+      expect(stats.sent).toBe(1);
+      expect(stats.errors).toBe(0);
+    });
+
+    it('template with empty fields object works fine', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({
+        subjects: ['Hi'],
+        bodies: ['<p>Hello</p>'],
+        fields: {},
+      });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      const stats = await service.executeRule(makeRule(), new Map(), throttleConfig);
+      expect(stats.sent).toBe(1);
+      expect(stats.errors).toBe(0);
+    });
+
+    it('template fields and resolveData both contribute to final render data', async () => {
+      const { TemplateRenderService } = await import('../services/template-render.service');
+      const capturedData: any[] = [];
+      const mockSubjectFn = vi.fn().mockImplementation((data: any) => { capturedData.push({ ...data }); return 'Rendered Subject'; });
+      (TemplateRenderService as any).mockImplementation(() => ({
+        compileBatchVariants: vi.fn().mockReturnValue({
+          subjectFns: [mockSubjectFn],
+          bodyFns: [vi.fn().mockReturnValue('<p>Rendered HTML</p>')],
+          textBodyFn: vi.fn().mockReturnValue('Rendered Text'),
+        }),
+        htmlToText: vi.fn().mockReturnValue('Rendered Text'),
+      }));
+
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({
+        subjects: ['Hi {{name}} from {{companyName}}'],
+        bodies: ['<p>Hello</p>'],
+        fields: { companyName: 'Acme Corp', footer: 'Unsubscribe here' },
+      });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        queryUsers: vi.fn().mockResolvedValue([makeUser()]),
+        resolveData: vi.fn().mockImplementation((user: any) => ({ name: user.name, role: 'customer' })),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(mockSubjectFn).toHaveBeenCalled();
+      const renderData = capturedData[0];
+      expect(renderData.companyName).toBe('Acme Corp');
+      expect(renderData.footer).toBe('Unsubscribe here');
+      expect(renderData.name).toBe('Alice');
+      expect(renderData.role).toBe('customer');
+
+      // Restore default mock
+      (TemplateRenderService as any).mockImplementation(() => ({
+        compileBatch: vi.fn().mockReturnValue({ subjectFn: vi.fn(), bodyFn: vi.fn(), textBodyFn: vi.fn() }),
+        compileBatchVariants: vi.fn().mockReturnValue({
+          subjectFns: [vi.fn().mockReturnValue('Rendered Subject')],
+          bodyFns: [vi.fn().mockReturnValue('<p>Rendered HTML</p>')],
+          textBodyFn: vi.fn().mockReturnValue('Rendered Text'),
+        }),
+        renderFromCompiled: vi.fn().mockReturnValue({ subject: 'Rendered Subject', html: '<p>Rendered HTML</p>', text: 'Rendered Text' }),
+        htmlToText: vi.fn().mockReturnValue('Rendered Text'),
+      }));
+    });
+  });
+
+  describe('auto-disable list-mode rules when exhausted', () => {
+    function makeListRule(overrides: Record<string, any> = {}) {
+      return makeRule({
+        target: { mode: 'list', identifiers: ['alice@example.com', 'bob@example.com'] },
+        sendOnce: true,
+        ...overrides,
+      });
+    }
+
+    it('sets isActive to false when all identifiers have been sent', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation((query: any) => {
+        if (query.userId) {
+          return createChainableMock([
+            { userId: 'ident-a', ruleId: 'rule-1', sentAt: new Date() },
+            { userId: 'ident-b', ruleId: 'rule-1', sentAt: new Date() },
+          ]);
+        }
+        return createChainableMock([
+          { userId: 'ident-a', ruleId: 'rule-1', sentAt: new Date(), status: 'sent' },
+          { userId: 'ident-b', ruleId: 'rule-1', sentAt: new Date(), status: 'sent' },
+        ]);
+      });
+      const config = createMockConfig({
+        findIdentifier: vi.fn()
+          .mockResolvedValueOnce({ id: 'ident-a', contactId: 'contact-a' })
+          .mockResolvedValueOnce({ id: 'ident-b', contactId: 'contact-b' }),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeListRule(), new Map(), throttleConfig);
+
+      expect(models.EmailRule.findByIdAndUpdate).toHaveBeenCalledWith(
+        'rule-1',
+        { $set: { isActive: false } }
+      );
+    });
+
+    it('stays active when some identifiers were throttled', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation((query: any) => {
+        if (query.userId) {
+          return createChainableMock([]);
+        }
+        return createChainableMock([
+          { userId: 'ident-a', ruleId: 'rule-1', sentAt: new Date(), status: 'sent' },
+          { userId: 'ident-b', ruleId: 'rule-1', sentAt: new Date(), status: 'throttled' },
+        ]);
+      });
+      const config = createMockConfig({
+        findIdentifier: vi.fn()
+          .mockResolvedValueOnce({ id: 'ident-a', contactId: 'contact-a' })
+          .mockResolvedValueOnce({ id: 'ident-b', contactId: 'contact-b' }),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeListRule(), new Map(), throttleConfig);
+
+      const allCalls = models.EmailRule.findByIdAndUpdate.mock.calls;
+      const disableCall = allCalls.find((call: any[]) =>
+        call[1]?.$set?.isActive === false
+      );
+      expect(disableCall).toBeUndefined();
+    });
+
+    it('stays active when some identifiers have no send record', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation((query: any) => {
+        if (query.userId) {
+          return createChainableMock([]);
+        }
+        return createChainableMock([
+          { userId: 'ident-a', ruleId: 'rule-1', sentAt: new Date(), status: 'sent' },
+        ]);
+      });
+      const config = createMockConfig({
+        findIdentifier: vi.fn()
+          .mockResolvedValueOnce({ id: 'ident-a', contactId: 'contact-a' })
+          .mockResolvedValueOnce({ id: 'ident-b', contactId: 'contact-b' }),
+      });
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(makeListRule(), new Map(), throttleConfig);
+
+      const allCalls = models.EmailRule.findByIdAndUpdate.mock.calls;
+      const disableCall = allCalls.find((call: any[]) =>
+        call[1]?.$set?.isActive === false
+      );
+      expect(disableCall).toBeUndefined();
+    });
+
+    it('does not auto-disable when sendOnce is false', async () => {
+      const models = createMockModels();
+      models.EmailTemplate.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.EmailRuleSend.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig({
+        findIdentifier: vi.fn().mockResolvedValue({ id: 'ident-1', contactId: 'contact-1' }),
+      });
+      const { service } = createService(models, config);
+
+      const rule = makeListRule({ sendOnce: false });
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      await service.executeRule(rule, new Map(), throttleConfig);
+
+      const allCalls = models.EmailRule.findByIdAndUpdate.mock.calls;
+      const disableCall = allCalls.find((call: any[]) =>
+        call[1]?.$set?.isActive === false
+      );
+      expect(disableCall).toBeUndefined();
+    });
+  });
 });

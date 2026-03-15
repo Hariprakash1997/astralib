@@ -7,7 +7,7 @@ import { DuplicateSlugError, TemplateSyntaxError, TemplateNotFoundError } from '
 
 const UPDATEABLE_FIELDS = new Set([
   'name', 'description', 'category', 'audience', 'platform',
-  'textBody', 'subjects', 'bodies', 'variables', 'isActive'
+  'textBody', 'subjects', 'bodies', 'variables', 'isActive', 'fields'
 ]);
 
 function slugify(name: string): string {

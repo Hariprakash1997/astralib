@@ -101,7 +101,14 @@ export class RuleRunnerService {
 
     try {
       const throttleConfig = await this.EmailThrottleConfig.getConfig();
-      const activeRules = await this.EmailRule.findActive();
+      const allActiveRules = await this.EmailRule.findActive();
+
+      const now = new Date();
+      const activeRules = allActiveRules.filter(rule => {
+        if (rule.validFrom && now < new Date(rule.validFrom)) return false;
+        if (rule.validTill && now > new Date(rule.validTill)) return false;
+        return true;
+      });
 
       this.config.hooks?.onRunStart?.({ rulesCount: activeRules.length, triggeredBy });
 
@@ -362,7 +369,8 @@ export class RuleRunnerService {
         }
 
         const user = { _id: identifier.id, email };
-        const templateData = this.config.adapters.resolveData(user);
+        const resolvedData = this.config.adapters.resolveData(user);
+        const templateData = { ...(template.fields || {}), ...resolvedData };
 
         const si = Math.floor(Math.random() * compiledVariants.subjectFns.length);
         const bi = Math.floor(Math.random() * compiledVariants.bodyFns.length);
@@ -458,6 +466,35 @@ export class RuleRunnerService {
       $set: { lastRunAt: new Date(), lastRunStats: stats },
       $inc: { totalSent: stats.sent, totalSkipped: stats.skipped }
     });
+
+    if (rule.sendOnce) {
+      const allIdentifiers = rule.target.identifiers;
+      const sends = await this.EmailRuleSend.find({
+        ruleId: rule._id,
+      }).lean();
+
+      const sentOrProcessedIds = new Set(sends
+        .filter((s: any) => s.status !== 'throttled')
+        .map((s: any) => String(s.userId || s.emailIdentifierId))
+      );
+
+      let pendingCount = 0;
+      for (const email of allIdentifiers) {
+        const identifier = identifierMap.get(email.toLowerCase().trim());
+        if (!identifier) continue;
+        if (!sentOrProcessedIds.has(String(identifier.id))) {
+          pendingCount++;
+        }
+      }
+
+      const throttledCount = sends.filter((s: any) => s.status === 'throttled').length;
+      pendingCount += throttledCount;
+
+      if (pendingCount === 0) {
+        await this.EmailRule.findByIdAndUpdate(rule._id, { $set: { isActive: false } });
+        this.logger.info(`Rule '${rule.name}' auto-disabled — all identifiers processed`);
+      }
+    }
 
     this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats });
 
@@ -583,7 +620,8 @@ export class RuleRunnerService {
           continue;
         }
 
-        const templateData = this.config.adapters.resolveData(user);
+        const resolvedData = this.config.adapters.resolveData(user);
+        const templateData = { ...(template.fields || {}), ...resolvedData };
 
         const si = Math.floor(Math.random() * compiledVariants.subjectFns.length);
         const bi = Math.floor(Math.random() * compiledVariants.bodyFns.length);

@@ -133,12 +133,35 @@ Picks which sending account to use for a given recipient. Return `null` to skip 
 // AgentSelection = { accountId: string; email: string; metadata: Record<string, unknown> }
 ```
 
+The optional `context` parameter provides `ruleId` and `templateId` for the current send. This is useful for account-to-template mapping -- for example, sending job-related templates from a recruitment account and marketing templates from a different sender.
+
+**Basic example (round-robin by send count):**
+
 ```typescript
 async function selectAgent(identifierId: string) {
   const account = await EmailAccount.findOne({
     isActive: true,
     dailySentCount: { $lt: 450 },
   }).sort({ dailySentCount: 1 });
+
+  if (!account) return null;
+  return {
+    accountId: account._id.toString(),
+    email: account.email,
+    metadata: account.metadata || {},
+  };
+}
+```
+
+**Template-aware example (using `context.templateId`):**
+
+```typescript
+async function selectAgent(identifierId: string, context?: { ruleId: string; templateId: string }) {
+  // Use templateId to pick the right account for this template
+  const mapping = await AccountTemplateMapping.findOne({ templateId: context?.templateId });
+  const account = mapping
+    ? await EmailAccount.findById(mapping.accountId)
+    : await EmailAccount.findOne({ status: 'active' });
 
   if (!account) return null;
   return {

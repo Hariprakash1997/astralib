@@ -59,6 +59,9 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
       autoApprove: { type: Boolean, default: true },
       maxPerRun: Number,
 
+      validFrom: { type: Date },
+      validTill: { type: Date },
+
       bypassThrottle: { type: Boolean, default: false },
       emailType: { type: String, enum: Object.values(EMAIL_TYPE), default: EMAIL_TYPE.Automated },
 
@@ -93,6 +96,8 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
             cooldownDays: input.cooldownDays,
             autoApprove: input.autoApprove ?? true,
             maxPerRun: input.maxPerRun,
+            validFrom: input.validFrom,
+            validTill: input.validTill,
             bypassThrottle: input.bypassThrottle ?? false,
             emailType: input.emailType ?? EMAIL_TYPE.Automated,
             totalSent: 0,

@@ -17,11 +17,11 @@ app.use('/api/email-rules', authMiddleware, engine.routes);
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/templates` | List templates (filter by `?category=`, `?audience=`, `?platform=`, `?isActive=`) |
-| `POST` | `/templates` | Create a new template |
+| `POST` | `/templates` | Create a new template. Accepts optional `fields` (`Record<string, string>`) for custom placeholder defaults |
 | `POST` | `/templates/validate` | Validate MJML + Handlebars syntax without saving |
 | `POST` | `/templates/preview` | Preview raw template with sample data (no save) |
 | `GET` | `/templates/:id` | Get template by ID |
-| `PUT` | `/templates/:id` | Update template (auto-increments `version`) |
+| `PUT` | `/templates/:id` | Update template (auto-increments `version`). Accepts `fields` (optional `Record<string, string>` of custom placeholder values) |
 | `DELETE` | `/templates/:id` | Delete template |
 | `PATCH` | `/templates/:id/toggle` | Toggle `isActive` on/off |
 | `POST` | `/templates/:id/preview` | Render saved template with sample data |
@@ -39,7 +39,8 @@ curl -X POST http://localhost:3000/api/email-rules/templates \
     "audience": "customer",
     "platform": "web",
     "subjects": ["Welcome to {{platform.name}}, {{user.name}}!"],
-    "bodies": ["<mj-text>Hi {{user.name}}, welcome aboard!</mj-text>"]
+    "bodies": ["<mj-text>Hi {{user.name}}, welcome aboard!</mj-text>"],
+    "fields": { "whatsapp_link": "https://wa.me/919876543210" }
   }'
 ```
 
@@ -60,10 +61,10 @@ curl -X POST http://localhost:3000/api/email-rules/templates/preview \
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/rules` | List all rules (with populated template name/slug) |
-| `POST` | `/rules` | Create a new rule (validates template compatibility) |
+| `POST` | `/rules` | Create a new rule (validates template compatibility). Accepts optional `validFrom` and `validTill` (Date) for time-windowed activation |
 | `GET` | `/rules/run-history` | Get execution history (`?limit=20`) |
 | `GET` | `/rules/:id` | Get rule by ID |
-| `PATCH` | `/rules/:id` | Update a rule |
+| `PATCH` | `/rules/:id` | Update a rule (accepts `validFrom` and `validTill`) |
 | `DELETE` | `/rules/:id` | Delete rule (disables instead if it has send history) |
 | `PATCH` | `/rules/:id/toggle` | Toggle `isActive` (validates template is active before enabling) |
 | `POST` | `/rules/:id/dry-run` | Count matching users without sending |
@@ -86,7 +87,9 @@ curl -X POST http://localhost:3000/api/email-rules/rules \
     "sendOnce": true,
     "autoApprove": true,
     "sortOrder": 1,
-    "maxPerRun": 200
+    "maxPerRun": 200,
+    "validFrom": "2026-11-28T00:00:00Z",
+    "validTill": "2026-12-01T23:59:59Z"
   }'
 ```
 

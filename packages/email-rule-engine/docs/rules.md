@@ -22,7 +22,28 @@ Rules define **who** gets an email, **when**, and **how often**. Each rule links
 | `totalSent` | `number` | `0` | Lifetime send count (auto-tracked) |
 | `totalSkipped` | `number` | `0` | Lifetime skip count (auto-tracked) |
 | `lastRunAt` | `Date` | -- | Last execution timestamp (auto-tracked) |
+| `validFrom` | `Date` | -- | Rule is inactive before this date |
+| `validTill` | `Date` | -- | Rule is inactive after this date |
 | `lastRunStats` | `RuleRunStats` | -- | Stats from the most recent run (auto-tracked) |
+
+## Validity Dates
+
+Rules can optionally specify a time window during which they are active:
+
+- `validFrom` (optional) -- the rule is skipped if the current date is before this value
+- `validTill` (optional) -- the rule is skipped if the current date is after this value
+- Rules with neither field set are always active
+- The runner automatically checks validity dates before processing each rule; rules outside their window are silently skipped
+
+```typescript
+{
+  name: "Black Friday campaign",
+  templateId: "665abc123...",
+  validFrom: new Date("2026-11-28T00:00:00Z"),
+  validTill: new Date("2026-12-01T23:59:59Z"),
+  // ...other fields
+}
+```
 
 ## Targeting
 
@@ -75,6 +96,8 @@ List mode targets an explicit list of email addresses. The engine skips `queryUs
 ```
 
 List mode is useful for one-off campaigns, manual outreach, or when the recipient list is managed externally. The `role`, `platform`, and `conditions` fields are ignored in list mode.
+
+**Auto-disable:** When a list-mode rule has `sendOnce: true` and all identifiers have been processed (none pending, none throttled), the rule is automatically set to `isActive: false`. Throttled identifiers count as pending -- the rule stays active until they can be retried. This prevents stale one-off rules from accumulating.
 
 ## Condition Operators
 

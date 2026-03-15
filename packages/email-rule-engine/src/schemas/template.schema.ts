@@ -40,6 +40,7 @@ export function createEmailTemplateSchema(
       subjects: { type: [{ type: String }], required: true, validate: [(v: string[]) => v.length >= 1, 'At least one subject is required'] },
       bodies: { type: [{ type: String }], required: true, validate: [(v: string[]) => v.length >= 1, 'At least one body is required'] },
 
+      fields: { type: Schema.Types.Mixed, default: {} },
       variables: [{ type: String }],
       version: { type: Number, default: 1 },
       isActive: { type: Boolean, default: true, index: true }
@@ -79,6 +80,7 @@ export function createEmailTemplateSchema(
             textBody: input.textBody,
             subjects: input.subjects,
             bodies: input.bodies,
+            fields: input.fields || {},
             variables: input.variables || [],
             version: 1,
             isActive: true

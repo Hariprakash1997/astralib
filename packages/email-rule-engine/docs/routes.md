@@ -37,6 +37,7 @@ Create a new template.
 | `category` | string | yes | Must be a valid category value |
 | `audience` | string | yes | Must be a valid audience value |
 | `platform` | string | yes | Must be a valid platform value |
+| `fields` | `Record<string, string>` | no | Custom placeholder key-value pairs merged into render context as defaults |
 
 **Response:** `201 { success, data: { template } }`
 
@@ -75,7 +76,7 @@ Get a single template by ID.
 
 ### `PUT /templates/:id`
 
-Update a template by ID. Accepts same fields as create (all optional).
+Update a template by ID. Accepts same fields as create (all optional), including `fields`.
 
 **Response:** `{ success, data: { template } }`
 
@@ -138,6 +139,8 @@ Create a new rule.
 | `target` | object | yes | `{ role, platform, conditions[], mode?, identifiers? }`. Set `mode: "list"` and provide `identifiers` (string array of emails) for list-mode targeting |
 | `templateId` | string | yes | ID of the template to use |
 | `emailType` | string | no | Must be a valid email type |
+| `validFrom` | Date | no | Rule is inactive before this date |
+| `validTill` | Date | no | Rule is inactive after this date |
 
 **Response:** `201 { success, data: { rule } }`
 
@@ -159,7 +162,7 @@ Get a single rule by ID.
 
 ### `PATCH /rules/:id`
 
-Update a rule by ID. Accepts same fields as create (all optional).
+Update a rule by ID. Accepts same fields as create (all optional), including `validFrom` and `validTill`.
 
 **Response:** `{ success, data: { rule } }`
 

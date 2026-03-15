@@ -13,6 +13,7 @@ export interface EmailTemplate {
   subjects: string[];
   bodies: string[];
 
+  fields?: Record<string, string>;
   variables: string[];
   version: number;
   isActive: boolean;
@@ -31,6 +32,7 @@ export interface CreateEmailTemplateInput {
   textBody?: string;
   subjects: string[];
   bodies: string[];
+  fields?: Record<string, string>;
   variables?: string[];
 }
 
@@ -43,6 +45,7 @@ export interface UpdateEmailTemplateInput {
   textBody?: string;
   subjects?: string[];
   bodies?: string[];
+  fields?: Record<string, string>;
   variables?: string[];
   isActive?: boolean;
 }
