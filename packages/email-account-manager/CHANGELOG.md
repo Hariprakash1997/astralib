@@ -1,5 +1,11 @@
 # @astralibx/email-account-manager
 
+## 10.0.1
+
+### Patch Changes
+
+- 4b963f6: fix BullMQ Worker TypeError, fix UI component response data access keys
+
 ## 10.0.0
 
 ### Major Changes

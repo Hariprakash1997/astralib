@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.0.8
+
+### Patch Changes
+
+- 4b963f6: fix BullMQ Worker TypeError, fix UI component response data access keys
+
 ## 2.0.7
 
 ### Patch Changes
