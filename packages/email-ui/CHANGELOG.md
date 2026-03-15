@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.0.9
+
+### Patch Changes
+
+- 70ad0c4: add repository field, findById on identifiers, advanceAllAccounts warmup helper, IMAP autoStart, npm links in README
+
 ## 2.0.8
 
 ### Patch Changes
