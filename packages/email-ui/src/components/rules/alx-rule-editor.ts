@@ -164,9 +164,9 @@ export class AlxRuleEditor extends LitElement {
   private async _loadTemplates(): Promise<void> {
     try {
       const res = (await this._api.listTemplates({ limit: 200 })) as {
-        data: TemplateOption[];
+        templates: TemplateOption[];
       };
-      this._templates = res.data;
+      this._templates = res.templates ?? [];
     } catch {
       // templates will be empty, user can still type an ID
     }
@@ -177,10 +177,10 @@ export class AlxRuleEditor extends LitElement {
     this._error = '';
     try {
       const res = (await this._api.listRules({ _id: this.ruleId, limit: 1 })) as {
-        data: RuleData[];
+        rules: RuleData[];
       };
-      if (res.data.length > 0) {
-        this._form = { ...JSON.parse(JSON.stringify(EMPTY_RULE)), ...res.data[0] };
+      if (res.rules && res.rules.length > 0) {
+        this._form = { ...JSON.parse(JSON.stringify(EMPTY_RULE)), ...res.rules[0] };
       }
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to load rule';

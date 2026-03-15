@@ -78,9 +78,10 @@ export class AlxApprovalQueue extends LitElement {
     this.error = '';
     try {
       const res = (await this.api.listDrafts({ status: 'pending' } as Record<string, unknown>)) as {
-        data: Draft[];
+        items: Draft[];
+        total?: number;
       };
-      this.drafts = res.data ?? [];
+      this.drafts = res.items ?? [];
       this.selectedIds = new Set();
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to load drafts';

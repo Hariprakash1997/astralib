@@ -12,7 +12,7 @@ import {
   alxCardStyles,
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
-import type { PaginatedResponse } from '../../api/http-client.js';
+
 
 interface TemplateRow {
   _id: string;
@@ -160,11 +160,11 @@ export class AlxTemplateList extends LitElement {
       if (this._filterAudience) params['audience'] = this._filterAudience;
       if (this._filterPlatform) params['platform'] = this._filterPlatform;
 
-      const res = await this._api.listTemplates(params) as PaginatedResponse<TemplateRow>;
+      const res = await this._api.listTemplates(params) as { templates: TemplateRow[]; total?: number };
       if (gen !== this._loadGeneration) return;
-      this._templates = res.data;
-      this._totalPages = res.totalPages;
-      this._total = res.total;
+      this._templates = res.templates ?? [];
+      this._total = res.total ?? res.templates?.length ?? 0;
+      this._totalPages = Math.max(1, Math.ceil(this._total / this._limit));
     } catch (err) {
       if (gen !== this._loadGeneration) return;
       this._error = err instanceof Error ? err.message : 'Failed to load templates';

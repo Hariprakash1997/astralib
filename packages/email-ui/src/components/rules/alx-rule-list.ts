@@ -11,7 +11,7 @@ import {
   alxCardStyles,
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
-import type { PaginatedResponse } from '../../api/http-client.js';
+
 
 interface RuleRow {
   _id: string;
@@ -136,11 +136,11 @@ export class AlxRuleList extends LitElement {
       const res = await this._api.listRules({
         page: this._page,
         limit: this._limit,
-      }) as PaginatedResponse<RuleRow>;
+      }) as { rules: RuleRow[]; total?: number };
       if (gen !== this._loadGeneration) return;
-      this._rules = res.data;
-      this._totalPages = res.totalPages;
-      this._total = res.total;
+      this._rules = res.rules ?? [];
+      this._total = res.total ?? res.rules?.length ?? 0;
+      this._totalPages = Math.max(1, Math.ceil(this._total / this._limit));
     } catch (err) {
       if (gen !== this._loadGeneration) return;
       this._error = err instanceof Error ? err.message : 'Failed to load rules';

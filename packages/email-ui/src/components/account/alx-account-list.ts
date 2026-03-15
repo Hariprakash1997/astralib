@@ -125,12 +125,12 @@ export class AlxAccountList extends LitElement {
       if (this.providerFilter) params['provider'] = this.providerFilter;
 
       const res = await this.api.list(params) as {
-        data: Account[];
-        total: number;
+        accounts: Account[];
+        total?: number;
       };
       if (gen !== this._loadGeneration) return;
-      this.accounts = res.data ?? [];
-      this.total = res.total ?? 0;
+      this.accounts = res.accounts ?? [];
+      this.total = res.total ?? res.accounts?.length ?? 0;
     } catch (e) {
       if (gen !== this._loadGeneration) return;
       this.error = e instanceof Error ? e.message : 'Failed to load accounts';

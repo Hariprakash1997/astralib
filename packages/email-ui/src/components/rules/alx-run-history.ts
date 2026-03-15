@@ -12,7 +12,7 @@ import {
   alxCardStyles,
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
-import type { PaginatedResponse } from '../../api/http-client.js';
+
 
 interface PerRuleStat {
   ruleName: string;
@@ -140,11 +140,11 @@ export class AlxRunHistory extends LitElement {
       if (this._dateFrom) params['from'] = this._dateFrom;
       if (this._dateTo) params['to'] = this._dateTo;
 
-      const res = (await this._api.getRunHistory(params)) as PaginatedResponse<RunLog>;
+      const res = (await this._api.getRunHistory(params)) as { logs: RunLog[]; total?: number };
       if (gen !== this._loadGeneration) return;
-      this._logs = res.data;
-      this._totalPages = res.totalPages;
-      this._total = res.total;
+      this._logs = res.logs ?? [];
+      this._total = res.total ?? res.logs?.length ?? 0;
+      this._totalPages = Math.max(1, Math.ceil(this._total / this._limit));
     } catch (err) {
       if (gen !== this._loadGeneration) return;
       this._error = err instanceof Error ? err.message : 'Failed to load run history';

@@ -172,10 +172,10 @@ export class AlxTemplateEditor extends LitElement {
     this._error = '';
     try {
       const res = await this._api.listTemplates({ _id: this.templateId, limit: 1 }) as {
-        data: TemplateData[];
+        templates: TemplateData[];
       };
-      if (res.data.length > 0) {
-        this._form = { ...res.data[0] };
+      if (res.templates && res.templates.length > 0) {
+        this._form = { ...res.templates[0] };
       }
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to load template';

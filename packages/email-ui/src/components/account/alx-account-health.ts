@@ -128,8 +128,8 @@ export class AlxAccountHealth extends LitElement {
     this.loading = true;
     this.error = '';
     try {
-      const res = (await this.api.getAllHealth()) as AccountHealth[] | { data: AccountHealth[] };
-      this.accounts = Array.isArray(res) ? res : (res.data ?? []);
+      const res = (await this.api.getAllHealth()) as AccountHealth[] | { accounts: AccountHealth[] };
+      this.accounts = Array.isArray(res) ? res : (res.accounts ?? []);
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to load health data';
     } finally {

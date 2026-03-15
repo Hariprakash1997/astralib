@@ -77,8 +77,8 @@ export class AlxBounceStatus extends LitElement {
         const health = (await this.api.getHealth(this.accountId)) as BounceInfo;
         this.single = health;
       } else {
-        const res = (await this.api.getAllHealth()) as BounceInfo[] | { data: BounceInfo[] };
-        this.accounts = Array.isArray(res) ? res : (res.data ?? []);
+        const res = (await this.api.getAllHealth()) as BounceInfo[] | { accounts: BounceInfo[] };
+        this.accounts = Array.isArray(res) ? res : (res.accounts ?? []);
       }
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to load bounce status';

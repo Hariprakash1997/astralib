@@ -3,6 +3,20 @@ import type { Redis } from 'ioredis';
 import type { EmailAccountManagerConfig, LogAdapter } from '../types/config.types';
 import type { SettingsService } from './settings.service';
 
+/** Extract plain connection options from an ioredis instance for BullMQ (avoids duplicate() race). Sentinel/Cluster configs are not forwarded. */
+function getRedisOptions(redis: Redis): { host: string; port: number; password?: string; username?: string; db?: number; tls?: object } {
+  const opts = redis.options;
+  const config: Record<string, unknown> = {
+    host: opts.host || 'localhost',
+    port: opts.port || 6379,
+    db: opts.db ?? 0,
+  };
+  if (opts.username) config.username = opts.username;
+  if (opts.password) config.password = opts.password;
+  if (opts.tls) config.tls = opts.tls;
+  return config as { host: string; port: number; password?: string; username?: string; db?: number; tls?: object };
+}
+
 export interface QueueStats {
   waiting: number;
   active: number;
@@ -50,15 +64,15 @@ export class QueueService {
     const globalSettings = await this.settings.get();
     const queueSettings = globalSettings.queues;
 
-    const redisConnection = this.redis as any;
+    const connectionOpts = getRedisOptions(this.redis);
 
     this.sendQueue = new Queue(sendQueueName, {
-      connection: redisConnection,
+      connection: connectionOpts,
       prefix: keyPrefix,
     });
 
     this.approvalQueue = new Queue(approvalQueueName, {
-      connection: redisConnection,
+      connection: connectionOpts,
       prefix: keyPrefix,
     });
 
@@ -66,7 +80,7 @@ export class QueueService {
       sendQueueName,
       processors.sendProcessor,
       {
-        connection: redisConnection,
+        connection: connectionOpts,
         prefix: keyPrefix,
         concurrency: queueSettings.sendConcurrency,
       },
@@ -76,7 +90,7 @@ export class QueueService {
       approvalQueueName,
       processors.approvalProcessor,
       {
-        connection: redisConnection,
+        connection: connectionOpts,
         prefix: keyPrefix,
         concurrency: queueSettings.approvalConcurrency,
       },

@@ -120,7 +120,8 @@ const api = new RuleAPI();
 const api = new RuleAPI();
 
 // List templates with filter
-const templates = await api.listTemplates({ category: 'marketing', page: 1, limit: 10 });
+const result = await api.listTemplates({ category: 'marketing', page: 1, limit: 10 });
+console.log(result.templates); // Template[]
 
 // Create a rule
 const rule = await api.createRule({
@@ -189,15 +190,50 @@ const timeline = await api.getTimeline({
 
 ## Response Envelope Handling
 
-The backend packages return responses wrapped in `{ success: true, data: { ... } }`. The API client automatically unwraps this envelope — you always receive the inner `data` object directly:
+The backend packages return responses wrapped in `{ success: true, data: { ... } }`. The API client automatically unwraps this envelope — you always receive the inner `data` object directly.
+
+Each list endpoint uses an entity-specific key for its array:
 
 ```typescript
-// Backend returns:  { success: true, data: { accounts: [...], total: 5 } }
-// API client gives: { accounts: [...], total: 5 }
+// AccountAPI.list()
+// Backend returns:  { success: true, data: { accounts: [...] } }
+// API client gives: { accounts: [...] }
+const result = await accountApi.list();
+console.log(result.accounts); // Account[]
 
-const result = await api.list();
-console.log(result.accounts); // Account[] — not result.data.accounts
-console.log(result.total);    // 5
+// AccountAPI.listDrafts()
+// Backend returns:  { success: true, data: { items: [...], total: 5 } }
+// API client gives: { items: [...], total: 5 }
+const drafts = await accountApi.listDrafts({ status: 'pending' });
+console.log(drafts.items);  // Draft[]
+console.log(drafts.total);  // 5
+
+// AccountAPI.listIdentifiers()
+// Same shape: { items: [...], total: N }
+
+// RuleAPI.listTemplates()
+// Backend returns:  { success: true, data: { templates: [...] } }
+// API client gives: { templates: [...] }
+const tpls = await ruleApi.listTemplates();
+console.log(tpls.templates); // Template[]
+
+// RuleAPI.listRules()
+// Backend returns:  { success: true, data: { rules: [...] } }
+// API client gives: { rules: [...] }
+const rules = await ruleApi.listRules();
+console.log(rules.rules); // Rule[]
+
+// RuleAPI.getRunHistory()
+// Backend returns:  { success: true, data: { logs: [...] } }
+// API client gives: { logs: [...] }
+const history = await ruleApi.getRunHistory();
+console.log(history.logs); // RunLog[]
+
+// AccountAPI.getAllHealth()
+// Backend returns:  { success: true, data: { accounts: [...] } }
+// API client gives: { accounts: [...] }
+const health = await accountApi.getAllHealth();
+console.log(health.accounts); // AccountHealth[]
 ```
 
 If the backend returns `{ success: false, error: "..." }`, the client throws an `HttpClientError` with the error message.
