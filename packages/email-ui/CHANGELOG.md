@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.1.0
+
+### Minor Changes
+
+- 647c922: add delete, metadata editor, Gmail auto-fill, template variants, list-mode rules, validity dates, run trigger/cancel, compact density mode
+
 ## 2.0.9
 
 ### Patch Changes
