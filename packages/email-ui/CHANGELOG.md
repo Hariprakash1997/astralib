@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.0.5
+
+### Patch Changes
+
+- 47978cb: major: add multi-variant templates, beforeSend hook, list-mode targeting, run status/cancel, account metadata, validity dates, template fields, auto-disable rules, preheaders, fix CJS resolution, loosen audience/category types, fix docs
+
 ## 2.0.4
 
 ### Patch Changes

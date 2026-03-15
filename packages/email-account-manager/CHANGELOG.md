@@ -1,5 +1,16 @@
 # @astralibx/email-account-manager
 
+## 7.0.0
+
+### Major Changes
+
+- 47978cb: major: add multi-variant templates, beforeSend hook, list-mode targeting, run status/cancel, account metadata, validity dates, template fields, auto-disable rules, preheaders, fix CJS resolution, loosen audience/category types, fix docs
+
+### Patch Changes
+
+- Updated dependencies [47978cb]
+  - @astralibx/core@1.1.2
+
 ## 6.0.0
 
 ### Major Changes

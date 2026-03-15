@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/core",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Shared foundation for all @astralibx packages — base errors, types, and validation helpers",
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
