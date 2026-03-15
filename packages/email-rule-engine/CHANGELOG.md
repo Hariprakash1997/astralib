@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 7.0.0
+
+### Major Changes
+
+- 1e0c2c8: major: add multi-variant templates, beforeSend hook, list-mode targeting, run status/cancel, account metadata, validity dates, template fields, auto-disable rules, preheaders, fix docs across all packages
+
 ## 6.0.0
 
 ### Major Changes
