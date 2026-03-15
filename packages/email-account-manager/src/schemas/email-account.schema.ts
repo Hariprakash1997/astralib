@@ -69,7 +69,6 @@ export function createEmailAccountSchema(options?: CreateEmailAccountSchemaOptio
         type: String,
         enum: Object.values(ACCOUNT_STATUS),
         default: ACCOUNT_STATUS.Active,
-        index: true,
       },
 
       // WARNING: SMTP/IMAP credentials are stored as plaintext in the database.

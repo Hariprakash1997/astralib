@@ -53,7 +53,7 @@ export function createEmailTemplateSchema(
       },
       variables: [{ type: String }],
       version: { type: Number, default: 1 },
-      isActive: { type: Boolean, default: true, index: true }
+      isActive: { type: Boolean, default: true }
     },
     {
       timestamps: true,

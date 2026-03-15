@@ -88,7 +88,7 @@ hooks: {
     console.log(`[${status}] ${ruleName} -> ${email}`);
   },
   onRunComplete: ({ duration, totalStats }) => {
-    console.log(`Done in ${duration}ms: ${totalStats.sent} sent, ${totalStats.errors} errors`);
+    console.log(`Done in ${duration}ms: ${totalStats.sent} sent, ${totalStats.errorCount} errors`);
   },
   beforeSend: async ({ htmlBody, textBody, subject, account, user }) => {
     // Replace account-level placeholders after template rendering

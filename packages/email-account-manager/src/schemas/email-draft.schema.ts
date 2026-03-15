@@ -41,12 +41,11 @@ export function createEmailDraftSchema(options?: CreateEmailDraftSchemaOptions) 
       subject: { type: String, required: true },
       htmlBody: { type: String, required: true },
       textBody: String,
-      accountId: { type: Schema.Types.ObjectId, required: true, index: true },
+      accountId: { type: Schema.Types.ObjectId, required: true },
       status: {
         type: String,
         enum: Object.values(DRAFT_STATUS),
         default: DRAFT_STATUS.Pending,
-        index: true,
       },
       approvedAt: Date,
       rejectedAt: Date,

@@ -167,7 +167,7 @@ describe('RuleRunnerService', () => {
       expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           rulesProcessed: 0,
-          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 },
+          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errorCount: 0 },
         })
       );
     });
@@ -235,7 +235,7 @@ describe('RuleRunnerService', () => {
       const { service } = createService(models);
 
       const stats = await service.executeRule(makeRule(), new Map(), {});
-      expect(stats).toEqual({ matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 1 });
+      expect(stats).toEqual({ matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errorCount: 1 });
     });
 
     it('returns error stats when queryUsers fails', async () => {
@@ -247,7 +247,7 @@ describe('RuleRunnerService', () => {
       const { service } = createService(models, config);
 
       const stats = await service.executeRule(makeRule(), new Map(), {});
-      expect(stats.errors).toBe(1);
+      expect(stats.errorCount).toBe(1);
     });
 
     it('returns {matched:0} when no users match', async () => {
@@ -595,7 +595,7 @@ describe('RuleRunnerService', () => {
       );
     });
 
-    it('catches hook errors and skips user with stats.errors++', async () => {
+    it('catches hook errors and skips user with stats.errorCount++', async () => {
       const beforeSend = vi.fn().mockRejectedValue(new Error('hook boom'));
 
       const models = createMockModels();
@@ -610,7 +610,7 @@ describe('RuleRunnerService', () => {
       const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
       const stats = await service.executeRule(makeRule(), new Map(), throttleConfig);
 
-      expect(stats.errors).toBe(1);
+      expect(stats.errorCount).toBe(1);
       expect(stats.sent).toBe(0);
       expect(config.adapters.sendEmail).not.toHaveBeenCalled();
       expect(config.logger.error).toHaveBeenCalledWith(expect.stringContaining('beforeSend hook failed'));
@@ -916,7 +916,7 @@ describe('RuleRunnerService', () => {
       expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           rulesProcessed: 0,
-          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 },
+          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errorCount: 0 },
         })
       );
     });
@@ -934,7 +934,7 @@ describe('RuleRunnerService', () => {
       expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           rulesProcessed: 0,
-          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 },
+          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errorCount: 0 },
         })
       );
     });
@@ -1115,7 +1115,7 @@ describe('RuleRunnerService', () => {
       const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
       const stats = await service.executeRule(makeRule(), new Map(), throttleConfig);
       expect(stats.sent).toBe(1);
-      expect(stats.errors).toBe(0);
+      expect(stats.errorCount).toBe(0);
     });
 
     it('template with empty fields object works fine', async () => {
@@ -1134,7 +1134,7 @@ describe('RuleRunnerService', () => {
       const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
       const stats = await service.executeRule(makeRule(), new Map(), throttleConfig);
       expect(stats.sent).toBe(1);
-      expect(stats.errors).toBe(0);
+      expect(stats.errorCount).toBe(0);
     });
 
     it('template fields and resolveData both contribute to final render data', async () => {
@@ -1562,7 +1562,7 @@ describe('RuleRunnerService', () => {
       expect(models.EmailRuleRunLog.create).toHaveBeenCalledWith(
         expect.objectContaining({
           rulesProcessed: 0,
-          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 },
+          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errorCount: 0 },
         })
       );
     });

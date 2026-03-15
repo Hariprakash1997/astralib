@@ -32,8 +32,8 @@ export interface CreateEmailDailyStatsSchemaOptions {
 export function createEmailDailyStatsSchema(options?: CreateEmailDailyStatsSchemaOptions) {
   const schema = new Schema<IEmailDailyStats>(
     {
-      accountId: { type: Schema.Types.ObjectId, required: true, index: true },
-      date: { type: String, required: true, index: true },
+      accountId: { type: Schema.Types.ObjectId, required: true },
+      date: { type: String, required: true },
       sent: { type: Number, default: 0 },
       failed: { type: Number, default: 0 },
       bounced: { type: Number, default: 0 },

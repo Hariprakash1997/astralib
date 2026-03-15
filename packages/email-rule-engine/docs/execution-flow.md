@@ -41,7 +41,7 @@ runAllRules(triggeredBy)
 
 ## Error Behavior
 
-- **Individual user errors** are caught and counted in `stats.errors` -- the rule continues with remaining users.
-- **Template-not-found or query failures** cause the rule to return with `errors: 1` and move to the next rule.
+- **Individual user errors** are caught and counted in `stats.errorCount` -- the rule continues with remaining users.
+- **Template-not-found or query failures** cause the rule to return with `errorCount: 1` and move to the next rule.
 - **Lock release** always executes via `finally`, even on unexpected errors.
 - **Process crash** -- the Redis lock auto-expires after `lockTTLMs`.

@@ -40,7 +40,6 @@ export function createEmailIdentifierSchema(options?: CreateEmailIdentifierSchem
         type: String,
         enum: Object.values(IDENTIFIER_STATUS),
         default: IDENTIFIER_STATUS.Active,
-        index: true,
       },
       sentCount: { type: Number, default: 0 },
       bounceCount: { type: Number, default: 0 },
@@ -127,7 +126,6 @@ export function createEmailIdentifierSchema(options?: CreateEmailIdentifierSchem
   );
 
   schema.index({ email: 1 }, { unique: true });
-  schema.index({ status: 1 });
 
   return schema;
 }

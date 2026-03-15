@@ -39,14 +39,14 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
     sent: { type: Number, default: 0 },
     skipped: { type: Number, default: 0 },
     skippedByThrottle: { type: Number, default: 0 },
-    errors: { type: Number, default: 0 }
+    errorCount: { type: Number, default: 0 }
   }, { _id: false });
 
   const schema = new Schema<IEmailRule>(
     {
       name: { type: String, required: true },
       description: String,
-      isActive: { type: Boolean, default: false, index: true },
+      isActive: { type: Boolean, default: false },
 
       sortOrder: { type: Number, default: 10 },
 

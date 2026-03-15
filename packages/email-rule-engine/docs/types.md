@@ -56,7 +56,7 @@ import {
 | `QueryTarget` | Query-based targeting. Fields: `mode: 'query'`, `role: string`, `platform: string`, `conditions: RuleCondition[]`. |
 | `ListTarget` | List-based targeting. Fields: `mode: 'list'`, `identifiers: string[]`. |
 | `RuleCondition` | Single filter condition. Fields: `field: string`, `operator: RuleOperator`, `value: unknown`. |
-| `RuleRunStats` | Aggregated stats for a run. Fields: `matched`, `sent`, `skipped`, `skippedByThrottle`, `errors` (all `number`). |
+| `RuleRunStats` | Aggregated stats for a run. Fields: `matched`, `sent`, `skipped`, `skippedByThrottle`, `errorCount` (all `number`). |
 | `PerRuleStats` | Extends `RuleRunStats` with `ruleId: string` and `ruleName: string`. |
 | `EmailRuleSend` | Send-log record. Key fields: `ruleId`, `userId`, `emailIdentifierId?`, `messageId?`, `sentAt`, `status?`, `accountId?`, `subject?`, `failureReason?`. |
 | `EmailRuleRunLog` | Run-log document. Fields: `runAt`, `triggeredBy: RunTrigger`, `duration`, `rulesProcessed`, `totalStats: RuleRunStats`, `perRuleStats: PerRuleStats[]`. |

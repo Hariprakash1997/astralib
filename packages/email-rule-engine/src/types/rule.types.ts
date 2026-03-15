@@ -11,7 +11,7 @@ export interface RuleRunStats {
   sent: number;
   skipped: number;
   skippedByThrottle: number;
-  errors: number;
+  errorCount: number;
 }
 
 export interface QueryTarget {

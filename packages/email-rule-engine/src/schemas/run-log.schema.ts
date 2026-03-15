@@ -13,7 +13,7 @@ export interface IEmailRuleRunLog {
     sent: number;
     skipped: number;
     skippedByThrottle: number;
-    errors: number;
+    errorCount: number;
   };
   perRuleStats: Array<{
     ruleId: Types.ObjectId;
@@ -22,7 +22,7 @@ export interface IEmailRuleRunLog {
     sent: number;
     skipped: number;
     skippedByThrottle: number;
-    errors: number;
+    errorCount: number;
   }>;
 }
 
@@ -43,7 +43,7 @@ export function createEmailRuleRunLogSchema(collectionPrefix?: string) {
     sent: { type: Number, default: 0 },
     skipped: { type: Number, default: 0 },
     skippedByThrottle: { type: Number, default: 0 },
-    errors: { type: Number, default: 0 }
+    errorCount: { type: Number, default: 0 }
   }, { _id: false });
 
   const TotalStatsSchema = new Schema({
@@ -51,7 +51,7 @@ export function createEmailRuleRunLogSchema(collectionPrefix?: string) {
     sent: { type: Number, default: 0 },
     skipped: { type: Number, default: 0 },
     skippedByThrottle: { type: Number, default: 0 },
-    errors: { type: Number, default: 0 }
+    errorCount: { type: Number, default: 0 }
   }, { _id: false });
 
   const schema = new Schema<IEmailRuleRunLog>(

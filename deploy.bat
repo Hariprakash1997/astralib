@@ -7,7 +7,7 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=fix UI-backend route mismatches: move run-history to /runner/logs, throttle to top-level PUT, toggle/approve/reject to POST"
+set "COMMIT_MSG=fix duplicate Mongoose indexes, rename reserved errors field to errorCount"
 
 REM Default bump type: used when package has no :type suffix
 set "DEFAULT_BUMP=patch"
@@ -20,7 +20,7 @@ REM   email-rule-engine:major,email-account-manager:minor,email-analytics:patch
 REM   email-rule-engine,core              (both use DEFAULT_BUMP)
 REM   all                                 (all packages use DEFAULT_BUMP)
 REM   all:minor                           (all packages use minor)
-set "PACKAGES=email-rule-engine:major,email-account-manager:major"
+set "PACKAGES=email-rule-engine:major,email-account-manager:patch"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

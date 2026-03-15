@@ -150,7 +150,7 @@ export class RuleRunnerService {
           triggeredBy,
           duration: Date.now() - runStartTime,
           rulesProcessed: 0,
-          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 },
+          totalStats: { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errorCount: 0 },
           perRuleStats: [],
           status: 'completed'
         });
@@ -193,9 +193,9 @@ export class RuleRunnerService {
 
         const stats = await this.executeRule(rule, throttleMap, throttleConfig, templateMap, runId);
         totalSent += stats.sent;
-        totalFailed += stats.errors;
+        totalFailed += stats.errorCount;
         totalSkipped += stats.skipped + stats.skippedByThrottle;
-        totalInvalid += stats.matched - stats.sent - stats.skipped - stats.skippedByThrottle - stats.errors;
+        totalInvalid += stats.matched - stats.sent - stats.skipped - stats.skippedByThrottle - stats.errorCount;
 
         perRuleStats.push({
           ruleId: rule._id.toString(),
@@ -222,9 +222,9 @@ export class RuleRunnerService {
           sent: acc.sent + s.sent,
           skipped: acc.skipped + s.skipped,
           skippedByThrottle: acc.skippedByThrottle + s.skippedByThrottle,
-          errors: acc.errors + s.errors,
+          errorCount: acc.errorCount + s.errorCount,
         }),
-        { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 }
+        { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errorCount: 0 }
       );
 
       await this.EmailRuleRunLog.create({
@@ -267,12 +267,12 @@ export class RuleRunnerService {
     templateMap?: Map<string, any>,
     runId?: string
   ): Promise<RuleRunStats> {
-    const stats: RuleRunStats = { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errors: 0 };
+    const stats: RuleRunStats = { matched: 0, sent: 0, skipped: 0, skippedByThrottle: 0, errorCount: 0 };
 
     const template = templateMap?.get(rule.templateId.toString()) ?? await this.EmailTemplate.findById(rule.templateId);
     if (!template) {
       this.logger.error(`Rule "${rule.name}": template ${rule.templateId} not found`);
-      stats.errors = 1;
+      stats.errorCount = 1;
       return stats;
     }
 
@@ -445,7 +445,7 @@ export class RuleRunnerService {
             finalSubject = modified.subject;
           } catch (hookErr: any) {
             this.logger.error(`beforeSend hook failed for email ${email}: ${hookErr.message}`);
-            stats.errors++;
+            stats.errorCount++;
             this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error' });
             continue;
           }
@@ -494,7 +494,7 @@ export class RuleRunnerService {
           }
         }
       } catch (err) {
-        stats.errors++;
+        stats.errorCount++;
         this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error' });
         this.logger.error(`Rule "${rule.name}" failed for identifier ${email}`, { error: err });
       }
@@ -545,7 +545,7 @@ export class RuleRunnerService {
       users = await this.config.adapters.queryUsers(rule.target, rule.maxPerRun || this.config.options?.defaultMaxPerRun || 500);
     } catch (err) {
       this.logger.error(`Rule "${rule.name}": query failed`, { error: err });
-      stats.errors = 1;
+      stats.errorCount = 1;
       return stats;
     }
 
@@ -701,7 +701,7 @@ export class RuleRunnerService {
             finalSubject = modified.subject;
           } catch (hookErr: any) {
             this.logger.error(`beforeSend hook failed for email ${email}: ${hookErr.message}`);
-            stats.errors++;
+            stats.errorCount++;
             this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error' });
             continue;
           }
@@ -750,7 +750,7 @@ export class RuleRunnerService {
           }
         }
       } catch (err) {
-        stats.errors++;
+        stats.errorCount++;
         this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email: (user.email as string) || 'unknown', status: 'error' });
         this.logger.error(`Rule "${rule.name}" failed for user ${(user._id as any)?.toString()}`, { error: err });
       }
@@ -860,7 +860,7 @@ export class RuleRunnerService {
       try { progress = JSON.parse(existing); } catch { /* use default */ }
     }
     progress.sent = stats.sent;
-    progress.failed = stats.errors;
+    progress.failed = stats.errorCount;
     progress.skipped = stats.skipped + stats.skippedByThrottle;
     await this.redis.hset(key, 'progress', JSON.stringify(progress));
     await this.redis.expire(key, 3600);
