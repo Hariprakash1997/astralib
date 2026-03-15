@@ -116,6 +116,7 @@ import type {
 - `logger?: LogAdapter` -- Logger adapter
 - `options?.warmup` -- Default warmup schedule
 - `options?.healthDefaults` -- Default health thresholds
+- `options?.imap` -- IMAP options (`autoStart?: boolean`)
 - `options?.ses` -- SES webhook options (enabled, validateSignature, allowedTopicArns)
 - `options?.unsubscribe` -- Unsubscribe link options (builtin or custom generateUrl)
 - `options?.queues` -- Queue naming overrides

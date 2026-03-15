@@ -2,6 +2,11 @@
   "name": "@astralibx/email-rule-engine",
   "version": "12.0.0",
   "description": "Rule-based email automation engine with MJML + Handlebars templates, throttling, and distributed locking",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hariprakash1997/astralib.git",
+    "directory": "packages/email-rule-engine"
+  },
   "main": "dist/index.cjs",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",

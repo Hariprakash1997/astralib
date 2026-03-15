@@ -179,11 +179,13 @@ export function createEmailAccountManager(
     });
   });
 
-  imapBounceChecker.start().catch((err) => {
-    logger.error('Failed to start IMAP bounce checker', {
-      error: err instanceof Error ? err.message : 'Unknown error',
+  if (config.options?.imap?.autoStart !== false) {
+    imapBounceChecker.start().catch((err) => {
+      logger.error('Failed to start IMAP bounce checker', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
     });
-  });
+  }
 
   const accountController = createAccountController(
     EmailAccount,

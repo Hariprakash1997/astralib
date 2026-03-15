@@ -35,6 +35,10 @@ export interface EmailAccountManagerConfig {
       maxConsecutiveErrors?: number;
     };
 
+    imap?: {
+      autoStart?: boolean;
+    };
+
     ses?: {
       enabled: boolean;
       validateSignature?: boolean;

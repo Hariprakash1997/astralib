@@ -6,11 +6,11 @@ Reusable utility packages for Node.js applications — email automation, account
 
 | Package | Description |
 |---------|-------------|
-| [@astralibx/core](https://github.com/Hariprakash1997/astralib/tree/main/packages/core) | Shared errors, types, and validation for all packages |
-| [@astralibx/email-rule-engine](https://github.com/Hariprakash1997/astralib/tree/main/packages/email-rule-engine) | Rule-based email automation with MJML + Handlebars templates, throttling, and distributed locking |
-| [@astralibx/email-account-manager](https://github.com/Hariprakash1997/astralib/tree/main/packages/email-account-manager) | Email account lifecycle — SMTP pooling, warmup, health tracking, bounce detection, SES webhooks |
-| [@astralibx/email-analytics](https://github.com/Hariprakash1997/astralib/tree/main/packages/email-analytics) | Event recording, timezone-aware aggregation, and query API for email metrics |
-| [@astralibx/email-ui](https://github.com/Hariprakash1997/astralib/tree/main/packages/email-ui) | 22 Lit Web Components for managing accounts, rules, and analytics dashboards |
+| [@astralibx/core](https://www.npmjs.com/package/@astralibx/core) | Shared errors, types, and validation for all packages |
+| [@astralibx/email-rule-engine](https://www.npmjs.com/package/@astralibx/email-rule-engine) | Rule-based email automation with MJML + Handlebars templates, throttling, and distributed locking |
+| [@astralibx/email-account-manager](https://www.npmjs.com/package/@astralibx/email-account-manager) | Email account lifecycle — SMTP pooling, warmup, health tracking, bounce detection, SES webhooks |
+| [@astralibx/email-analytics](https://www.npmjs.com/package/@astralibx/email-analytics) | Event recording, timezone-aware aggregation, and query API for email metrics |
+| [@astralibx/email-ui](https://www.npmjs.com/package/@astralibx/email-ui) | 22 Lit Web Components for managing accounts, rules, and analytics dashboards |
 
 ## Installation
 

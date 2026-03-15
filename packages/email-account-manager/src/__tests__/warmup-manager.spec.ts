@@ -14,6 +14,7 @@ function createMockLogger(): LogAdapter {
 
 function createMockEmailAccount() {
   return {
+    find: vi.fn(),
     findById: vi.fn(),
     findByIdAndUpdate: vi.fn(),
   } as unknown as EmailAccountModel;
@@ -417,6 +418,49 @@ describe('WarmupManager', () => {
       const delay = await manager.getRecommendedDelay('acc-1');
 
       expect(delay).toBe(0);
+    });
+  });
+
+  describe('advanceAllAccounts()', () => {
+    it('should advance all warmup-enabled accounts', async () => {
+      const accounts = [
+        makeAccountDoc({ _id: 'acc-1', email: 'a@example.com', warmup: { enabled: true, currentDay: 5, schedule: DEFAULT_SCHEDULE } }),
+        makeAccountDoc({ _id: 'acc-2', email: 'b@example.com', warmup: { enabled: true, currentDay: 10, schedule: DEFAULT_SCHEDULE } }),
+      ];
+      (EmailAccount.find as ReturnType<typeof vi.fn>).mockResolvedValue(accounts);
+      (EmailAccount.findById as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(accounts[0])
+        .mockResolvedValueOnce(accounts[1]);
+      (EmailAccount.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      const result = await manager.advanceAllAccounts();
+
+      expect(result).toEqual({ advanced: 2, errors: 0 });
+      expect(EmailAccount.find).toHaveBeenCalledWith({
+        status: ACCOUNT_STATUS.Warmup,
+        'warmup.enabled': true,
+      });
+    });
+
+    it('should count errors when advanceDay fails', async () => {
+      const accounts = [
+        makeAccountDoc({ _id: 'acc-1', email: 'a@example.com', warmup: { enabled: true, currentDay: 5, schedule: DEFAULT_SCHEDULE } }),
+      ];
+      (EmailAccount.find as ReturnType<typeof vi.fn>).mockResolvedValue(accounts);
+      (EmailAccount.findById as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('DB error'));
+
+      const result = await manager.advanceAllAccounts();
+
+      expect(result).toEqual({ advanced: 0, errors: 1 });
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it('should return zeros when no accounts are in warmup', async () => {
+      (EmailAccount.find as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+
+      const result = await manager.advanceAllAccounts();
+
+      expect(result).toEqual({ advanced: 0, errors: 0 });
     });
   });
 

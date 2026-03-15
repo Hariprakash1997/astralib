@@ -2,6 +2,11 @@
   "name": "@astralibx/email-ui",
   "version": "2.0.8",
   "description": "Lit Web Components for the @astralibx email ecosystem",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hariprakash1997/astralib.git",
+    "directory": "packages/email-ui"
+  },
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",

@@ -147,6 +147,30 @@ export class WarmupManager {
     };
   }
 
+  async advanceAllAccounts(): Promise<{ advanced: number; errors: number }> {
+    const accounts = await this.EmailAccount.find({
+      status: ACCOUNT_STATUS.Warmup,
+      'warmup.enabled': true,
+    });
+
+    let advanced = 0;
+    let errors = 0;
+
+    for (const account of accounts) {
+      try {
+        await this.advanceDay((account as any)._id.toString());
+        advanced++;
+      } catch (err) {
+        errors++;
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        this.logger.error(`Failed to advance warmup for ${(account as any).email}: ${msg}`);
+      }
+    }
+
+    this.logger.info('Advance all accounts completed', { advanced, errors });
+    return { advanced, errors };
+  }
+
   async updateSchedule(accountId: string, schedule: WarmupPhase[]): Promise<void> {
     await this.EmailAccount.findByIdAndUpdate(accountId, {
       $set: { 'warmup.schedule': schedule },

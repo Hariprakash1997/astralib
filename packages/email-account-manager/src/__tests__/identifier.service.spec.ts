@@ -14,6 +14,7 @@ function createMockLogger(): LogAdapter {
 
 function createMockIdentifierModel() {
   return {
+    findById: vi.fn(),
     findOneAndUpdate: vi.fn(),
     findOne: vi.fn(),
     findByIdAndUpdate: vi.fn(),
@@ -68,6 +69,26 @@ describe('IdentifierService', () => {
       const result = await service.findOrCreate('test@example.com');
 
       expect(result).toEqual(existing);
+    });
+  });
+
+  describe('findById()', () => {
+    it('should return document when found by ID', async () => {
+      const doc = { _id: 'id-123', email: 'test@example.com', status: IDENTIFIER_STATUS.Active };
+      (EmailIdentifier.findById as ReturnType<typeof vi.fn>).mockResolvedValue(doc);
+
+      const result = await service.findById('id-123');
+
+      expect(EmailIdentifier.findById).toHaveBeenCalledWith('id-123');
+      expect(result).toEqual(doc);
+    });
+
+    it('should return null when not found by ID', async () => {
+      (EmailIdentifier.findById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      const result = await service.findById('nonexistent-id');
+
+      expect(result).toBeNull();
     });
   });
 

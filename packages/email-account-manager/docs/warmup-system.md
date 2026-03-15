@@ -82,6 +82,12 @@ const status = await eam.warmup.getStatus(accountId);
 // Get recommended delay for the current phase
 const delay = await eam.warmup.getRecommendedDelay(accountId);
 // Random ms within current phase's delay range
+
+// Advance all warmup-enabled accounts at once
+const { advanced, errors } = await eam.warmup.advanceAllAccounts();
+// Loops all accounts with status='warmup' and warmup.enabled=true
+// Use with a cron job:
+// cron.schedule('0 0 * * *', () => eam.warmup.advanceAllAccounts());
 ```
 
 ## Warmup and Capacity

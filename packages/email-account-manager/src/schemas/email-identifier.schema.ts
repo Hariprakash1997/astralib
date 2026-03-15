@@ -125,7 +125,8 @@ export function createEmailIdentifierSchema(options?: CreateEmailIdentifierSchem
     },
   );
 
-  schema.index({ email: 1 }, { unique: true });
+  // email uniqueness already enforced via `unique: true` on the field definition
+  // so no separate schema.index() call is needed here
 
   return schema;
 }

@@ -41,6 +41,28 @@ await eam.settings.updateSection('imap', {
 | `searchSince` | `string` | `'last_check'` | How far back to search: `'last_check'`, `'last_24h'`, or `'last_7d'` |
 | `bounceSenders` | `string[]` | `['mailer-daemon@googlemail.com']` | Email addresses to scan for bounce messages |
 
+## Auto-Start
+
+By default, IMAP polling starts automatically when the manager is created (if `imap.enabled` is true in Global Settings). To disable auto-start, set `options.imap.autoStart` to `false` in the factory config:
+
+```ts
+const eam = createEmailAccountManager({
+  // ...
+  options: {
+    imap: {
+      autoStart: false, // Don't start IMAP polling on creation
+    },
+  },
+});
+
+// Start manually later
+await eam.imap.start();
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `options.imap.autoStart` | `boolean` | `true` | Auto-start IMAP polling on manager creation |
+
 ## Programmatic Control
 
 ```ts

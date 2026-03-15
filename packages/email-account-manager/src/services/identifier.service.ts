@@ -29,6 +29,10 @@ export class IdentifierService {
     return doc!;
   }
 
+  async findById(id: string): Promise<EmailIdentifierDocument | null> {
+    return this.EmailIdentifier.findById(id);
+  }
+
   async findByEmail(email: string): Promise<EmailIdentifierDocument | null> {
     return this.EmailIdentifier.findOne({ email: email.toLowerCase().trim() });
   }

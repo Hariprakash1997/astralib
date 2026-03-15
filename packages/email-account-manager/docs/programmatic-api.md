@@ -17,10 +17,10 @@ eam.accounts            // { model, create, findById, update, remove }
 eam.smtp                // SmtpService -- send(), testConnection(), executeSend()
 eam.capacity            // CapacityManager -- getBestAccount(), getAccountCapacity(), getAllCapacity()
 eam.health              // HealthTracker -- recordSuccess(), recordError(), recordBounce(), getHealth()
-eam.warmup              // WarmupManager -- startWarmup(), advanceDay(), completeWarmup(), getStatus()
+eam.warmup              // WarmupManager -- startWarmup(), advanceDay(), advanceAllAccounts(), completeWarmup(), getStatus()
 eam.approval            // ApprovalService -- createDraft(), approve(), reject(), bulkApprove()
 eam.unsubscribe         // UnsubscribeService -- generateUrl(), handleUnsubscribe()
-eam.identifiers         // IdentifierService -- findOrCreate(), markBounced(), markUnsubscribed(), merge()
+eam.identifiers         // IdentifierService -- findOrCreate(), findById(), markBounced(), markUnsubscribed(), merge()
 eam.imap                // ImapBounceChecker -- start(), stop(), checkNow(), checkAccount()
 eam.queues              // QueueService -- enqueueSend(), getStats(), pause(), resume(), close()
 eam.settings            // SettingsService -- get(), update(), updateSection(), invalidateCache()
@@ -71,6 +71,9 @@ await eam.warmup.completeWarmup(accountId);
 await eam.warmup.resetWarmup(accountId);
 const status = await eam.warmup.getStatus(accountId);
 const delay = await eam.warmup.getRecommendedDelay(accountId);
+
+// Advance all warmup-enabled accounts (call daily via cron)
+const { advanced, errors } = await eam.warmup.advanceAllAccounts();
 ```
 
 ### `eam.approval`
@@ -99,6 +102,7 @@ const result = await eam.unsubscribe.handleUnsubscribe(email, token);
 
 ```ts
 const id = await eam.identifiers.findOrCreate(email);
+const id = await eam.identifiers.findById(identifierId);
 await eam.identifiers.markBounced(email, bounceType);
 await eam.identifiers.markUnsubscribed(email);
 await eam.identifiers.merge(sourceEmail, targetEmail);

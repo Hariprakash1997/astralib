@@ -23,6 +23,7 @@
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",
     "jsdom": "^28.1.0",
+    "mongodb-memory-server": "^11.0.1",
     "prettier": "^3.0.0",
     "ts-node": "^10.9.2",
     "tsup": "^8.0.0",
