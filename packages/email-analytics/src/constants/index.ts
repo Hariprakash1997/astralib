@@ -26,3 +26,16 @@ export const STATS_GROUP_BY = {
 } as const;
 
 export type StatsGroupBy = (typeof STATS_GROUP_BY)[keyof typeof STATS_GROUP_BY];
+
+export const EVENT_CHANNEL = {
+  Email: 'email',
+  Whatsapp: 'whatsapp',
+  Telegram: 'telegram',
+  Sms: 'sms',
+  Web: 'web',
+  Form: 'form',
+  Phone: 'phone',
+  Other: 'other',
+} as const;
+
+export type EventChannel = (typeof EVENT_CHANNEL)[keyof typeof EVENT_CHANNEL];

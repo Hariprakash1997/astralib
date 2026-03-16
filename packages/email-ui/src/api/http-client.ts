@@ -50,6 +50,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
     } catch {
       body = await response.text().catch(() => null);
     }
+    if (response.status === 401 || response.status === 403) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('alx-auth-error', {
+          detail: { status: response.status, url: response.url },
+        }));
+      }
+    }
     throw new HttpClientError(
       `HTTP ${response.status}: ${response.statusText}`,
       response.status,
@@ -87,8 +94,23 @@ export class HttpClient {
     return this.baseUrl + path + buildQueryString(params);
   }
 
+  private async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      return await fetch(url, { ...options, signal: controller.signal });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new HttpClientError('Request timed out', 0);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   async get<T>(path: string, params?: Record<string, unknown>): Promise<T> {
-    const response = await fetch(this.url(path, params), {
+    const response = await this.fetchWithTimeout(this.url(path, params), {
       method: 'GET',
       headers: AlxConfig.getHeaders(),
     });
@@ -96,7 +118,7 @@ export class HttpClient {
   }
 
   async post<T>(path: string, body?: unknown): Promise<T> {
-    const response = await fetch(this.url(path), {
+    const response = await this.fetchWithTimeout(this.url(path), {
       method: 'POST',
       headers: AlxConfig.getHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -105,7 +127,7 @@ export class HttpClient {
   }
 
   async put<T>(path: string, body?: unknown): Promise<T> {
-    const response = await fetch(this.url(path), {
+    const response = await this.fetchWithTimeout(this.url(path), {
       method: 'PUT',
       headers: AlxConfig.getHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -114,7 +136,7 @@ export class HttpClient {
   }
 
   async patch<T>(path: string, body?: unknown): Promise<T> {
-    const response = await fetch(this.url(path), {
+    const response = await this.fetchWithTimeout(this.url(path), {
       method: 'PATCH',
       headers: AlxConfig.getHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -123,7 +145,7 @@ export class HttpClient {
   }
 
   async delete<T>(path: string): Promise<T> {
-    const response = await fetch(this.url(path), {
+    const response = await this.fetchWithTimeout(this.url(path), {
       method: 'DELETE',
       headers: AlxConfig.getHeaders(),
     });

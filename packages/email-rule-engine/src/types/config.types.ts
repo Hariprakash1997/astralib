@@ -28,6 +28,11 @@ export interface BeforeSendParams {
   subject: string;
   account: { id: string; email: string; metadata: Record<string, unknown> };
   user: { id: string; email: string; name: string };
+  context: {
+    ruleId: string;
+    templateId: string;
+    runId: string;
+  };
 }
 
 export interface BeforeSendResult {

@@ -37,6 +37,14 @@ export class AnalyticsAPI {
     return this.http.get('/templates', params);
   }
 
+  getChannelStats(params?: Record<string, unknown>): Promise<any> {
+    return this.http.get('/channels', params);
+  }
+
+  trackEvent(data: Record<string, unknown>): Promise<any> {
+    return this.http.post('/track', data);
+  }
+
   triggerAggregation(data?: Record<string, unknown>): Promise<any> {
     return this.http.post('/aggregate', data);
   }

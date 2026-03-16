@@ -305,6 +305,29 @@ Emitted when the drawer is closed (via backdrop click, Escape key, or close butt
 
 ---
 
+### Window Events
+
+These events are dispatched on the `window` object, not on components.
+
+#### alx-auth-error
+
+Dispatched when the API returns 401 Unauthorized or 403 Forbidden. Use this to trigger re-authentication in your host application.
+
+**Detail:**
+```typescript
+{ status: number; url: string }
+```
+
+**Usage:**
+```javascript
+window.addEventListener('alx-auth-error', (e) => {
+  console.log('Auth failed:', e.detail.status, e.detail.url);
+  // Redirect to login or refresh token
+});
+```
+
+---
+
 ## Settings Events
 
 ### `alx-settings-saved`
@@ -398,3 +421,4 @@ document.querySelector('alx-account-list')
 | `alx-drawer-closed` | `<alx-drawer>` | `undefined` |
 | `alx-settings-saved` | `<alx-global-settings>` | `{ section, data }` |
 | `alx-throttle-saved` | `<alx-throttle-settings>` | Throttle settings |
+| `alx-auth-error` | `window` | `{ status, url }` |

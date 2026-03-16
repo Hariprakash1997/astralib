@@ -104,6 +104,8 @@ export class AlxRunHistory extends LitElement {
   @state() private _expandedIds = new Set<string>();
   @state() private _dateFrom = '';
   @state() private _dateTo = '';
+  @state() private _triggering = false;
+  @state() private _cancelling = '';
 
   private __api?: RuleAPI;
   private get _api(): RuleAPI {
@@ -135,6 +137,9 @@ export class AlxRunHistory extends LitElement {
       this._logs = res.logs ?? [];
       this._total = res.total ?? res.logs?.length ?? 0;
       this._totalPages = Math.max(1, Math.ceil(this._total / this._limit));
+      if (this._page > this._totalPages) {
+        this._page = this._totalPages;
+      }
     } catch (err) {
       if (gen !== this._loadGeneration) return;
       this._error = err instanceof Error ? err.message : 'Failed to load run history';
@@ -165,6 +170,7 @@ export class AlxRunHistory extends LitElement {
 
   private async _onRunNow(): Promise<void> {
     if (!confirm('Trigger a run now? This will process all active rules.')) return;
+    this._triggering = true;
     this._successMsg = '';
     this._error = '';
     try {
@@ -175,18 +181,24 @@ export class AlxRunHistory extends LitElement {
       setTimeout(() => this._loadLogs(), 1500);
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to trigger run';
+    } finally {
+      this._triggering = false;
     }
   }
 
   private async _onCancelRun(log: RunLog, e: Event): Promise<void> {
     e.stopPropagation();
+    if (!confirm('Cancel this run?')) return;
     const runId = log.runId ?? log._id;
+    this._cancelling = runId;
     this._error = '';
     try {
       await this._api.cancelRun(runId);
       await this._loadLogs();
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to cancel run';
+    } finally {
+      this._cancelling = '';
     }
   }
 
@@ -239,7 +251,9 @@ export class AlxRunHistory extends LitElement {
             }}
           />
           <span class="spacer"></span>
-          <button class="alx-btn-sm" @click=${this._onRunNow}>Run Now</button>
+          <button class="alx-btn-sm" ?disabled=${this._triggering} @click=${this._onRunNow}>
+            ${this._triggering ? 'Running...' : 'Run Now'}
+          </button>
         </div>
 
         ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
@@ -295,9 +309,10 @@ export class AlxRunHistory extends LitElement {
                               ? html`
                                   <button
                                     class="alx-btn-sm alx-btn-danger"
+                                    ?disabled=${this._cancelling === (log.runId ?? log._id)}
                                     @click=${(e: Event) => this._onCancelRun(log, e)}
                                   >
-                                    Cancel
+                                    ${this._cancelling === (log.runId ?? log._id) ? 'Cancelling...' : 'Cancel'}
                                   </button>
                                 `
                               : nothing}

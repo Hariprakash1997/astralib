@@ -49,7 +49,7 @@ Accounts → Templates → Rules → Runs
 | **3. Rules** | Connect templates to audiences — who gets what, when | `<alx-rule-list>` + `<alx-rule-editor>` |
 | **4. Runs** | Execute rules, track results | `<alx-run-history>` |
 
-**Supporting components:** Analytics, Settings (throttle, IMAP, approval queue), Health monitoring, Warmup tracking.
+**Supporting components:** Analytics (overview, timeline, channel breakdown), Settings (throttle, IMAP, approval queue), Health monitoring, Warmup tracking.
 
 ## Minimal Setup
 

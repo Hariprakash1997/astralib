@@ -58,6 +58,7 @@ export class AlxRuleList extends LitElement {
   @state() private _rules: RuleRow[] = [];
   @state() private _loading = false;
   @state() private _error = '';
+  @state() private _togglingId = '';
   @state() private _page = 1;
   @state() private _totalPages = 1;
   @state() private _total = 0;
@@ -88,6 +89,9 @@ export class AlxRuleList extends LitElement {
       this._rules = res.rules ?? [];
       this._total = res.total ?? res.rules?.length ?? 0;
       this._totalPages = Math.max(1, Math.ceil(this._total / this._limit));
+      if (this._page > this._totalPages) {
+        this._page = this._totalPages;
+      }
     } catch (err) {
       if (gen !== this._loadGeneration) return;
       this._error = err instanceof Error ? err.message : 'Failed to load rules';
@@ -108,11 +112,14 @@ export class AlxRuleList extends LitElement {
 
   private async _onToggleActive(rule: RuleRow, e: Event): Promise<void> {
     e.stopPropagation();
+    this._togglingId = rule._id;
     try {
       await this._api.toggleRule(rule._id);
       await this._loadRules();
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to toggle rule';
+    } finally {
+      this._togglingId = '';
     }
   }
 
@@ -206,6 +213,7 @@ export class AlxRuleList extends LitElement {
                               <input
                                 type="checkbox"
                                 .checked=${r.isActive}
+                                ?disabled=${this._togglingId === r._id}
                                 @change=${(e: Event) => this._onToggleActive(r, e)}
                               />
                               <span class="toggle-slider"></span>

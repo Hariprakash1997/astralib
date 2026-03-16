@@ -9,6 +9,8 @@ export interface CreateEventInput {
   ruleId?: string;
   templateId?: string;
   recipientEmail: string;
+  externalUserId?: string;
+  channel?: string;
   identifierId?: string;
   metadata?: Record<string, unknown>;
   timestamp?: Date;

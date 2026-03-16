@@ -1,6 +1,6 @@
 import { Schema, Model, Types, HydratedDocument } from 'mongoose';
-import type { EventType } from '../constants';
-import { EVENT_TYPE } from '../constants';
+import type { EventType, EventChannel } from '../constants';
+import { EVENT_TYPE, EVENT_CHANNEL } from '../constants';
 
 export interface IEmailEvent {
   type: EventType;
@@ -8,6 +8,8 @@ export interface IEmailEvent {
   ruleId?: Types.ObjectId;
   templateId?: Types.ObjectId;
   recipientEmail: string;
+  externalUserId?: string;
+  channel?: EventChannel;
   identifierId?: Types.ObjectId;
   metadata?: Record<string, unknown>;
   timestamp: Date;
@@ -24,6 +26,8 @@ export interface EmailEventStatics {
     ruleId?: string;
     templateId?: string;
     recipientEmail: string;
+    externalUserId?: string;
+    channel?: string;
     identifierId?: string;
     metadata?: Record<string, unknown>;
     timestamp?: Date;
@@ -44,6 +48,7 @@ export interface CreateEmailEventSchemaOptions {
 
 export function createEmailEventSchema(options?: CreateEmailEventSchemaOptions) {
   const eventTypeValues = Object.values(EVENT_TYPE);
+  const channelValues = Object.values(EVENT_CHANNEL);
 
   const schema = new Schema<IEmailEvent>(
     {
@@ -52,6 +57,8 @@ export function createEmailEventSchema(options?: CreateEmailEventSchemaOptions) 
       ruleId: { type: Schema.Types.ObjectId, index: true },
       templateId: { type: Schema.Types.ObjectId, index: true },
       recipientEmail: { type: String, required: true },
+      externalUserId: { type: String, index: true },
+      channel: { type: String, enum: channelValues, index: true },
       identifierId: { type: Schema.Types.ObjectId },
       metadata: { type: Schema.Types.Mixed },
       timestamp: { type: Date, required: true, default: () => new Date() },
@@ -67,6 +74,8 @@ export function createEmailEventSchema(options?: CreateEmailEventSchemaOptions) 
           ruleId?: string;
           templateId?: string;
           recipientEmail: string;
+          externalUserId?: string;
+          channel?: string;
           identifierId?: string;
           metadata?: Record<string, unknown>;
           timestamp?: Date;
@@ -77,6 +86,8 @@ export function createEmailEventSchema(options?: CreateEmailEventSchemaOptions) 
             ruleId: event.ruleId ? new Types.ObjectId(event.ruleId) : undefined,
             templateId: event.templateId ? new Types.ObjectId(event.templateId) : undefined,
             recipientEmail: event.recipientEmail,
+            externalUserId: event.externalUserId,
+            channel: event.channel,
             identifierId: event.identifierId ? new Types.ObjectId(event.identifierId) : undefined,
             metadata: event.metadata,
             timestamp: event.timestamp || new Date(),
@@ -108,6 +119,8 @@ export function createEmailEventSchema(options?: CreateEmailEventSchemaOptions) 
   schema.index({ type: 1, timestamp: -1 });
   schema.index({ accountId: 1, timestamp: -1 });
   schema.index({ ruleId: 1, timestamp: -1 });
+  schema.index({ externalUserId: 1, timestamp: -1 });
+  schema.index({ channel: 1, timestamp: -1 });
 
   return schema;
 }

@@ -67,10 +67,10 @@ export function createEmailAnalytics(config: EmailAnalyticsConfig): EmailAnalyti
 
 export type { EmailAnalyticsConfig } from './types/config.types';
 export type { EmailEvent, CreateEventInput } from './types/event.types';
-export type { BaseMetrics, DailyStats, AccountStats, RuleStats, TemplateStats, OverviewStats, TimelineEntry } from './types/stats.types';
+export type { BaseMetrics, DailyStats, AccountStats, RuleStats, TemplateStats, OverviewStats, TimelineEntry, ChannelBreakdown } from './types/stats.types';
 
-export { EVENT_TYPE, AGGREGATION_INTERVAL, STATS_GROUP_BY } from './constants';
-export type { EventType, AggregationInterval, StatsGroupBy } from './constants';
+export { EVENT_TYPE, AGGREGATION_INTERVAL, STATS_GROUP_BY, EVENT_CHANNEL } from './constants';
+export type { EventType, AggregationInterval, StatsGroupBy, EventChannel } from './constants';
 
 export { AlxAnalyticsError, ConfigValidationError, InvalidDateRangeError, AggregationError } from './errors';
 

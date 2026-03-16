@@ -47,6 +47,7 @@ export class AggregatorService {
     await this.aggregateByAccount(dayStart, dayEnd, dateKey);
     await this.aggregateByRule(dayStart, dayEnd, dateKey);
     await this.aggregateByTemplate(dayStart, dayEnd, dateKey);
+    await this.aggregateByChannel(dayStart, dayEnd, dateKey);
     await this.aggregateOverall(dayStart, dayEnd, dateKey);
 
     this.logger.info('Daily aggregation complete', { date: dateKey });
@@ -96,7 +97,7 @@ export class AggregatorService {
 
     const bulkOps = results.map((r) => ({
       updateOne: {
-        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, accountId: r._id, ruleId: null, templateId: null },
+        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, accountId: r._id, ruleId: null, templateId: null, channel: null },
         update: {
           $set: {
             date: dateKey,
@@ -104,6 +105,7 @@ export class AggregatorService {
             accountId: r._id,
             ruleId: null,
             templateId: null,
+            channel: null,
             sent: r.sent, failed: r.failed, delivered: r.delivered,
             bounced: r.bounced, complained: r.complained, opened: r.opened,
             clicked: r.clicked, unsubscribed: r.unsubscribed,
@@ -136,7 +138,7 @@ export class AggregatorService {
 
     const bulkOps = results.map((r) => ({
       updateOne: {
-        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, ruleId: r._id, accountId: null, templateId: null },
+        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, ruleId: r._id, accountId: null, templateId: null, channel: null },
         update: {
           $set: {
             date: dateKey,
@@ -144,6 +146,7 @@ export class AggregatorService {
             ruleId: r._id,
             accountId: null,
             templateId: null,
+            channel: null,
             sent: r.sent, failed: r.failed, delivered: r.delivered,
             bounced: r.bounced, complained: r.complained, opened: r.opened,
             clicked: r.clicked, unsubscribed: r.unsubscribed,
@@ -176,7 +179,7 @@ export class AggregatorService {
 
     const bulkOps = results.map((r) => ({
       updateOne: {
-        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, templateId: r._id, accountId: null, ruleId: null },
+        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, templateId: r._id, accountId: null, ruleId: null, channel: null },
         update: {
           $set: {
             date: dateKey,
@@ -184,6 +187,48 @@ export class AggregatorService {
             templateId: r._id,
             accountId: null,
             ruleId: null,
+            channel: null,
+            sent: r.sent, failed: r.failed, delivered: r.delivered,
+            bounced: r.bounced, complained: r.complained, opened: r.opened,
+            clicked: r.clicked, unsubscribed: r.unsubscribed,
+            updatedAt: new Date(),
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+    if (bulkOps.length > 0) {
+      await this.AnalyticsStats.bulkWrite(bulkOps as any);
+    }
+  }
+
+  private async aggregateByChannel(
+    dayStart: Date,
+    dayEnd: Date,
+    dateKey: string,
+  ): Promise<void> {
+    let results: any[];
+    try {
+      results = await this.EmailEvent.aggregate([
+        { $match: { timestamp: { $gte: dayStart, $lt: dayEnd }, channel: { $exists: true, $ne: null } } },
+        { $group: { _id: '$channel', ...buildSumGroup() } },
+      ]);
+    } catch (error) {
+      throw new AggregationError('byChannel', error instanceof Error ? error : new Error(String(error)));
+    }
+
+    const bulkOps = results.map((r) => ({
+      updateOne: {
+        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, channel: r._id, accountId: null, ruleId: null, templateId: null },
+        update: {
+          $set: {
+            date: dateKey,
+            interval: AGGREGATION_INTERVAL.Daily,
+            channel: r._id,
+            accountId: null,
+            ruleId: null,
+            templateId: null,
             sent: r.sent, failed: r.failed, delivered: r.delivered,
             bounced: r.bounced, complained: r.complained, opened: r.opened,
             clicked: r.clicked, unsubscribed: r.unsubscribed,
@@ -217,7 +262,7 @@ export class AggregatorService {
     if (results.length > 0) {
       const r = results[0];
       await this.AnalyticsStats.updateOne(
-        { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, accountId: null, ruleId: null, templateId: null },
+        { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, accountId: null, ruleId: null, templateId: null, channel: null },
         {
           $set: {
             date: dateKey,
@@ -225,6 +270,7 @@ export class AggregatorService {
             accountId: null,
             ruleId: null,
             templateId: null,
+            channel: null,
             sent: r.sent, failed: r.failed, delivered: r.delivered,
             bounced: r.bounced, complained: r.complained, opened: r.opened,
             clicked: r.clicked, unsubscribed: r.unsubscribed,

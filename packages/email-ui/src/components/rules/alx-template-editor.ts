@@ -177,6 +177,14 @@ export class AlxTemplateEditor extends LitElement {
   }
 
   private async _onSave(): Promise<void> {
+    if (!this._form.name.trim()) {
+      this._error = 'Template name is required';
+      return;
+    }
+    if (!this._form.slug.trim()) {
+      this._error = 'Template slug is required';
+      return;
+    }
     this._saving = true;
     this._error = '';
     try {
@@ -506,7 +514,7 @@ export class AlxTemplateEditor extends LitElement {
                   <iframe
                     class="preview-frame"
                     .srcdoc=${this._previewHtml}
-                    sandbox=""
+                    sandbox
                   ></iframe>
                 </div>
               `

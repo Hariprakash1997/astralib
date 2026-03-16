@@ -562,6 +562,11 @@ describe('RuleRunnerService', () => {
             id: expect.any(String),
             email: 'alice@example.com',
           }),
+          context: expect.objectContaining({
+            ruleId: expect.any(String),
+            templateId: expect.any(String),
+            runId: expect.any(String),
+          }),
         })
       );
 

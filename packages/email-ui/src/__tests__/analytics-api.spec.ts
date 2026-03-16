@@ -62,6 +62,26 @@ describe('AnalyticsAPI', () => {
     });
   });
 
+  describe('getChannelStats()', () => {
+    it('calls GET /channels with params', async () => {
+      await api.getChannelStats({ from: '2025-01-01', to: '2025-01-31' });
+      expect(http.get).toHaveBeenCalledWith('/channels', { from: '2025-01-01', to: '2025-01-31' });
+    });
+
+    it('calls GET /channels without params', async () => {
+      await api.getChannelStats();
+      expect(http.get).toHaveBeenCalledWith('/channels', undefined);
+    });
+  });
+
+  describe('trackEvent()', () => {
+    it('calls POST /track with data', async () => {
+      const data = { type: 'clicked', recipientEmail: 'test@example.com', channel: 'whatsapp' };
+      await api.trackEvent(data);
+      expect(http.post).toHaveBeenCalledWith('/track', data);
+    });
+  });
+
   describe('triggerAggregation()', () => {
     it('calls POST /aggregate with data', async () => {
       const data = { from: '2025-01-01' };

@@ -130,6 +130,14 @@ export class AlxRuleEditor extends LitElement {
   }
 
   private async _onSave(): Promise<void> {
+    if (!this._form.name.trim()) {
+      this._error = 'Rule name is required';
+      return;
+    }
+    if (!this._form.templateId) {
+      this._error = 'Please select a template';
+      return;
+    }
     this._saving = true;
     this._error = '';
     try {

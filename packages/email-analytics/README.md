@@ -55,11 +55,11 @@ const overview = await analytics.query.getOverview(
 
 ## Features
 
-- **Event Recording** -- single and batch insert with automatic timestamps ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/event-recording.md))
+- **Event Recording** -- single and batch insert with automatic timestamps; supports `externalUserId` for external system user tracking and `channel` for CTA attribution (whatsapp, telegram, sms, web, etc.) ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/event-recording.md))
 - **Daily Aggregation** -- rolls up raw events into per-day stats by account, rule, template, and overall ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/aggregation.md))
 - **Range Aggregation** -- backfill or re-aggregate any date range ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/aggregation.md))
 - **Time-Series Queries** -- overview, timeline (daily/weekly/monthly), per-account, per-rule, per-template ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/querying.md))
-- **REST API** -- six endpoints with date-range query params ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/api-routes.md))
+- **REST API** -- endpoints with date-range query params, including `GET /channels` for channel breakdown and `POST /track` for public event ingestion with CORS ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/api-routes.md))
 - **TTL Cleanup** -- MongoDB TTL index auto-expires old events; manual purge also available ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/event-recording.md#ttl-and-cleanup))
 - **Programmatic API** -- use services directly without HTTP ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/programmatic-api.md))
 - **Error Handling** -- typed error classes for validation, date range, and aggregation failures ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/error-handling.md))
@@ -113,8 +113,8 @@ export type { EmailEvent, CreateEventInput } from './types/event.types';
 export type { DailyStats, AccountStats, RuleStats, TemplateStats, OverviewStats, TimelineEntry } from './types/stats.types';
 
 // Constants
-export { EVENT_TYPE, AGGREGATION_INTERVAL, STATS_GROUP_BY } from './constants';
-export type { EventType, AggregationInterval, StatsGroupBy } from './constants';
+export { EVENT_TYPE, EVENT_CHANNEL, AGGREGATION_INTERVAL, STATS_GROUP_BY } from './constants';
+export type { EventType, EventChannel, AggregationInterval, StatsGroupBy } from './constants';
 
 // Errors
 export { AlxAnalyticsError, ConfigValidationError, InvalidDateRangeError, AggregationError } from './errors';

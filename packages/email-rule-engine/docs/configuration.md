@@ -75,9 +75,9 @@ Callbacks fired at key points during rule execution. All hooks are optional and 
 | `onSend` | After each send attempt | `{ ruleId: string, ruleName: string, email: string, status: 'sent' \| 'error' \| 'skipped' \| 'invalid' \| 'throttled' }` |
 | `onRuleComplete` | After a rule finishes | `{ ruleId: string, ruleName: string, stats: RuleRunStats }` |
 | `onRunComplete` | After run log is saved | `{ duration: number, totalStats: RuleRunStats, perRuleStats: PerRuleStats[] }` |
-| `beforeSend` | Before each email is delivered | `{ htmlBody: string, textBody: string, subject: string, account: { id: string, email: string, metadata: Record<string, unknown> }, user: { id: string, email: string, name: string } }` |
+| `beforeSend` | Before each email is delivered | `{ htmlBody: string, textBody: string, subject: string, account: { id: string, email: string, metadata: Record<string, unknown> }, user: { id: string, email: string, name: string }, context: { ruleId: string, templateId: string, runId: string } }` |
 
-The `beforeSend` hook is special -- it must return `{ htmlBody, textBody, subject }` and can modify the rendered content before delivery. This is useful for replacing account-level placeholders that are not available at template render time.
+The `beforeSend` hook is special -- it must return `{ htmlBody, textBody, subject }` and can modify the rendered content before delivery. This is useful for replacing account-level placeholders that are not available at template render time. It also receives a `context` object with `{ ruleId, templateId, runId }` for per-send tracking and attribution.
 
 ```typescript
 hooks: {

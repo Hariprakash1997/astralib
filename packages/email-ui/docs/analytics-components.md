@@ -180,6 +180,39 @@ None.
 
 ---
 
+## `<alx-analytics-channels>`
+
+Displays event counts per channel as cards and horizontal bar chart. Shows which CTAs drive the most engagement.
+
+### Attributes
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `density` | `"default" \| "compact"` | `"default"` | Display density |
+| `date-from` | String | `""` | Start date filter (ISO format) |
+| `date-to` | String | `""` | End date filter (ISO format) |
+| `event-type` | String | `"clicked"` | Event type to aggregate |
+
+### Features
+
+- Card grid showing per-channel counts (sent, opened, clicked)
+- Horizontal bar chart with channel-colored bars
+- Color-coded channels (WhatsApp green, Telegram blue, etc.)
+- Auto-loads on connect and when date/type attributes change
+- Rich empty state with guidance text
+
+### Usage
+
+```html
+<alx-analytics-channels
+  date-from="2026-01-01"
+  date-to="2026-03-31"
+  event-type="clicked"
+></alx-analytics-channels>
+```
+
+---
+
 ## Composing an Analytics Dashboard
 
 Combine all five components for a full dashboard:

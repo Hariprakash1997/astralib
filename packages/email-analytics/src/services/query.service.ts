@@ -6,6 +6,7 @@ import type {
   AccountStats,
   RuleStats,
   TemplateStats,
+  ChannelBreakdown,
 } from '../types/stats.types';
 import type { AggregationInterval } from '../constants';
 
@@ -27,6 +28,7 @@ export class QueryService {
           accountId: null,
           ruleId: null,
           templateId: null,
+          channel: null,
         },
       },
       {
@@ -94,6 +96,7 @@ export class QueryService {
           accountId: null,
           ruleId: null,
           templateId: null,
+          channel: null,
         },
       },
       {
@@ -253,6 +256,49 @@ export class QueryService {
       complained: r.complained,
       opened: r.opened,
       clicked: r.clicked,
+      unsubscribed: r.unsubscribed,
+    }));
+  }
+
+  async getChannelBreakdown(dateFrom: Date, dateTo: Date, eventType?: string): Promise<ChannelBreakdown[]> {
+    const fromKey = this.toDateKey(dateFrom);
+    const toKey = this.toDateKey(dateTo);
+
+    const match: Record<string, unknown> = {
+      interval: 'daily',
+      date: { $gte: fromKey, $lte: toKey },
+      channel: { $ne: null },
+      accountId: null,
+      ruleId: null,
+      templateId: null,
+    };
+
+    const results = await this.AnalyticsStats.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: '$channel',
+          sent: { $sum: '$sent' },
+          delivered: { $sum: '$delivered' },
+          bounced: { $sum: '$bounced' },
+          complained: { $sum: '$complained' },
+          opened: { $sum: '$opened' },
+          clicked: { $sum: '$clicked' },
+          unsubscribed: { $sum: '$unsubscribed' },
+          failed: { $sum: '$failed' },
+        },
+      },
+      { $sort: { sent: -1 as const } },
+    ]);
+
+    return results.map((r) => ({
+      channel: r._id,
+      count: r.sent + r.delivered + r.bounced + r.complained + r.opened + r.clicked + r.unsubscribed + r.failed,
+      sent: r.sent,
+      delivered: r.delivered,
+      opened: r.opened,
+      clicked: r.clicked,
+      bounced: r.bounced,
       unsubscribed: r.unsubscribed,
     }));
   }

@@ -36,3 +36,14 @@ export interface TimelineEntry extends BaseMetrics {
   date: string;
   interval: AggregationInterval;
 }
+
+export interface ChannelBreakdown {
+  channel: string;
+  count: number;
+  sent: number;
+  delivered: number;
+  opened: number;
+  clicked: number;
+  bounced: number;
+  unsubscribed: number;
+}

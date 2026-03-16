@@ -11,6 +11,8 @@ export function createAnalyticsRoutes(controller: AnalyticsController): Router {
   router.get('/accounts', controller.getAccountStats);
   router.get('/rules', controller.getRuleStats);
   router.get('/templates', controller.getTemplateStats);
+  router.get('/channels', controller.getChannelStats);
+  router.post('/track', controller.trackEvent);
   router.post('/aggregate', controller.triggerAggregation);
 
   return router;

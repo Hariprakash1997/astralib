@@ -139,6 +139,9 @@ export class AlxAccountList extends LitElement {
       if (gen !== this._loadGeneration) return;
       this.accounts = res.accounts ?? [];
       this.total = res.total ?? res.accounts?.length ?? 0;
+      if (this.page > this.totalPages) {
+        this.page = this.totalPages;
+      }
     } catch (e) {
       if (gen !== this._loadGeneration) return;
       this.error = e instanceof Error ? e.message : 'Failed to load accounts';

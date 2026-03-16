@@ -55,6 +55,7 @@ export {
   AlxAnalyticsAccounts,
   AlxAnalyticsRules,
   AlxAnalyticsEngagement,
+  AlxAnalyticsChannels,
 } from './components/analytics/index.js';
 
 export { AlxDrawer } from './components/shared/index.js';

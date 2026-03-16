@@ -188,6 +188,10 @@ export class AlxAccountForm extends LitElement {
       this.error = 'Email is required';
       return;
     }
+    if (this.smtpHost && (this.smtpPort < 1 || this.smtpPort > 65535)) {
+      this.error = 'SMTP port must be between 1 and 65535';
+      return;
+    }
 
     this.saving = true;
     this.error = '';

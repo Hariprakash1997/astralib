@@ -9,6 +9,7 @@ function createMockQueryService() {
     getAccountStats: vi.fn().mockResolvedValue([{ accountId: 'acc1', sent: 50 }]),
     getRuleStats: vi.fn().mockResolvedValue([{ ruleId: 'rule1', sent: 30 }]),
     getTemplateStats: vi.fn().mockResolvedValue([{ templateId: 'tmpl1', sent: 20 }]),
+    getChannelBreakdown: vi.fn().mockResolvedValue([{ channel: 'email', sent: 80 }, { channel: 'whatsapp', sent: 20 }]),
   };
 }
 
@@ -344,6 +345,108 @@ describe('AnalyticsController', () => {
       await controller.getTemplateStats(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe('getChannelStats()', () => {
+    it('should return channel breakdown data', async () => {
+      const req = createMockReq({ from: '2024-06-01', to: '2024-06-30' });
+      const res = createMockRes();
+
+      await controller.getChannelStats(req, res);
+
+      expect(mockQueryService.getChannelBreakdown).toHaveBeenCalledWith(
+        new Date('2024-06-01'),
+        new Date('2024-06-30'),
+      );
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: [{ channel: 'email', sent: 80 }, { channel: 'whatsapp', sent: 20 }],
+      });
+    });
+
+    it('should return 400 for invalid date', async () => {
+      const req = createMockReq({ from: 'bad-date' });
+      const res = createMockRes();
+
+      await controller.getChannelStats(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it('should return 500 on service error', async () => {
+      mockQueryService.getChannelBreakdown.mockRejectedValue(new Error('channel fail'));
+      const req = createMockReq({ from: '2024-06-01', to: '2024-06-30' });
+      const res = createMockRes();
+
+      await controller.getChannelStats(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'channel fail',
+      });
+    });
+  });
+
+  describe('trackEvent()', () => {
+    it('should record event with valid input', async () => {
+      const req = createMockReq({}, { type: 'clicked', recipientEmail: 'test@example.com', channel: 'whatsapp' });
+      const res = createMockRes();
+
+      await controller.trackEvent(req, res);
+
+      expect(mockEventRecorder.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'clicked',
+          recipientEmail: 'test@example.com',
+          channel: 'whatsapp',
+        }),
+      );
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        data: { ok: true },
+      });
+    });
+
+    it('should return 400 if type is missing', async () => {
+      const req = createMockReq({}, {});
+      const res = createMockRes();
+
+      await controller.trackEvent(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'type is required',
+      });
+    });
+
+    it('should return 400 if neither recipientEmail nor externalUserId provided', async () => {
+      const req = createMockReq({}, { type: 'clicked' });
+      const res = createMockRes();
+
+      await controller.trackEvent(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'recipientEmail or externalUserId is required',
+      });
+    });
+
+    it('should return 500 on service error', async () => {
+      mockEventRecorder.record.mockRejectedValue(new Error('record fail'));
+      const req = createMockReq({}, { type: 'clicked', recipientEmail: 'test@example.com' });
+      const res = createMockRes();
+
+      await controller.trackEvent(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({
+        success: false,
+        error: 'record fail',
+      });
     });
   });
 

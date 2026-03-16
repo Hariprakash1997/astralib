@@ -52,6 +52,7 @@ export class AlxTemplateList extends LitElement {
   @state() private _templates: TemplateRow[] = [];
   @state() private _loading = false;
   @state() private _error = '';
+  @state() private _togglingId = '';
   @state() private _page = 1;
   @state() private _totalPages = 1;
   @state() private _total = 0;
@@ -99,6 +100,9 @@ export class AlxTemplateList extends LitElement {
       this._templates = res.templates ?? [];
       this._total = res.total ?? res.templates?.length ?? 0;
       this._totalPages = Math.max(1, Math.ceil(this._total / this._limit));
+      if (this._page > this._totalPages) {
+        this._page = this._totalPages;
+      }
     } catch (err) {
       if (gen !== this._loadGeneration) return;
       this._error = err instanceof Error ? err.message : 'Failed to load templates';
@@ -119,11 +123,14 @@ export class AlxTemplateList extends LitElement {
 
   private async _onToggleActive(template: TemplateRow, e: Event): Promise<void> {
     e.stopPropagation();
+    this._togglingId = template._id;
     try {
       await this._api.updateTemplate(template._id, { isActive: !template.isActive });
       await this._loadTemplates();
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to toggle template';
+    } finally {
+      this._togglingId = '';
     }
   }
 
@@ -250,6 +257,7 @@ export class AlxTemplateList extends LitElement {
                               <input
                                 type="checkbox"
                                 .checked=${t.isActive}
+                                ?disabled=${this._togglingId === t._id}
                                 @change=${(e: Event) => this._onToggleActive(t, e)}
                               />
                               <span class="toggle-slider"></span>

@@ -117,6 +117,48 @@ export function createAnalyticsController(
       }
     },
 
+    async getChannelStats(req: Request, res: Response) {
+      try {
+        const parsed = parseDateRange(req);
+        if ('error' in parsed) {
+          return res.status(400).json({ success: false, error: parsed.error });
+        }
+        const data = await queryService.getChannelBreakdown(parsed.dateFrom, parsed.dateTo);
+        res.json({ success: true, data });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ success: false, error: message });
+      }
+    },
+
+    async trackEvent(req: Request, res: Response) {
+      try {
+        const { type, recipientEmail, externalUserId, channel, ruleId, templateId, accountId, metadata } = req.body;
+
+        if (!type) {
+          return res.status(400).json({ success: false, error: 'type is required' });
+        }
+        if (!recipientEmail && !externalUserId) {
+          return res.status(400).json({ success: false, error: 'recipientEmail or externalUserId is required' });
+        }
+
+        await eventRecorder.record({
+          type,
+          recipientEmail: recipientEmail || '',
+          externalUserId,
+          channel,
+          ruleId,
+          templateId,
+          accountId: accountId || '',
+          metadata,
+        });
+
+        res.json({ success: true, data: { ok: true } });
+      } catch (err) {
+        res.status(500).json({ success: false, error: err instanceof Error ? err.message : 'Failed to track event' });
+      }
+    },
+
     async triggerAggregation(req: Request, res: Response) {
       try {
         const { from, to } = req.body;

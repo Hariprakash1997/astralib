@@ -439,6 +439,11 @@ export class RuleRunnerService {
                 email,
                 name: '',
               },
+              context: {
+                ruleId,
+                templateId,
+                runId: runId || '',
+              },
             });
             finalHtml = modified.htmlBody;
             finalText = modified.textBody;
@@ -694,6 +699,11 @@ export class RuleRunnerService {
                 id: String(userId),
                 email,
                 name: String(user.name || user.firstName || ''),
+              },
+              context: {
+                ruleId,
+                templateId,
+                runId: runId || '',
               },
             });
             finalHtml = modified.htmlBody;
