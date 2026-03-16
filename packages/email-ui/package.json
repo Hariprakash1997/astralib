@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/email-ui",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Lit Web Components for the @astralibx email ecosystem",
   "repository": {
     "type": "git",

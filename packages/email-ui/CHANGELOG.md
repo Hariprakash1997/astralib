@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.2.0
+
+### Minor Changes
+
+- dd4aab9: UI overhaul: drawer edit flow, design system, file splits, dynamic metadata columns, IMAP auto-derive, rich empty states, settings redesign
+
 ## 2.1.0
 
 ### Minor Changes
