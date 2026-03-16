@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/email-rule-engine",
-  "version": "12.3.0",
+  "version": "12.4.0",
   "description": "Rule-based email automation engine with MJML + Handlebars templates, throttling, and distributed locking",
   "repository": {
     "type": "git",

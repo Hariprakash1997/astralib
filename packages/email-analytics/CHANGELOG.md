@@ -1,5 +1,11 @@
 # @astralibx/email-analytics
 
+## 2.2.0
+
+### Minor Changes
+
+- 2e08c46: draft fields, enriched hooks, account list filters, per-rule throttle override, dry-run limits, analytics bridge, redis keyPrefix docs
+
 ## 2.1.0
 
 ### Minor Changes
