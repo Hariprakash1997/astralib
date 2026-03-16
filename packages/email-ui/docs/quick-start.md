@@ -51,7 +51,89 @@ Accounts → Templates → Rules → Runs
 
 **Supporting components:** Analytics (overview, timeline, channel breakdown), Settings (throttle, IMAP, approval queue), Health monitoring, Warmup tracking.
 
-## Minimal Setup
+## Minimal Setup (Recommended)
+
+Use the all-in-one dashboard component — zero wiring needed:
+
+```html
+<alx-email-dashboard></alx-email-dashboard>
+```
+
+This gives you the full email management UI: accounts, templates, rules, run history, analytics, and settings — with drawer-based editing, tab navigation, and density toggle built in.
+
+### Dashboard Attributes
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `density` | `"default" \| "compact"` | `"default"` | Display density for all child components |
+| `default-tab` | String | `"accounts"` | Tab shown on initial load |
+| `hide-tabs` | String | `""` | Comma-separated tab IDs to hide (e.g., `"analytics,settings"`) |
+| `theme` | `"light" \| "dark"` | `"light"` | Color theme (includes built-in toggle) |
+
+### Hash Routing
+
+The dashboard uses hash-based URLs that don't conflict with your app's router:
+
+```
+/your-page#accounts    → Account list
+/your-page#templates   → Template list
+/your-page#rules       → Rule list
+/your-page#runs        → Run history
+/your-page#analytics   → Analytics
+/your-page#settings    → Settings
+```
+
+### Theming
+
+Apply theme variables on the dashboard element:
+
+```css
+alx-email-dashboard {
+  --alx-primary: #2563eb;
+  --alx-bg: #f8fafc;
+  --alx-surface: #ffffff;
+  --alx-border: #e2e8f0;
+  --alx-text: #0f172a;
+  --alx-text-muted: #64748b;
+}
+```
+
+### Full Example
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    alx-email-dashboard {
+      --alx-primary: #2563eb;
+      --alx-bg: #f8fafc;
+      --alx-surface: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <alx-email-dashboard density="default" default-tab="accounts" theme="light"></alx-email-dashboard>
+
+  <script type="module">
+    import { AlxConfig } from '@astralibx/email-ui';
+
+    AlxConfig.setup({
+      accountManagerApi: 'https://your-api.com/mailer/eam',
+      ruleEngineApi: 'https://your-api.com/mailer/engine',
+      analyticsApi: 'https://your-api.com/mailer/analytics',
+      authToken: 'your-token',
+    });
+
+    import '@astralibx/email-ui';
+  </script>
+</body>
+</html>
+```
+
+## Advanced: Custom Layout
+
+If you need a custom layout (different tab arrangement, custom wiring), use individual components instead of the dashboard:
 
 ```html
 <!-- Account management -->

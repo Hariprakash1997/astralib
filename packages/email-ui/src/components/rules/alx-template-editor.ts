@@ -56,14 +56,7 @@ export class AlxTemplateEditor extends LitElement {
     return this.__api;
   }
 
-  override connectedCallback(): void {
-    super.connectedCallback();
-    if (this.templateId) {
-      this._loadTemplate();
-    }
-  }
-
-  override updated(changed: Map<string, unknown>): void {
+  override willUpdate(changed: Map<PropertyKey, unknown>): void {
     if (changed.has('templateId') && this.templateId) {
       this._loadTemplate();
     }

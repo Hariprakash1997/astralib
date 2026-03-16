@@ -58,7 +58,7 @@ export {
   AlxAnalyticsChannels,
 } from './components/analytics/index.js';
 
-export { AlxDrawer } from './components/shared/index.js';
+export { AlxDrawer, AlxEmailDashboard } from './components/shared/index.js';
 
 export type { TemplateData } from './components/rules/alx-template-editor.types.js';
 export type { RuleData, Condition } from './components/rules/alx-rule-editor.types.js';

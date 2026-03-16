@@ -51,12 +51,9 @@ export class AlxRuleEditor extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     this._loadTemplates();
-    if (this.ruleId) {
-      this._loadRule();
-    }
   }
 
-  override updated(changed: Map<string, unknown>): void {
+  override willUpdate(changed: Map<PropertyKey, unknown>): void {
     if (changed.has('ruleId') && this.ruleId) {
       this._loadRule();
     }

@@ -167,6 +167,7 @@ Built-in themes: `alxDarkTheme` and `alxLightTheme` are available as Lit CSS exp
 
 ## Documentation
 
+- [Dashboard](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-ui/docs/dashboard.md) -- One-component setup (recommended)
 - [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-ui/docs/configuration.md) -- AlxConfig setup, auth tokens, all options
 - [Theming](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-ui/docs/theming.md) -- CSS custom properties, dark/light themes, customization
 - [Account Components](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-ui/docs/account-components.md) -- All 9 account management components

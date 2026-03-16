@@ -115,11 +115,7 @@ export class AlxAccountForm extends LitElement {
     return this._api;
   }
 
-  override connectedCallback(): void {
-    super.connectedCallback();
-  }
-
-  override updated(changed: Map<string, unknown>): void {
+  override willUpdate(changed: Map<PropertyKey, unknown>): void {
     if (changed.has('accountId')) {
       if (this.accountId) {
         this.loadAccount();

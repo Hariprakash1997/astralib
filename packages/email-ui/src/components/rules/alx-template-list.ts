@@ -82,6 +82,10 @@ export class AlxTemplateList extends LitElement {
     }
   }
 
+  async load(): Promise<void> {
+    return this._loadTemplates();
+  }
+
   private async _loadTemplates(): Promise<void> {
     const gen = ++this._loadGeneration;
     this._loading = true;

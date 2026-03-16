@@ -128,19 +128,15 @@ export class AlxDrawer extends LitElement {
         @click=${this._onBackdropClick}
       ></div>
       <div class="drawer ${this.open ? 'open' : ''}">
-        ${this.open
-          ? html`
-              <div class="drawer-header">
-                <h2 class="drawer-title">${this.heading}</h2>
-                <button class="close-btn" @click=${this._close} title="Close">
-                  &times;
-                </button>
-              </div>
-              <div class="drawer-body">
-                <slot></slot>
-              </div>
-            `
-          : nothing}
+        <div class="drawer-header">
+          <h2 class="drawer-title">${this.heading}</h2>
+          <button class="close-btn" @click=${this._close} title="Close">
+            &times;
+          </button>
+        </div>
+        <div class="drawer-body">
+          <slot></slot>
+        </div>
       </div>
     `;
   }

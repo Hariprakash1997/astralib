@@ -2,6 +2,16 @@
 
 All components use CSS custom properties for styling. Override them at any level -- globally, per-component type, or per-instance.
 
+### Dashboard Theme Toggle
+
+If using `<alx-email-dashboard>`, theme switching is built in — Light/Dark buttons appear in the header. Set the default via attribute:
+
+```html
+<alx-email-dashboard theme="dark"></alx-email-dashboard>
+```
+
+For individual components (without the dashboard), apply dark theme CSS variables manually. See the Dark Theme section below.
+
 ## CSS Custom Properties
 
 | Property | Dark Default | Light Default | Description |

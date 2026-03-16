@@ -76,6 +76,10 @@ export class AlxRuleList extends LitElement {
     this._loadRules();
   }
 
+  async load(): Promise<void> {
+    return this._loadRules();
+  }
+
   private async _loadRules(): Promise<void> {
     const gen = ++this._loadGeneration;
     this._loading = true;
