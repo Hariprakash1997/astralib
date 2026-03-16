@@ -7,7 +7,7 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=draft fields, enriched hooks, account list filters, per-rule throttle override, dry-run limits, analytics bridge, redis keyPrefix docs"
+set "COMMIT_MSG=move handlebars/mjml/html-to-text to deps, widen nodemailer peer dep, draft fields, enriched hooks, account list filters, per-rule throttle, dry-run limits, analytics bridge"
 
 REM Default bump type: used when package has no :type suffix
 set "DEFAULT_BUMP=patch"
