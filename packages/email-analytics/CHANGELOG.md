@@ -1,5 +1,12 @@
 # @astralibx/email-analytics
 
+## 2.3.0
+
+### Minor Changes
+
+- b5f104b: draft fields, enriched hooks, account list filters, per-rule throttle override, dry-run limits, analytics bridge, redis keyPrefix docs
+- fde05c1: move handlebars/mjml/html-to-text to deps, widen nodemailer peer dep, draft fields, enriched hooks, account list filters, per-rule throttle, dry-run limits, analytics bridge
+
 ## 2.2.0
 
 ### Minor Changes
