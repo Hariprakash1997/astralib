@@ -45,7 +45,7 @@ export const EMPTY_RULE: RuleData = {
     resendAfterDays: null,
     maxPerRun: 50,
     autoApprove: true,
-    emailType: 'marketing',
+    emailType: 'automated',
     bypassThrottle: false,
   },
   validFrom: '',
@@ -53,4 +53,4 @@ export const EMPTY_RULE: RuleData = {
   isActive: true,
 };
 
-export const OPERATORS = ['equals', 'not_equals', 'contains', 'gt', 'gte', 'lt', 'lte', 'in', 'exists'];
+export const OPERATORS = ['eq', 'neq', 'contains', 'gt', 'gte', 'lt', 'lte', 'in', 'not_in', 'exists', 'not_exists'];

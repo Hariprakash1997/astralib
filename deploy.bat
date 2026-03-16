@@ -7,7 +7,7 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=add alx-email-dashboard component, fix drawer slot rendering, willUpdate lifecycle, public load method, dark mode toggle, dashboard docs"
+set "COMMIT_MSG=fix template preview strict mode, fix rule editor payload structure and data mapping, fix operators and emailType enum mismatch"
 
 REM Default bump type: used when package has no :type suffix
 set "DEFAULT_BUMP=patch"
@@ -20,7 +20,7 @@ REM   email-rule-engine:major,email-account-manager:minor,email-analytics:patch
 REM   email-rule-engine,core              (both use DEFAULT_BUMP)
 REM   all                                 (all packages use DEFAULT_BUMP)
 REM   all:minor                           (all packages use minor)
-set "PACKAGES=email-ui:minor"
+set "PACKAGES=email-rule-engine:patch,email-ui:patch"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

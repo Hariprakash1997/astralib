@@ -75,6 +75,7 @@ Create or edit email templates with MJML/Handlebars body, variable management, a
 - Info hints for each form section
 - Delete button in edit mode (dispatches `alx-template-deleted`)
 - "Preview" button renders MJML bodies via the API and displays in an iframe
+- Preview renders with placeholder values when no sample data is available (e.g., `[name]` for `{{name}}`)
 - Monospace font for bodies textarea
 
 ### Usage

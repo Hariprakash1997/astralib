@@ -154,7 +154,7 @@ export class AlxRuleList extends LitElement {
     if (!confirm(`Delete rule "${rule.name}"? This cannot be undone.`)) return;
     try {
       await this._api.deleteRule(rule._id);
-      this.dispatchEvent(new CustomEvent('alx-rule-deleted', { detail: { id: rule._id }, bubbles: true, composed: true }));
+      this.dispatchEvent(new CustomEvent('alx-rule-deleted', { detail: { _id: rule._id }, bubbles: true, composed: true }));
       await this._loadRules();
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to delete rule';

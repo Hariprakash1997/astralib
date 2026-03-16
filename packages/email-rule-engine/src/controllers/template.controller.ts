@@ -135,11 +135,11 @@ export function createTemplateController(templateService: TemplateService, optio
 
   async function previewRaw(req: Request, res: Response) {
     try {
-      const { subject, body, textBody, sampleData } = req.body;
+      const { subject, body, textBody, sampleData, variables } = req.body;
       if (!subject || !body) {
         return res.status(400).json({ success: false, error: 'subject and body are required' });
       }
-      const result = await templateService.previewRaw(subject, body, sampleData || {}, textBody);
+      const result = await templateService.previewRaw(subject, body, sampleData || {}, variables, textBody);
       res.json({ success: true, data: result });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';

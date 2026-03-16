@@ -144,6 +144,19 @@ export class TemplateService {
     return template;
   }
 
+  private _buildSampleData(
+    variables: string[],
+    provided: Record<string, unknown>
+  ): Record<string, unknown> {
+    const data = { ...provided };
+    for (const v of variables) {
+      if (!(v in data)) {
+        data[v] = `[${v}]`;
+      }
+    }
+    return data;
+  }
+
   async preview(
     id: string,
     sampleData: Record<string, unknown>
@@ -151,10 +164,13 @@ export class TemplateService {
     const template = await this.EmailTemplate.findById(id);
     if (!template) return null;
 
+    const variables = template.variables ?? [];
+    const data = this._buildSampleData(variables, sampleData);
+
     return this.renderService.renderPreview(
       template.subjects[0],
       template.bodies[0],
-      sampleData,
+      data,
       template.textBody
     );
   }
@@ -163,9 +179,11 @@ export class TemplateService {
     subject: string,
     body: string,
     sampleData: Record<string, unknown>,
+    variables?: string[],
     textBody?: string
   ): Promise<{ html: string; text: string; subject: string }> {
-    return this.renderService.renderPreview(subject, body, sampleData, textBody);
+    const data = this._buildSampleData(variables ?? [], sampleData);
+    return this.renderService.renderPreview(subject, body, data, textBody);
   }
 
   async validate(body: string): Promise<{ valid: boolean; errors: string[]; variables: string[] }> {

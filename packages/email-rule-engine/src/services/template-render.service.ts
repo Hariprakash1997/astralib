@@ -200,7 +200,25 @@ export class TemplateRenderService {
     data: Record<string, unknown>,
     textBody?: string
   ): RenderResult {
-    return this.renderSingle(subject, body, data, textBody);
+    // Preview uses non-strict mode so missing variables render as empty strings
+    const subjectFn = Handlebars.compile(subject, { strict: false });
+    const resolvedSubject = subjectFn(data);
+
+    const bodyFn = Handlebars.compile(body, { strict: false });
+    const resolvedBody = bodyFn(data);
+
+    const mjmlSource = wrapInMjml(resolvedBody);
+    const html = compileMjml(mjmlSource);
+
+    let text: string;
+    if (textBody) {
+      const textFn = Handlebars.compile(textBody, { strict: false });
+      text = textFn(data);
+    } else {
+      text = htmlToPlainText(html);
+    }
+
+    return { html, text, subject: resolvedSubject };
   }
 
   htmlToText(html: string): string {

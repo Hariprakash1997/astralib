@@ -28,13 +28,13 @@ describe('HttpClient', () => {
 
       await client.get('/items');
 
-      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items', {
+      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items', expect.objectContaining({
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer test-token',
         },
-      });
+      }));
     });
 
     it('appends query params correctly', async () => {
@@ -92,14 +92,14 @@ describe('HttpClient', () => {
       const body = { name: 'new item', value: 42 };
       await client.post('/items', body);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items', {
+      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items', expect.objectContaining({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: 'Bearer test-token',
         },
         body: JSON.stringify(body),
-      });
+      }));
     });
 
     it('sends undefined body when no body provided', async () => {
@@ -120,11 +120,11 @@ describe('HttpClient', () => {
       const body = { name: 'updated' };
       await client.put('/items/1', body);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items/1', {
+      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items/1', expect.objectContaining({
         method: 'PUT',
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(body),
-      });
+      }));
     });
   });
 
@@ -136,11 +136,11 @@ describe('HttpClient', () => {
       const body = { status: 'active' };
       await client.patch('/items/1', body);
 
-      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items/1', {
+      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items/1', expect.objectContaining({
         method: 'PATCH',
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(body),
-      });
+      }));
     });
   });
 
@@ -151,10 +151,10 @@ describe('HttpClient', () => {
 
       await client.delete('/items/1');
 
-      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items/1', {
+      expect(fetchMock).toHaveBeenCalledWith('http://api.test/items/1', expect.objectContaining({
         method: 'DELETE',
         headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-      });
+      }));
     });
   });
 

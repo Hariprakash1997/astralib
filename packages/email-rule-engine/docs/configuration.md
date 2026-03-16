@@ -140,6 +140,22 @@ interface LogAdapter {
 }
 ```
 
+## Template Preview
+
+Preview rendering uses non-strict Handlebars mode — missing variables render as empty strings instead of throwing errors. When no sample data is provided, the preview auto-generates placeholder values from the template's variables list (e.g., `{{name}}` renders as `[name]`).
+
+To provide sample data for more realistic previews:
+
+```typescript
+// Via API
+POST /templates/:id/preview
+{ "sampleData": { "name": "John", "company": "Acme" } }
+
+// Via raw preview
+POST /templates/preview
+{ "subject": "Hello {{name}}", "body": "...", "variables": ["name"], "sampleData": { "name": "John" } }
+```
+
 ## Full Config Example
 
 ```typescript

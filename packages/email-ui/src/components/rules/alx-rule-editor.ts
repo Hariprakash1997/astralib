@@ -78,7 +78,31 @@ export class AlxRuleEditor extends LitElement {
         rules: RuleData[];
       };
       if (res.rules && res.rules.length > 0) {
-        this._form = { ...JSON.parse(JSON.stringify(EMPTY_RULE)), ...res.rules[0] };
+        const r = res.rules[0] as any;
+        const target = r.target ?? {};
+        this._form = {
+          _id: r._id,
+          name: r.name ?? '',
+          templateId: r.templateId ?? '',
+          platform: target.platform ?? '',
+          audience: target.role ?? '',
+          targetMode: target.mode ?? 'query',
+          target: {
+            conditions: target.conditions ?? [],
+            identifiers: target.identifiers ?? [],
+          },
+          behavior: {
+            sendOnce: r.sendOnce ?? true,
+            resendAfterDays: r.resendAfterDays ?? null,
+            maxPerRun: r.maxPerRun ?? 50,
+            autoApprove: r.autoApprove ?? true,
+            emailType: r.emailType ?? 'automated',
+            bypassThrottle: r.bypassThrottle ?? false,
+          },
+          validFrom: r.validFrom ? String(r.validFrom).slice(0, 10) : '',
+          validTill: r.validTill ? String(r.validTill).slice(0, 10) : '',
+          isActive: r.isActive ?? true,
+        };
       }
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to load rule';
@@ -111,19 +135,19 @@ export class AlxRuleEditor extends LitElement {
   }
 
   private _addCondition(): void {
-    const conditions = [...this._form.target.conditions, { field: '', operator: 'equals', value: '' }];
-    this._form = { ...this._form, target: { conditions } };
+    const conditions = [...this._form.target.conditions, { field: '', operator: 'eq', value: '' }];
+    this._form = { ...this._form, target: { ...this._form.target, conditions } };
   }
 
   private _updateCondition(index: number, field: keyof Condition, value: string): void {
     const conditions = [...this._form.target.conditions];
     conditions[index] = { ...conditions[index], [field]: value };
-    this._form = { ...this._form, target: { conditions } };
+    this._form = { ...this._form, target: { ...this._form.target, conditions } };
   }
 
   private _removeCondition(index: number): void {
     const conditions = this._form.target.conditions.filter((_, i) => i !== index);
-    this._form = { ...this._form, target: { conditions } };
+    this._form = { ...this._form, target: { ...this._form.target, conditions } };
   }
 
   private async _onSave(): Promise<void> {
@@ -138,8 +162,30 @@ export class AlxRuleEditor extends LitElement {
     this._saving = true;
     this._error = '';
     try {
-      const payload: Record<string, unknown> = { ...this._form };
-      delete payload['_id'];
+      // Build target object matching backend's RuleTarget schema
+      const target: Record<string, unknown> = this._form.targetMode === 'list'
+        ? { mode: 'list', identifiers: this._form.target.identifiers ?? [] }
+        : {
+            mode: 'query',
+            role: this._form.audience || undefined,
+            platform: this._form.platform || undefined,
+            conditions: this._form.target.conditions ?? [],
+          };
+
+      const payload: Record<string, unknown> = {
+        name: this._form.name,
+        templateId: this._form.templateId,
+        target,
+        sendOnce: this._form.behavior.sendOnce,
+        resendAfterDays: this._form.behavior.resendAfterDays,
+        maxPerRun: this._form.behavior.maxPerRun,
+        autoApprove: this._form.behavior.autoApprove,
+        emailType: this._form.behavior.emailType,
+        bypassThrottle: this._form.behavior.bypassThrottle,
+        isActive: this._form.isActive,
+      };
+      payload.validFrom = this._form.validFrom || null;
+      payload.validTill = this._form.validTill || null;
 
       let result: unknown;
       if (this._form._id) {
@@ -248,7 +294,7 @@ export class AlxRuleEditor extends LitElement {
                 type="radio"
                 name="targetMode"
                 value="query"
-                .checked=${this._form.targetMode !== 'list'}
+                ?checked=${this._form.targetMode !== 'list'}
                 @change=${() => this._updateField('targetMode', 'query')}
               />
               Query
@@ -258,7 +304,7 @@ export class AlxRuleEditor extends LitElement {
                 type="radio"
                 name="targetMode"
                 value="list"
-                .checked=${this._form.targetMode === 'list'}
+                ?checked=${this._form.targetMode === 'list'}
                 @change=${() => this._updateField('targetMode', 'list')}
               />
               List
@@ -390,8 +436,8 @@ export class AlxRuleEditor extends LitElement {
               @change=${(e: Event) =>
                 this._updateBehavior('emailType', (e.target as HTMLSelectElement).value)}
             >
-              <option value="marketing" ?selected=${this._form.behavior.emailType === 'marketing'}>
-                Marketing
+              <option value="automated" ?selected=${this._form.behavior.emailType === 'automated'}>
+                Automated
               </option>
               <option
                 value="transactional"
