@@ -55,6 +55,7 @@ export class ApprovalService {
       draftId,
       to: (draft as any).to,
       scheduledAt,
+      draft: (draft as any).toObject(),
     });
   }
 

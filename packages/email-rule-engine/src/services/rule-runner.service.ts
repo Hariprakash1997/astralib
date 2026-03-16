@@ -136,7 +136,7 @@ export class RuleRunnerService {
         return true;
       });
 
-      this.config.hooks?.onRunStart?.({ rulesCount: activeRules.length, triggeredBy });
+      this.config.hooks?.onRunStart?.({ rulesCount: activeRules.length, triggeredBy, runId });
 
       await this.updateRunProgress(runId, {
         progress: { rulesTotal: activeRules.length, rulesCompleted: 0, sent: 0, failed: 0, skipped: 0, invalid: 0 }
@@ -240,7 +240,7 @@ export class RuleRunnerService {
 
       await this.updateRunProgress(runId, { status: runStatus, currentRule: '', elapsed: Date.now() - runStartTime } as Partial<RunStatusResponse>);
 
-      this.config.hooks?.onRunComplete?.({ duration: Date.now() - runStartTime, totalStats, perRuleStats });
+      this.config.hooks?.onRunComplete?.({ duration: Date.now() - runStartTime, totalStats, perRuleStats, runId });
 
       this.logger.info('Rule run completed', {
         triggeredBy,
@@ -303,7 +303,7 @@ export class RuleRunnerService {
     const ruleId = rule._id.toString();
     const templateId = rule.templateId.toString();
 
-    this.config.hooks?.onRuleStart?.({ ruleId, ruleName: rule.name, matchedCount: emailsToProcess.length });
+    this.config.hooks?.onRuleStart?.({ ruleId, ruleName: rule.name, matchedCount: emailsToProcess.length, templateId, runId: runId || '' });
     if (emailsToProcess.length === 0) return stats;
 
     const identifierResults = await processInChunks(
@@ -360,7 +360,7 @@ export class RuleRunnerService {
         const identifier = identifierMap.get(email);
         if (!identifier) {
           stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'invalid' });
+          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'invalid', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'invalid email' });
           continue;
         }
 
@@ -370,29 +370,29 @@ export class RuleRunnerService {
         if (lastSend) {
           if (rule.sendOnce && !rule.resendAfterDays) {
             stats.skipped++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
             continue;
           }
           if (rule.resendAfterDays) {
             const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
             if (daysSince < rule.resendAfterDays) {
               stats.skipped++;
-              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'resend too soon' });
               continue;
             }
           } else {
             stats.skipped++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
             continue;
           }
         }
 
-        if (!this.checkThrottle(rule, dedupKey, email, throttleMap, throttleConfig, stats)) continue;
+        if (!this.checkThrottle(rule, dedupKey, email, throttleMap, throttleConfig, stats, templateId, runId)) continue;
 
         const agentSelection = await this.config.adapters.selectAgent(identifier.id, { ruleId, templateId });
         if (!agentSelection) {
           stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'no account available' });
           continue;
         }
 
@@ -451,7 +451,7 @@ export class RuleRunnerService {
           } catch (hookErr: any) {
             this.logger.error(`beforeSend hook failed for email ${email}: ${hookErr.message}`);
             stats.errorCount++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error' });
+            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi, failureReason: (hookErr as Error).message });
             continue;
           }
         }
@@ -483,7 +483,7 @@ export class RuleRunnerService {
         });
 
         stats.sent++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent' });
+        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi });
 
         totalProcessed++;
         if (runId && totalProcessed % 10 === 0) {
@@ -500,7 +500,7 @@ export class RuleRunnerService {
         }
       } catch (err) {
         stats.errorCount++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error' });
+        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: (err as Error).message || 'unknown error' });
         this.logger.error(`Rule "${rule.name}" failed for identifier ${email}`, { error: err });
       }
     }
@@ -532,7 +532,7 @@ export class RuleRunnerService {
       }
     }
 
-    this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats });
+    this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats, templateId, runId: runId || '' });
 
     return stats;
   }
@@ -555,7 +555,7 @@ export class RuleRunnerService {
     }
 
     stats.matched = users.length;
-    this.config.hooks?.onRuleStart?.({ ruleId: rule._id.toString(), ruleName: rule.name, matchedCount: users.length });
+    this.config.hooks?.onRuleStart?.({ ruleId: rule._id.toString(), ruleName: rule.name, matchedCount: users.length, templateId: rule.templateId.toString(), runId: runId || '' });
     if (users.length === 0) return stats;
 
     const userIds = users.map(u => (u._id as any)?.toString()).filter(Boolean);
@@ -617,7 +617,7 @@ export class RuleRunnerService {
         const email = user.email as string;
         if (!userId || !email) {
           stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email: email || 'unknown', status: 'invalid' });
+          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email: email || 'unknown', status: 'invalid', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'invalid email' });
           continue;
         }
 
@@ -625,19 +625,19 @@ export class RuleRunnerService {
         if (lastSend) {
           if (rule.sendOnce && !rule.resendAfterDays) {
             stats.skipped++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
             continue;
           }
           if (rule.resendAfterDays) {
             const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
             if (daysSince < rule.resendAfterDays) {
               stats.skipped++;
-              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'resend too soon' });
               continue;
             }
           } else {
             stats.skipped++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
             continue;
           }
         }
@@ -645,16 +645,16 @@ export class RuleRunnerService {
         const identifier = identifierMap.get(email.toLowerCase().trim());
         if (!identifier) {
           stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'invalid' });
+          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'invalid', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'invalid email' });
           continue;
         }
 
-        if (!this.checkThrottle(rule, userId, email, throttleMap, throttleConfig, stats)) continue;
+        if (!this.checkThrottle(rule, userId, email, throttleMap, throttleConfig, stats, templateId, runId)) continue;
 
         const agentSelection = await this.config.adapters.selectAgent(identifier.id, { ruleId, templateId });
         if (!agentSelection) {
           stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped' });
+          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'no account available' });
           continue;
         }
 
@@ -712,7 +712,7 @@ export class RuleRunnerService {
           } catch (hookErr: any) {
             this.logger.error(`beforeSend hook failed for email ${email}: ${hookErr.message}`);
             stats.errorCount++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error' });
+            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi, failureReason: (hookErr as Error).message });
             continue;
           }
         }
@@ -744,7 +744,7 @@ export class RuleRunnerService {
         });
 
         stats.sent++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent' });
+        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi });
 
         totalProcessed++;
         if (runId && totalProcessed % 10 === 0) {
@@ -761,7 +761,7 @@ export class RuleRunnerService {
         }
       } catch (err) {
         stats.errorCount++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email: (user.email as string) || 'unknown', status: 'error' });
+        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email: (user.email as string) || 'unknown', status: 'error', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: (err as Error).message || 'unknown error' });
         this.logger.error(`Rule "${rule.name}" failed for user ${(user._id as any)?.toString()}`, { error: err });
       }
     }
@@ -771,7 +771,7 @@ export class RuleRunnerService {
       $inc: { totalSent: stats.sent, totalSkipped: stats.skipped }
     });
 
-    this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats });
+    this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats, templateId, runId: runId || '' });
 
     return stats;
   }
@@ -782,7 +782,9 @@ export class RuleRunnerService {
     email: string,
     throttleMap: Map<string, UserThrottle>,
     config: any,
-    stats: RuleRunStats
+    stats: RuleRunStats,
+    templateId?: string,
+    runId?: string
   ): boolean {
     if (rule.emailType === EMAIL_TYPE.Transactional || rule.bypassThrottle) return true;
 
@@ -790,19 +792,19 @@ export class RuleRunnerService {
 
     if (userThrottle.today >= config.maxPerUserPerDay) {
       stats.skippedByThrottle++;
-      this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled' });
+      this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled', accountId: '', templateId: templateId || '', runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'daily throttle limit' });
       return false;
     }
     if (userThrottle.thisWeek >= config.maxPerUserPerWeek) {
       stats.skippedByThrottle++;
-      this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled' });
+      this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled', accountId: '', templateId: templateId || '', runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'weekly throttle limit' });
       return false;
     }
     if (userThrottle.lastSentDate) {
       const daysSinceLastSend = (Date.now() - userThrottle.lastSentDate.getTime()) / MS_PER_DAY;
       if (daysSinceLastSend < config.minGapDays) {
         stats.skippedByThrottle++;
-        this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled' });
+        this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled', accountId: '', templateId: templateId || '', runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'min gap days' });
         return false;
       }
     }

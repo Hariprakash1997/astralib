@@ -49,7 +49,7 @@ function createMockDraftModel() {
 }
 
 function makeDraftDoc(overrides: Record<string, unknown> = {}) {
-  return {
+  const doc = {
     _id: 'draft-1',
     to: 'recipient@test.com',
     subject: 'Test Subject',
@@ -59,7 +59,12 @@ function makeDraftDoc(overrides: Record<string, unknown> = {}) {
     toString() {
       return this._id as string;
     },
+    toObject() {
+      const { toString: _ts, toObject: _to, ...rest } = this;
+      return rest;
+    },
   };
+  return doc;
 }
 
 describe('ApprovalService', () => {
@@ -109,6 +114,30 @@ describe('ApprovalService', () => {
         }),
       );
     });
+
+    it('should pass source and identifierId fields through to create', async () => {
+      const input = {
+        to: 'recipient@test.com',
+        subject: 'Test Subject',
+        htmlBody: '<p>Hello</p>',
+        accountId: 'acc-1',
+        source: 'campaign',
+        identifierId: 'ident-123',
+      };
+      const createdDraft = makeDraftDoc({
+        _id: { toString: () => 'draft-new' },
+        source: 'campaign',
+        identifierId: 'ident-123',
+      });
+      (EmailDraft.create as ReturnType<typeof vi.fn>).mockResolvedValue(createdDraft);
+
+      await service.createDraft(input);
+
+      expect(EmailDraft.create).toHaveBeenCalledWith({
+        ...input,
+        status: DRAFT_STATUS.Pending,
+      });
+    });
   });
 
   describe('approve()', () => {
@@ -130,6 +159,29 @@ describe('ApprovalService', () => {
         expect.objectContaining({ draftId: 'draft-1' }),
       );
       expect(logger.info).toHaveBeenCalledWith('Draft approved', { draftId: 'draft-1' });
+    });
+
+    it('should include full draft in onDraftApproved hook', async () => {
+      const draft = makeDraftDoc({ source: 'campaign', identifierId: 'ident-1' });
+      (EmailDraft.findById as ReturnType<typeof vi.fn>).mockResolvedValue(draft);
+      (EmailDraft.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue({});
+
+      await service.approve('draft-1');
+
+      expect(hooks!.onDraftApproved).toHaveBeenCalledWith(
+        expect.objectContaining({
+          draftId: 'draft-1',
+          to: 'recipient@test.com',
+          scheduledAt: expect.any(Date),
+          draft: expect.objectContaining({
+            _id: 'draft-1',
+            to: 'recipient@test.com',
+            subject: 'Test Subject',
+            source: 'campaign',
+            identifierId: 'ident-1',
+          }),
+        }),
+      );
     });
 
     it('should throw DraftNotFoundError when draft not found', async () => {

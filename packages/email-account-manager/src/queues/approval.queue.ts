@@ -1,6 +1,7 @@
 import type { Job } from 'bullmq';
 import type { SmtpService } from '../services/smtp.service';
 import type { QueueService } from '../services/queue.service';
+import type { IdentifierService } from '../services/identifier.service';
 import type { LogAdapter } from '../types/config.types';
 import { DRAFT_STATUS } from '../constants';
 import type { EmailDraftModel } from '../schemas/email-draft.schema';
@@ -10,6 +11,7 @@ export function createApprovalProcessor(
   smtpService: SmtpService,
   queueService: QueueService,
   logger: LogAdapter,
+  identifierService?: IdentifierService,
 ) {
   return async (job: Job) => {
     const { draftId } = job.data;
@@ -39,5 +41,10 @@ export function createApprovalProcessor(
       html: d.htmlBody,
       text: d.textBody || '',
     });
+
+    if (d.identifierId && identifierService) {
+      await identifierService.incrementSentCount(d.to);
+      logger.info('Identifier sentCount incremented for draft', { draftId, to: d.to, identifierId: d.identifierId });
+    }
   };
 }

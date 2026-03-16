@@ -14,6 +14,8 @@ export interface EmailDraft {
   sentAt?: Date;
   scheduledAt?: Date;
   failureReason?: string;
+  source?: string;
+  identifierId?: string;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -26,5 +28,7 @@ export interface CreateDraftInput {
   textBody?: string;
   accountId: string;
   scheduledAt?: Date;
+  source?: string;
+  identifierId?: string;
   metadata?: Record<string, unknown>;
 }

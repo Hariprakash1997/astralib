@@ -86,6 +86,10 @@ await eam.settings.updateSection('approval', {
 });
 ```
 
+## Hooks & Lifecycle
+
+**`onSend` and approved drafts:** When a draft is approved via `approve()`, the email is sent asynchronously through the queue. The `onSend` hook fires after the email is successfully sent, not at the time of approval. The sequence is: `approve()` → `onDraftApproved` hook → queue processes → email sent → `onSend` hook.
+
 ## Related
 
 - [Email Sending](./email-sending.md) -- how sends are processed after approval

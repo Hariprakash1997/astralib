@@ -7,7 +7,7 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=channel analytics, beforeSend context, POST /track, fetch timeout, 401 detection, form validation, docs and tests"
+set "COMMIT_MSG=draft source/identifierId fields, full draft in onDraftApproved, enrich all hooks with accountId/templateId/runId/variant indices"
 
 REM Default bump type: used when package has no :type suffix
 set "DEFAULT_BUMP=patch"
@@ -20,7 +20,7 @@ REM   email-rule-engine:major,email-account-manager:minor,email-analytics:patch
 REM   email-rule-engine,core              (both use DEFAULT_BUMP)
 REM   all                                 (all packages use DEFAULT_BUMP)
 REM   all:minor                           (all packages use minor)
-set "PACKAGES=email-ui:minor,email-analytics:minor,email-rule-engine:minor"
+set "PACKAGES=email-account-manager:minor,email-rule-engine:minor"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

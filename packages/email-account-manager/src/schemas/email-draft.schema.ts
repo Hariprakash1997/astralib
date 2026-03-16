@@ -15,6 +15,8 @@ export interface IEmailDraft {
   sentAt?: Date;
   scheduledAt?: Date;
   failureReason?: string;
+  source?: string;
+  identifierId?: string;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -53,6 +55,8 @@ export function createEmailDraftSchema(options?: CreateEmailDraftSchemaOptions) 
       sentAt: Date,
       scheduledAt: Date,
       failureReason: String,
+      source: { type: String },
+      identifierId: { type: String },
       metadata: { type: Schema.Types.Mixed },
     },
     {

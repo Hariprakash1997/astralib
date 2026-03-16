@@ -77,7 +77,7 @@ export interface EmailAccountManagerConfig {
     onClick?: (info: { accountId: string; email: string; link: string }) => void;
 
     onDraftCreated?: (info: { draftId: string; to: string; subject: string }) => void;
-    onDraftApproved?: (info: { draftId: string; to: string; scheduledAt?: Date }) => void;
+    onDraftApproved?: (info: { draftId: string; to: string; scheduledAt?: Date; draft: any }) => void;
     onDraftRejected?: (info: { draftId: string; to: string; reason?: string }) => void;
   };
 }

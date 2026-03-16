@@ -171,6 +171,7 @@ export function createEmailAccountManager(
     smtpService,
     queueService,
     logger,
+    identifierService,
   );
 
   queueService.init({ sendProcessor, approvalProcessor }).catch((err) => {

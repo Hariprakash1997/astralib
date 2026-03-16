@@ -70,25 +70,25 @@ Callbacks fired at key points during rule execution. All hooks are optional and 
 
 | Hook | Fires When | Payload |
 |------|-----------|---------|
-| `onRunStart` | After loading active rules | `{ rulesCount: number, triggeredBy: string }` |
-| `onRuleStart` | After querying users for a rule | `{ ruleId: string, ruleName: string, matchedCount: number }` |
-| `onSend` | After each send attempt | `{ ruleId: string, ruleName: string, email: string, status: 'sent' \| 'error' \| 'skipped' \| 'invalid' \| 'throttled' }` |
-| `onRuleComplete` | After a rule finishes | `{ ruleId: string, ruleName: string, stats: RuleRunStats }` |
-| `onRunComplete` | After run log is saved | `{ duration: number, totalStats: RuleRunStats, perRuleStats: PerRuleStats[] }` |
+| `onRunStart` | After loading active rules | `{ rulesCount: number, triggeredBy: string, runId: string }` |
+| `onRuleStart` | After querying users for a rule | `{ ruleId: string, ruleName: string, matchedCount: number, templateId: string, runId: string }` |
+| `onSend` | After each send attempt | `{ ruleId: string, ruleName: string, email: string, status: 'sent' \| 'error' \| 'skipped' \| 'invalid' \| 'throttled', accountId: string, templateId: string, runId: string, subjectIndex: number, bodyIndex: number, failureReason?: string }` |
+| `onRuleComplete` | After a rule finishes | `{ ruleId: string, ruleName: string, stats: RuleRunStats, templateId: string, runId: string }` |
+| `onRunComplete` | After run log is saved | `{ duration: number, totalStats: RuleRunStats, perRuleStats: PerRuleStats[], runId: string }` |
 | `beforeSend` | Before each email is delivered | `{ htmlBody: string, textBody: string, subject: string, account: { id: string, email: string, metadata: Record<string, unknown> }, user: { id: string, email: string, name: string }, context: { ruleId: string, templateId: string, runId: string } }` |
 
 The `beforeSend` hook is special -- it must return `{ htmlBody, textBody, subject }` and can modify the rendered content before delivery. This is useful for replacing account-level placeholders that are not available at template render time. It also receives a `context` object with `{ ruleId, templateId, runId }` for per-send tracking and attribution.
 
 ```typescript
 hooks: {
-  onRunStart: ({ rulesCount, triggeredBy }) => {
-    console.log(`Run started: ${rulesCount} rules (${triggeredBy})`);
+  onRunStart: ({ rulesCount, triggeredBy, runId }) => {
+    console.log(`Run ${runId} started: ${rulesCount} rules (${triggeredBy})`);
   },
-  onSend: ({ ruleName, email, status }) => {
-    console.log(`[${status}] ${ruleName} -> ${email}`);
+  onSend: ({ ruleName, email, status, accountId, templateId, runId, subjectIndex, bodyIndex, failureReason }) => {
+    console.log(`[${status}] ${ruleName} -> ${email} (account: ${accountId}, template: ${templateId}, run: ${runId})`);
   },
-  onRunComplete: ({ duration, totalStats }) => {
-    console.log(`Done in ${duration}ms: ${totalStats.sent} sent, ${totalStats.errorCount} errors`);
+  onRunComplete: ({ duration, totalStats, runId }) => {
+    console.log(`Run ${runId} done in ${duration}ms: ${totalStats.sent} sent, ${totalStats.errorCount} errors`);
   },
   beforeSend: async ({ htmlBody, textBody, subject, account, user }) => {
     // Replace account-level placeholders after template rendering
@@ -143,11 +143,11 @@ const engine = createEmailRuleEngine({
   },
 
   hooks: {
-    onRunStart: ({ rulesCount, triggeredBy }) => { /* ... */ },
-    onRuleStart: ({ ruleId, ruleName, matchedCount }) => { /* ... */ },
-    onSend: ({ ruleId, ruleName, email, status }) => { /* ... */ },
-    onRuleComplete: ({ ruleId, ruleName, stats }) => { /* ... */ },
-    onRunComplete: ({ duration, totalStats, perRuleStats }) => { /* ... */ },
+    onRunStart: ({ rulesCount, triggeredBy, runId }) => { /* ... */ },
+    onRuleStart: ({ ruleId, ruleName, matchedCount, templateId, runId }) => { /* ... */ },
+    onSend: ({ ruleId, ruleName, email, status, accountId, templateId, runId, subjectIndex, bodyIndex, failureReason }) => { /* ... */ },
+    onRuleComplete: ({ ruleId, ruleName, stats, templateId, runId }) => { /* ... */ },
+    onRunComplete: ({ duration, totalStats, perRuleStats, runId }) => { /* ... */ },
   },
 });
 ```
