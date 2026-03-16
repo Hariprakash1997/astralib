@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 12.3.0
+
+### Minor Changes
+
+- db98a6d: draft source/identifierId fields, full draft in onDraftApproved, enrich all hooks with accountId/templateId/runId/variant indices. IMPORTANT: set unique redis keyPrefix per project if sharing Redis
+
 ## 12.2.0
 
 ### Minor Changes
