@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 12.2.0
+
+### Minor Changes
+
+- 71787b2: draft source/identifierId fields, full draft in onDraftApproved, enrich all hooks with accountId/templateId/runId/variant indices
+
 ## 12.1.0
 
 ### Minor Changes
