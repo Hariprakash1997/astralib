@@ -95,3 +95,5 @@ export { AggregatorService } from './services/aggregator';
 export { QueryService } from './services/query.service';
 export { createAnalyticsController } from './controllers/analytics.controller';
 export { createAnalyticsRoutes } from './routes';
+
+export { createAnalyticsBridge } from './bridge.js';

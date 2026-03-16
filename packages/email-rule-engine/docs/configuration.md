@@ -31,6 +31,32 @@ Five required functions and one optional. See [adapters.md](adapters.md) for ful
 | `findIdentifier` | `(email: string) => Promise<RecipientIdentifier \| null>` | Yes |
 | `sendTestEmail` | `(to, subject, html, text) => Promise<void>` | No |
 
+### selectAgent and warmup limits
+
+The rule-engine does **not** own account management or warmup state -- it delegates account selection entirely to the `selectAgent` adapter. This means your `selectAgent` implementation **must** respect warmup daily-send limits itself. If an account is in warmup phase and has already hit its daily cap, `selectAgent` should either pick a different account or return `null` to skip the send.
+
+```typescript
+selectAgent: async (identifierId, context) => {
+  // Pick a candidate account (round-robin, random, etc.)
+  const account = await pickNextAccount();
+
+  // Check warmup capacity before returning
+  if (account.warmupPhase) {
+    const sentToday = await getSentTodayCount(account._id);
+    if (sentToday >= account.warmupDailyLimit) {
+      // Try another account, or return null to skip
+      const fallback = await pickNextAccount({ exclude: [account._id] });
+      if (!fallback) return null;
+      return { accountId: fallback._id, email: fallback.email, metadata: fallback.metadata };
+    }
+  }
+
+  return { accountId: account._id, email: account.email, metadata: account.metadata };
+},
+```
+
+If you use `@astralibx/email-account-manager`, its built-in `selectAgent` helper already enforces warmup limits. See the email-account-manager docs for details.
+
 ## platforms, audiences, categories (optional)
 
 String arrays that constrain the valid values in template and rule Mongoose schemas.

@@ -32,10 +32,23 @@ export function createAccountController(
   return {
     async list(req: Request, res: Response) {
       try {
-        const accounts = await EmailAccount.find()
+        const { status, provider, page, limit } = req.query;
+        const filter: Record<string, unknown> = {};
+        if (status) filter.status = status;
+        if (provider) filter.provider = provider;
+
+        const pageNum = Number(page) || 1;
+        const limitNum = Number(limit) || 20;
+        const skip = (pageNum - 1) * limitNum;
+
+        const total = await EmailAccount.countDocuments(filter);
+        const accounts = await EmailAccount.find(filter)
           .select('-smtp.pass -imap.pass')
-          .sort({ createdAt: -1 });
-        res.json({ success: true, data: { accounts } });
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(limitNum);
+
+        res.json({ success: true, data: { accounts, total } });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         res.status(500).json({ success: false, error: message });

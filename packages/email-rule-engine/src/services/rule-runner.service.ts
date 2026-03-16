@@ -297,6 +297,9 @@ export class RuleRunnerService {
     const uniqueEmails = [...new Set(rawIdentifiers.map((e: string) => e.toLowerCase().trim()).filter(Boolean))];
 
     const limit = rule.maxPerRun || this.config.options?.defaultMaxPerRun || 500;
+    if (uniqueEmails.length > limit) {
+      this.logger.warn(`Rule "${rule.name}" matched ${uniqueEmails.length} users but maxPerRun is ${limit} — only ${limit} will be processed`, { ruleId: rule._id.toString(), matchedCount: uniqueEmails.length, maxPerRun: limit });
+    }
     const emailsToProcess = uniqueEmails.slice(0, limit);
 
     stats.matched = emailsToProcess.length;
@@ -545,13 +548,18 @@ export class RuleRunnerService {
     stats: RuleRunStats,
     runId?: string
   ): Promise<RuleRunStats> {
+    const limit = rule.maxPerRun || this.config.options?.defaultMaxPerRun || 500;
     let users: Record<string, unknown>[];
     try {
-      users = await this.config.adapters.queryUsers(rule.target, rule.maxPerRun || this.config.options?.defaultMaxPerRun || 500);
+      users = await this.config.adapters.queryUsers(rule.target, limit);
     } catch (err) {
       this.logger.error(`Rule "${rule.name}": query failed`, { error: err });
       stats.errorCount = 1;
       return stats;
+    }
+
+    if (users.length > limit) {
+      this.logger.warn(`Rule "${rule.name}" matched ${users.length} users but maxPerRun is ${limit} — only ${limit} will be processed`, { ruleId: rule._id.toString(), matchedCount: users.length, maxPerRun: limit });
     }
 
     stats.matched = users.length;
@@ -788,21 +796,26 @@ export class RuleRunnerService {
   ): boolean {
     if (rule.emailType === EMAIL_TYPE.Transactional || rule.bypassThrottle) return true;
 
+    const overrides = rule.throttleOverride || {};
+    const dailyLimit = overrides.maxPerUserPerDay ?? config.maxPerUserPerDay;
+    const weeklyLimit = overrides.maxPerUserPerWeek ?? config.maxPerUserPerWeek;
+    const minGap = overrides.minGapDays ?? config.minGapDays;
+
     const userThrottle = throttleMap.get(userId) || { today: 0, thisWeek: 0, lastSentDate: null };
 
-    if (userThrottle.today >= config.maxPerUserPerDay) {
+    if (userThrottle.today >= dailyLimit) {
       stats.skippedByThrottle++;
       this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled', accountId: '', templateId: templateId || '', runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'daily throttle limit' });
       return false;
     }
-    if (userThrottle.thisWeek >= config.maxPerUserPerWeek) {
+    if (userThrottle.thisWeek >= weeklyLimit) {
       stats.skippedByThrottle++;
       this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled', accountId: '', templateId: templateId || '', runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'weekly throttle limit' });
       return false;
     }
     if (userThrottle.lastSentDate) {
       const daysSinceLastSend = (Date.now() - userThrottle.lastSentDate.getTime()) / MS_PER_DAY;
-      if (daysSinceLastSend < config.minGapDays) {
+      if (daysSinceLastSend < minGap) {
         stats.skippedByThrottle++;
         this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled', accountId: '', templateId: templateId || '', runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'min gap days' });
         return false;

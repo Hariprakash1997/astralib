@@ -49,6 +49,11 @@ export interface EmailRule {
   validTill?: Date;
 
   bypassThrottle: boolean;
+  throttleOverride?: {
+    maxPerUserPerDay?: number;
+    maxPerUserPerWeek?: number;
+    minGapDays?: number;
+  };
   emailType: EmailType;
 
   totalSent: number;
@@ -74,6 +79,11 @@ export interface CreateEmailRuleInput {
   validFrom?: Date;
   validTill?: Date;
   bypassThrottle?: boolean;
+  throttleOverride?: {
+    maxPerUserPerDay?: number;
+    maxPerUserPerWeek?: number;
+    minGapDays?: number;
+  };
   emailType?: EmailType;
 }
 
@@ -92,6 +102,11 @@ export interface UpdateEmailRuleInput {
   validFrom?: Date;
   validTill?: Date;
   bypassThrottle?: boolean;
+  throttleOverride?: {
+    maxPerUserPerDay?: number;
+    maxPerUserPerWeek?: number;
+    minGapDays?: number;
+  };
   emailType?: EmailType;
 }
 

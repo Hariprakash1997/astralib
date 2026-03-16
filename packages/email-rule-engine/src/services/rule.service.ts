@@ -12,7 +12,7 @@ function isQueryTarget(target: RuleTarget): target is QueryTarget {
 const UPDATEABLE_FIELDS = new Set([
   'name', 'description', 'sortOrder', 'target', 'templateId',
   'sendOnce', 'resendAfterDays', 'cooldownDays', 'autoApprove',
-  'maxPerRun', 'bypassThrottle', 'emailType',
+  'maxPerRun', 'bypassThrottle', 'throttleOverride', 'emailType',
   'validFrom', 'validTill'
 ]);
 
@@ -170,20 +170,27 @@ export class RuleService {
     return rule;
   }
 
-  async dryRun(id: string): Promise<{ matchedCount: number; ruleId: string }> {
+  async dryRun(id: string): Promise<{ matchedCount: number; effectiveLimit: number; willProcess: number; ruleId: string }> {
     const rule = await this.EmailRule.findById(id);
     if (!rule) {
       throw new RuleNotFoundError(id);
     }
 
+    const defaultMaxPerRun = this.config.options?.defaultMaxPerRun;
+    const effectiveLimit = rule.maxPerRun || defaultMaxPerRun || 500;
+
     const target = rule.target as unknown as RuleTarget;
     if (target.mode === 'list') {
       const identifiers = (target as any).identifiers || [];
-      return { matchedCount: identifiers.length, ruleId: id };
+      const matchedCount = identifiers.length;
+      const willProcess = Math.min(matchedCount, effectiveLimit);
+      return { matchedCount, effectiveLimit, willProcess, ruleId: id };
     }
 
     const users = await this.config.adapters.queryUsers(rule.target, 50000);
-    return { matchedCount: users.length, ruleId: id };
+    const matchedCount = users.length;
+    const willProcess = Math.min(matchedCount, effectiveLimit);
+    return { matchedCount, effectiveLimit, willProcess, ruleId: id };
   }
 
   async getRunHistory(limit = 20): Promise<unknown[]> {

@@ -63,6 +63,15 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
       validTill: { type: Date },
 
       bypassThrottle: { type: Boolean, default: false },
+      throttleOverride: {
+        type: {
+          maxPerUserPerDay: { type: Number },
+          maxPerUserPerWeek: { type: Number },
+          minGapDays: { type: Number },
+        },
+        _id: false,
+        default: undefined,
+      },
       emailType: { type: String, enum: Object.values(EMAIL_TYPE), default: EMAIL_TYPE.Automated },
 
       totalSent: { type: Number, default: 0 },
@@ -99,6 +108,7 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
             validFrom: input.validFrom,
             validTill: input.validTill,
             bypassThrottle: input.bypassThrottle ?? false,
+            throttleOverride: input.throttleOverride,
             emailType: input.emailType ?? EMAIL_TYPE.Automated,
             totalSent: 0,
             totalSkipped: 0
