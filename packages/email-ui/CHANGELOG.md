@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.4.1
+
+### Patch Changes
+
+- 6b887aa: fix template preview strict mode, fix rule editor payload structure and data mapping, fix operators and emailType enum mismatch
+
 ## 2.4.0
 
 ### Minor Changes

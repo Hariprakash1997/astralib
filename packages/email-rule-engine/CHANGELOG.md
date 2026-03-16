@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 12.5.1
+
+### Patch Changes
+
+- 6b887aa: fix template preview strict mode, fix rule editor payload structure and data mapping, fix operators and emailType enum mismatch
+
 ## 12.5.0
 
 ### Minor Changes
