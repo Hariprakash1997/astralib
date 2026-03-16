@@ -7,7 +7,7 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=draft source/identifierId fields, full draft in onDraftApproved, enrich all hooks with accountId/templateId/runId/variant indices"
+set "COMMIT_MSG=draft source/identifierId fields, full draft in onDraftApproved, enrich all hooks with accountId/templateId/runId/variant indices. IMPORTANT: set unique redis keyPrefix per project if sharing Redis"
 
 REM Default bump type: used when package has no :type suffix
 set "DEFAULT_BUMP=patch"

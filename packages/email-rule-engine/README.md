@@ -113,6 +113,26 @@ See [docs/configuration.md](https://github.com/Hariprakash1997/astralib/blob/mai
 
 Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/types.md) | [Constants](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/constants.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/error-handling.md)
 
+### Redis Key Prefix (Required for Multi-Project Deployments)
+
+> **WARNING:** If multiple projects share the same Redis server, you MUST set a unique `keyPrefix` per project. Without this, run locks, cancel flags, and progress keys will collide between projects.
+
+```typescript
+const engine = createEmailRuleEngine({
+  redis: {
+    connection: redis,
+    keyPrefix: 'myproject:', // REQUIRED if sharing Redis
+  },
+  // ...
+});
+```
+
+| Default | Risk |
+|---------|------|
+| `''` (empty) | Two projects share global keys like `email-rule-runner:lock` and `run:{id}:cancel` — Project A can cancel Project B's runs |
+
+**Always set a unique prefix** like `projectname:` when sharing Redis.
+
 > **Important:** Configure throttle settings before running rules. Default limits (1/day, 2/week) may be too restrictive. See [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/throttling.md).
 
 ## License

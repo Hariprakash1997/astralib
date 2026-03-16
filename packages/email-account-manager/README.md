@@ -114,6 +114,26 @@ Advanced: [Capacity Selection](https://github.com/Hariprakash1997/astralib/blob/
 
 > **Important:** The warmup system requires calling `advanceDay()` daily via cron job. Without this, accounts stay in warmup indefinitely.
 
+### Redis Key Prefix (Required for Multi-Project Deployments)
+
+> **WARNING:** If multiple projects share the same Redis server, you MUST set a unique `keyPrefix` per project. Without this, BullMQ queues will collide — Project A's worker could process Project B's emails.
+
+```typescript
+const eam = createEmailAccountManager({
+  redis: {
+    connection: redis,
+    keyPrefix: 'myproject-eam:', // REQUIRED if sharing Redis
+  },
+  // ...
+});
+```
+
+| Default | Risk |
+|---------|------|
+| `'eam:'` | Two projects using defaults share the same `eam:email-send` and `eam:email-approved` queues |
+
+**Always set a unique prefix** like `projectname-eam:` or `projectname:`.
+
 ## Security Notes
 
 **Credential storage**: SMTP and IMAP passwords (`smtp.pass`, `imap.pass`) are stored as plaintext in MongoDB. You should encrypt these values at the application layer before passing them to this library, and decrypt them after retrieval. A built-in encryption layer is planned for a future version.

@@ -103,6 +103,8 @@ const config: EmailAccountManagerConfig = {
 | `connection` | `Redis` (ioredis) | -- | An ioredis instance |
 | `keyPrefix` | `string` | `'eam:'` | Prefix for all Redis keys |
 
+> **Multi-project warning:** `keyPrefix` defaults to `'eam:'`. If multiple projects share the same Redis, set unique prefixes (e.g., `'myproject-eam:'`) to prevent BullMQ queue collisions. See README for details.
+
 ### `logger` (optional)
 
 Provide an object with `info`, `warn`, and `error` methods. Each receives `(message: string, meta?: Record<string, unknown>)`. If omitted, logging is silent.

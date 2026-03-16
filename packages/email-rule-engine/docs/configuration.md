@@ -16,6 +16,8 @@ The `createEmailRuleEngine(config)` factory accepts an `EmailRuleEngineConfig` o
 | `connection` | `Redis` (ioredis) | -- | Used for distributed locking only. |
 | `keyPrefix` | `string` | `''` | Prefix for Redis keys (e.g., `'myapp:'`). |
 
+> **Multi-project warning:** `keyPrefix` defaults to empty string. If multiple projects share the same Redis, set unique prefixes to prevent queue/key collisions. See README for details.
+
 ## adapters (required)
 
 Five required functions and one optional. See [adapters.md](adapters.md) for full details and example implementations.
