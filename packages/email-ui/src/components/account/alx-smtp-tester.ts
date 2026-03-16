@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -9,7 +10,6 @@ import {
 } from '../../styles/shared.js';
 import { AccountAPI } from '../../api/account.api.js';
 
-@customElement('alx-smtp-tester')
 export class AlxSmtpTester extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -117,6 +117,7 @@ export class AlxSmtpTester extends LitElement {
     `;
   }
 }
+safeRegister('alx-smtp-tester', AlxSmtpTester);
 
 declare global {
   interface HTMLElementTagNameMap {

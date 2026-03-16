@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -11,7 +12,6 @@ import {
 import { AccountAPI } from '../../api/account.api.js';
 import './alx-metadata-editor.js';
 
-@customElement('alx-account-form')
 export class AlxAccountForm extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -21,51 +21,74 @@ export class AlxAccountForm extends LitElement {
     alxCardStyles,
     alxLoadingStyles,
     css`
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--alx-density-gap, 1rem);
+      :host {
+        display: block;
       }
-      .form-group {
-        display: flex;
-        flex-direction: column;
+      .form-row {
+        gap: 0.625rem;
       }
       .form-group.full {
         grid-column: 1 / -1;
       }
-      .section-title {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--alx-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin: 1.25rem 0 0.5rem;
+      .form-section-title {
         grid-column: 1 / -1;
+        margin-top: 0.5rem;
       }
-      .actions {
-        display: flex;
-        gap: var(--alx-density-gap, 0.75rem);
-        justify-content: flex-end;
-        margin-top: var(--alx-density-gap, 1.25rem);
-      }
-      input[type='number'] {
-        width: 100%;
-      }
-      .actions-left {
-        display: flex;
-        gap: 0.75rem;
+      .form-actions {
         justify-content: space-between;
-        align-items: center;
-        margin-top: 1.25rem;
       }
-      .actions-right {
+      .form-actions-end {
         display: flex;
-        gap: 0.75rem;
+        gap: 0.5rem;
+      }
+      .imap-toggle {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.25rem;
+      }
+      .imap-toggle input[type='checkbox'] {
+        width: auto;
+      }
+      .imap-toggle label {
+        margin-bottom: 0;
+        text-transform: none;
+        font-size: 0.8125rem;
+        color: var(--alx-text);
+        cursor: pointer;
+      }
+      .imap-derived {
+        grid-column: 1 / -1;
+        font-size: 0.75rem;
+        color: var(--alx-text-muted);
+        padding: 0.375rem 0.625rem;
+        background: color-mix(in srgb, var(--alx-info) 6%, transparent);
+        border-radius: var(--alx-radius);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .imap-derived code {
+        font-size: 0.7rem;
+      }
+      .imap-customize {
+        font-size: 0.7rem;
+        color: var(--alx-primary);
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0;
+        font-family: inherit;
+      }
+      .imap-customize:hover {
+        text-decoration: underline;
       }
     `,
   ];
 
   @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
+  @property({ type: Boolean, attribute: 'hide-header' }) hideHeader = false;
   @property({ attribute: 'account-id' }) accountId = '';
 
   @state() private email = '';
@@ -80,7 +103,8 @@ export class AlxAccountForm extends LitElement {
   @state() private imapUser = '';
   @state() private imapPass = '';
   @state() private metadata: Record<string, string | string[]> = {};
-  @state() private imapTouched = false;
+  @state() private imapEnabled = true;
+  @state() private imapCustom = false;
   @state() private loading = false;
   @state() private saving = false;
   @state() private error = '';
@@ -93,7 +117,34 @@ export class AlxAccountForm extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    if (this.accountId) this.loadAccount();
+  }
+
+  override updated(changed: Map<string, unknown>): void {
+    if (changed.has('accountId')) {
+      if (this.accountId) {
+        this.loadAccount();
+      } else {
+        this._resetForm();
+      }
+    }
+  }
+
+  private _resetForm(): void {
+    this.email = '';
+    this.senderName = '';
+    this.provider = 'gmail';
+    this.smtpHost = '';
+    this.smtpPort = 587;
+    this.smtpUser = '';
+    this.smtpPass = '';
+    this.imapHost = '';
+    this.imapPort = 993;
+    this.imapUser = '';
+    this.imapPass = '';
+    this.imapEnabled = true;
+    this.imapCustom = false;
+    this.metadata = {};
+    this.error = '';
   }
 
   private async loadAccount(): Promise<void> {
@@ -104,16 +155,25 @@ export class AlxAccountForm extends LitElement {
       this.email = (account['email'] as string) ?? '';
       this.senderName = (account['senderName'] as string) ?? '';
       this.provider = (account['provider'] as 'gmail' | 'ses') ?? 'gmail';
-      const smtp = (account['smtpConfig'] as Record<string, unknown>) ?? {};
+      const smtp = (account['smtp'] as Record<string, unknown>) ?? {};
       this.smtpHost = (smtp['host'] as string) ?? '';
       this.smtpPort = (smtp['port'] as number) ?? 587;
       this.smtpUser = (smtp['user'] as string) ?? '';
       this.smtpPass = (smtp['pass'] as string) ?? '';
-      const imap = (account['imapConfig'] as Record<string, unknown>) ?? {};
+      const imap = (account['imap'] as Record<string, unknown>) ?? {};
       this.imapHost = (imap['host'] as string) ?? '';
       this.imapPort = (imap['port'] as number) ?? 993;
       this.imapUser = (imap['user'] as string) ?? '';
       this.imapPass = (imap['pass'] as string) ?? '';
+      // For Gmail, default IMAP to enabled (auto-derived) even if not stored
+      this.imapEnabled = this.provider === 'gmail' ? true : !!this.imapHost;
+      if (this.provider === 'gmail' && this.imapHost) {
+        this.imapCustom = this.imapHost !== 'imap.gmail.com'
+          || this.imapPort !== 993
+          || (this.imapUser !== '' && this.imapUser !== this.smtpUser);
+      } else {
+        this.imapCustom = !!this.imapHost;
+      }
       this.metadata = (account['metadata'] as Record<string, string | string[]>) ?? {};
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to load account';
@@ -136,7 +196,7 @@ export class AlxAccountForm extends LitElement {
       email: this.email,
       senderName: this.senderName,
       provider: this.provider,
-      smtpConfig: {
+      smtp: {
         host: this.smtpHost,
         port: this.smtpPort,
         user: this.smtpUser,
@@ -145,13 +205,23 @@ export class AlxAccountForm extends LitElement {
       metadata: this.metadata,
     };
 
-    if (this.provider === 'gmail') {
-      data['imapConfig'] = {
-        host: this.imapHost,
-        port: this.imapPort,
-        user: this.imapUser,
-        pass: this.imapPass,
-      };
+    if (this.provider === 'gmail' && this.imapEnabled) {
+      if (this.imapCustom) {
+        data['imap'] = {
+          host: this.imapHost,
+          port: this.imapPort,
+          user: this.imapUser,
+          pass: this.imapPass,
+        };
+      } else {
+        // Auto-derive from SMTP credentials
+        data['imap'] = {
+          host: 'imap.gmail.com',
+          port: 993,
+          user: this.smtpUser,
+          pass: this.smtpPass,
+        };
+      }
     }
 
     try {
@@ -210,16 +280,9 @@ export class AlxAccountForm extends LitElement {
     else if (field === 'port') this.smtpPort = Number(value);
     else if (field === 'user') this.smtpUser = value;
     else this.smtpPass = value;
-    if (this.provider === 'gmail' && !this.imapTouched) {
-      this.imapHost = 'imap.gmail.com';
-      this.imapPort = 993;
-      this.imapUser = this.smtpUser;
-      this.imapPass = this.smtpPass;
-    }
   }
 
   private onImapFieldChange(field: 'host' | 'port' | 'user' | 'pass', value: string): void {
-    this.imapTouched = true;
     if (field === 'host') this.imapHost = value;
     else if (field === 'port') this.imapPort = Number(value);
     else if (field === 'user') this.imapUser = value;
@@ -230,10 +293,6 @@ export class AlxAccountForm extends LitElement {
     this.metadata = (e as CustomEvent).detail;
   }
 
-  private showImap(): boolean {
-    return this.provider === 'gmail';
-  }
-
   override render() {
     if (this.loading) {
       return html`<div class="alx-loading"><div class="alx-spinner"></div></div>`;
@@ -241,14 +300,12 @@ export class AlxAccountForm extends LitElement {
 
     return html`
       <div class="alx-card">
-        <div class="alx-card-header">
-          <h3>${this.accountId ? 'Edit Account' : 'Create Account'}</h3>
-        </div>
+        ${this.hideHeader ? '' : html`<div class="alx-card-header"><h3>${this.accountId ? 'Edit Account' : 'Create Account'}</h3></div>`}
 
         ${this.error ? html`<div class="alx-error">${this.error}</div>` : ''}
 
         <form @submit=${this.onSubmit}>
-          <div class="form-grid">
+          <div class="form-row">
             <div class="form-group">
               <label>Email *</label>
               <input
@@ -279,7 +336,7 @@ export class AlxAccountForm extends LitElement {
               </select>
             </div>
 
-            <div class="section-title">SMTP Configuration</div>
+            <div class="form-section-title">SMTP Configuration</div>
             <div class="form-group">
               <label>SMTP Host</label>
               <input
@@ -316,48 +373,75 @@ export class AlxAccountForm extends LitElement {
               />
             </div>
 
-            ${this.showImap()
+            ${this.provider === 'gmail'
               ? html`
-                  <div class="section-title">IMAP Configuration</div>
-                  <div class="form-group">
-                    <label>IMAP Host</label>
+                  <div class="form-section-title">IMAP Bounce Checking</div>
+                  <div class="imap-toggle">
                     <input
-                      type="text"
-                      .value=${this.imapHost}
-                      @input=${(e: Event) => this.onImapFieldChange('host', (e.target as HTMLInputElement).value)}
-                      placeholder="imap.gmail.com"
+                      type="checkbox"
+                      id="imap-enabled"
+                      .checked=${this.imapEnabled}
+                      @change=${(e: Event) => { this.imapEnabled = (e.target as HTMLInputElement).checked; }}
                     />
+                    <label for="imap-enabled">Enable IMAP bounce checking</label>
                   </div>
-                  <div class="form-group">
-                    <label>IMAP Port</label>
-                    <input
-                      type="number"
-                      .value=${String(this.imapPort)}
-                      @input=${(e: Event) => this.onImapFieldChange('port', (e.target as HTMLInputElement).value)}
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>IMAP User</label>
-                    <input
-                      type="text"
-                      .value=${this.imapUser}
-                      @input=${(e: Event) => this.onImapFieldChange('user', (e.target as HTMLInputElement).value)}
-                      placeholder="user@gmail.com"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>IMAP Password</label>
-                    <input
-                      type="password"
-                      .value=${this.imapPass}
-                      @input=${(e: Event) => this.onImapFieldChange('pass', (e.target as HTMLInputElement).value)}
-                      placeholder="App password"
-                    />
-                  </div>
+                  ${this.imapEnabled && !this.imapCustom
+                    ? html`
+                        <div class="imap-derived">
+                          <span>Using <code>imap.gmail.com:993</code> with same SMTP credentials</span>
+                          <button type="button" class="imap-customize" @click=${() => {
+                            this.imapCustom = true;
+                            this.imapHost = 'imap.gmail.com';
+                            this.imapPort = 993;
+                            this.imapUser = this.smtpUser;
+                            this.imapPass = this.smtpPass;
+                          }}>Customize</button>
+                        </div>
+                      `
+                    : ''}
+                  ${this.imapEnabled && this.imapCustom
+                    ? html`
+                        <div class="form-group">
+                          <label>IMAP Host</label>
+                          <input
+                            type="text"
+                            .value=${this.imapHost}
+                            @input=${(e: Event) => this.onImapFieldChange('host', (e.target as HTMLInputElement).value)}
+                            placeholder="imap.gmail.com"
+                          />
+                        </div>
+                        <div class="form-group">
+                          <label>IMAP Port</label>
+                          <input
+                            type="number"
+                            .value=${String(this.imapPort)}
+                            @input=${(e: Event) => this.onImapFieldChange('port', (e.target as HTMLInputElement).value)}
+                          />
+                        </div>
+                        <div class="form-group">
+                          <label>IMAP User</label>
+                          <input
+                            type="text"
+                            .value=${this.imapUser}
+                            @input=${(e: Event) => this.onImapFieldChange('user', (e.target as HTMLInputElement).value)}
+                            placeholder="user@gmail.com"
+                          />
+                        </div>
+                        <div class="form-group">
+                          <label>IMAP Password</label>
+                          <input
+                            type="password"
+                            .value=${this.imapPass}
+                            @input=${(e: Event) => this.onImapFieldChange('pass', (e.target as HTMLInputElement).value)}
+                            placeholder="App password"
+                          />
+                        </div>
+                      `
+                    : ''}
                 `
               : ''}
 
-            <div class="section-title">Metadata</div>
+            <div class="form-section-title">Metadata</div>
             <div class="form-group full">
               <alx-metadata-editor
                 .value=${this.metadata}
@@ -366,7 +450,7 @@ export class AlxAccountForm extends LitElement {
             </div>
           </div>
 
-          <div class="actions-left">
+          <div class="form-actions">
             <div>
               ${this.accountId
                 ? html`<button
@@ -377,7 +461,7 @@ export class AlxAccountForm extends LitElement {
                   >Delete Account</button>`
                 : ''}
             </div>
-            <div class="actions-right">
+            <div class="form-actions-end">
               <button type="button" @click=${this.onCancel}>Cancel</button>
               <button type="submit" class="alx-btn-primary" ?disabled=${this.saving}>
                 ${this.saving ? 'Saving...' : this.accountId ? 'Update' : 'Create'}
@@ -389,6 +473,7 @@ export class AlxAccountForm extends LitElement {
     `;
   }
 }
+safeRegister('alx-account-form', AlxAccountForm);
 
 declare global {
   interface HTMLElementTagNameMap {

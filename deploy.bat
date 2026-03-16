@@ -7,7 +7,7 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=add delete, metadata editor, Gmail auto-fill, template variants, list-mode rules, validity dates, run trigger/cancel, compact density mode"
+set "COMMIT_MSG=UI overhaul: drawer edit flow, design system, file splits, dynamic metadata columns, IMAP auto-derive, rich empty states, settings redesign"
 
 REM Default bump type: used when package has no :type suffix
 set "DEFAULT_BUMP=patch"

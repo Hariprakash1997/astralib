@@ -31,6 +31,9 @@ Paginated table of email accounts with status badges, health bars, capacity indi
 - Capacity usage bar (sent/limit ratio)
 - Warmup active/off badge
 - Connection column showing SMTP/IMAP host:port per account
+- Dynamic metadata columns (shows top 3 metadata keys as separate columns)
+- Edit icon button per row (no row click)
+- Health score and warmup day display from nested API fields
 - Delete button per row (dispatches `alx-account-deleted`)
 - Pagination controls
 
@@ -58,6 +61,7 @@ Create or edit an email account with SMTP and optional IMAP configuration.
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `account-id` | `string` | `''` | Account ID to edit. Empty = create mode. |
+| `hide-header` | Boolean | `false` | Hide the card header (use when inside a drawer) |
 
 ### Events
 
@@ -71,9 +75,9 @@ Create or edit an email account with SMTP and optional IMAP configuration.
 - Provider selection (Gmail / AWS SES)
 - SMTP config fields: host, port, user, password
 - IMAP config fields (shown only for Gmail provider)
-- Gmail auto-fill: when provider is Gmail, IMAP host/port/user auto-populate from SMTP fields (user can override)
+- IMAP auto-derive for Gmail (checkbox + auto-config, optional customize)
 - Delete button in edit mode (dispatches `alx-account-deleted`)
-- Embedded `<alx-metadata-editor>` for account-level key-value metadata
+- Redesigned metadata editor with card-per-entry layout
 - Auto-loads account data when `account-id` is set
 
 ### Usage
@@ -273,7 +277,7 @@ None.
 
 ## `<alx-global-settings>`
 
-Collapsible settings panel for timezone, dev mode, IMAP configuration, approval workflow, and queue tuning.
+Collapsible settings panel for timezone, dev mode, IMAP configuration, approval workflow, and queue tuning. Includes info banners and section descriptions for each settings group.
 
 ### Attributes
 

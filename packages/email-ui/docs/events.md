@@ -293,6 +293,18 @@ el.addEventListener('alx-draft-view', (e) => {
 
 ---
 
+## Drawer Events
+
+### `alx-drawer-closed`
+
+Emitted when the drawer is closed (via backdrop click, Escape key, or close button).
+
+**Detail:** `undefined`
+
+**Source:** `<alx-drawer>`
+
+---
+
 ## Settings Events
 
 ### `alx-settings-saved`
@@ -383,5 +395,6 @@ document.querySelector('alx-account-list')
 | `alx-draft-approved` | `<alx-approval-queue>` | `{ id }` or `{ ids }` |
 | `alx-draft-rejected` | `<alx-approval-queue>` | `{ id }` or `{ ids }` |
 | `alx-draft-view` | `<alx-approval-queue>` | Draft object |
+| `alx-drawer-closed` | `<alx-drawer>` | `undefined` |
 | `alx-settings-saved` | `<alx-global-settings>` | `{ section, data }` |
 | `alx-throttle-saved` | `<alx-throttle-settings>` | Throttle settings |

@@ -3,6 +3,7 @@ export type { AlxConfigOptions } from './config.js';
 
 export { alxBaseStyles, alxDarkTheme, alxLightTheme } from './styles/theme.js';
 export {
+  alxDensityStyles,
   alxResetStyles,
   alxTypographyStyles,
   alxButtonStyles,
@@ -11,6 +12,9 @@ export {
   alxCardStyles,
   alxBadgeStyles,
   alxLoadingStyles,
+  alxToolbarStyles,
+  alxToggleStyles,
+  alxProgressBarStyles,
 } from './styles/shared.js';
 
 export {
@@ -52,3 +56,9 @@ export {
   AlxAnalyticsRules,
   AlxAnalyticsEngagement,
 } from './components/analytics/index.js';
+
+export { AlxDrawer } from './components/shared/index.js';
+
+export type { TemplateData } from './components/rules/alx-template-editor.types.js';
+export type { RuleData, Condition } from './components/rules/alx-rule-editor.types.js';
+export type { Settings } from './components/account/alx-global-settings.types.js';

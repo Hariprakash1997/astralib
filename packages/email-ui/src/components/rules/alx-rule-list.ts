@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -10,6 +11,8 @@ import {
   alxBadgeStyles,
   alxLoadingStyles,
   alxCardStyles,
+  alxToolbarStyles,
+  alxToggleStyles,
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
 
@@ -25,7 +28,6 @@ interface RuleRow {
   totalSkipped: number;
 }
 
-@customElement('alx-rule-list')
 export class AlxRuleList extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -37,73 +39,9 @@ export class AlxRuleList extends LitElement {
     alxBadgeStyles,
     alxLoadingStyles,
     alxCardStyles,
+    alxToolbarStyles,
+    alxToggleStyles,
     css`
-      .toolbar {
-        display: flex;
-        align-items: center;
-        gap: var(--alx-density-gap, 0.75rem);
-        margin-bottom: var(--alx-density-gap, 1rem);
-      }
-
-      .spacer {
-        flex: 1;
-      }
-
-      tr[data-clickable] {
-        cursor: pointer;
-      }
-
-      .pagination {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--alx-density-gap, 1rem);
-        margin-top: var(--alx-density-gap, 1rem);
-      }
-
-      .toggle {
-        position: relative;
-        display: inline-block;
-        width: 36px;
-        height: 20px;
-      }
-
-      .toggle input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-        position: absolute;
-      }
-
-      .toggle-slider {
-        position: absolute;
-        inset: 0;
-        background: var(--alx-border);
-        border-radius: 20px;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-
-      .toggle-slider::before {
-        content: '';
-        position: absolute;
-        width: 14px;
-        height: 14px;
-        left: 3px;
-        bottom: 3px;
-        background: #fff;
-        border-radius: 50%;
-        transition: transform 0.2s;
-      }
-
-      .toggle input:checked + .toggle-slider {
-        background: var(--alx-success);
-      }
-
-      .toggle input:checked + .toggle-slider::before {
-        transform: translateX(16px);
-      }
-
       .stat {
         font-variant-numeric: tabular-nums;
       }
@@ -111,12 +49,6 @@ export class AlxRuleList extends LitElement {
       .action-group {
         display: flex;
         gap: 0.35rem;
-      }
-
-      .alx-success-msg {
-        color: var(--alx-success, #16a34a);
-        font-size: 0.8rem;
-        margin-top: 0.5rem;
       }
     `,
   ];
@@ -126,7 +58,6 @@ export class AlxRuleList extends LitElement {
   @state() private _rules: RuleRow[] = [];
   @state() private _loading = false;
   @state() private _error = '';
-  @state() private _successMsg = '';
   @state() private _page = 1;
   @state() private _totalPages = 1;
   @state() private _total = 0;
@@ -219,19 +150,6 @@ export class AlxRuleList extends LitElement {
     }
   }
 
-  private async _onRunNow(e: Event): Promise<void> {
-    e.stopPropagation();
-    this._successMsg = '';
-    this._error = '';
-    try {
-      const res = (await this._api.triggerRun()) as { data?: { runId?: string } };
-      const runId = res.data?.runId ?? 'unknown';
-      this._successMsg = `Run started (ID: ${runId})`;
-    } catch (err) {
-      this._error = err instanceof Error ? err.message : 'Failed to trigger run';
-    }
-  }
-
   private _goToPage(page: number): void {
     this._page = page;
     this._loadRules();
@@ -250,20 +168,20 @@ export class AlxRuleList extends LitElement {
         </div>
 
         <div class="toolbar">
-          <button class="alx-btn-sm" @click=${(e: Event) => this._onRunNow(e)}>Run Now</button>
           <span class="spacer"></span>
           <button class="alx-btn-primary" @click=${this._onCreateClick}>+ Create Rule</button>
         </div>
 
         ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
-        ${this._successMsg
-          ? html`<div class="alx-success-msg">${this._successMsg}</div>`
-          : nothing}
 
         ${this._loading
           ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
           : this._rules.length === 0
-            ? html`<div class="alx-empty">No rules found</div>`
+            ? html`<div class="alx-empty">
+  <p>Rules connect templates to audiences.</p>
+  <p>They decide who gets what email and when. Create templates first.</p>
+  <button class="alx-btn-primary alx-btn-sm" style="margin-top:0.5rem" @click=${this._onCreateClick}>+ Create Rule</button>
+</div>`
             : html`
                 <table>
                   <thead>
@@ -342,6 +260,7 @@ export class AlxRuleList extends LitElement {
     `;
   }
 }
+safeRegister('alx-rule-list', AlxRuleList);
 
 declare global {
   interface HTMLElementTagNameMap {

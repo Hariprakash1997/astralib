@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import { alxDensityStyles, alxLoadingStyles, alxTypographyStyles } from '../../styles/shared.js';
 import { AnalyticsAPI } from '../../api/analytics.api.js';
@@ -9,7 +10,6 @@ interface TimelineEntry {
   count: number;
 }
 
-@customElement('alx-analytics-timeline')
 export class AlxAnalyticsTimeline extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -232,6 +232,7 @@ export class AlxAnalyticsTimeline extends LitElement {
     `;
   }
 }
+safeRegister('alx-analytics-timeline', AlxAnalyticsTimeline);
 
 declare global {
   interface HTMLElementTagNameMap {

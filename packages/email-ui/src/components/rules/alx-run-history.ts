@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -11,6 +12,7 @@ import {
   alxBadgeStyles,
   alxLoadingStyles,
   alxCardStyles,
+  alxToolbarStyles,
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
 
@@ -37,7 +39,6 @@ interface RunLog {
   perRuleStats: PerRuleStat[];
 }
 
-@customElement('alx-run-history')
 export class AlxRunHistory extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -50,29 +51,10 @@ export class AlxRunHistory extends LitElement {
     alxBadgeStyles,
     alxLoadingStyles,
     alxCardStyles,
+    alxToolbarStyles,
     css`
-      .toolbar {
-        display: flex;
-        align-items: center;
-        gap: var(--alx-density-gap, 0.75rem);
-        flex-wrap: wrap;
-        margin-bottom: var(--alx-density-gap, 1rem);
-      }
-
       .toolbar input[type='date'] {
         width: auto;
-      }
-
-      .spacer {
-        flex: 1;
-      }
-
-      .pagination {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--alx-density-gap, 1rem);
-        margin-top: var(--alx-density-gap, 1rem);
       }
 
       .expandable {
@@ -107,11 +89,6 @@ export class AlxRunHistory extends LitElement {
         font-size: 0.8rem;
       }
 
-      .alx-success-msg {
-        color: var(--alx-success, #16a34a);
-        font-size: 0.8rem;
-        margin-top: 0.5rem;
-      }
     `,
   ];
 
@@ -187,12 +164,15 @@ export class AlxRunHistory extends LitElement {
   }
 
   private async _onRunNow(): Promise<void> {
+    if (!confirm('Trigger a run now? This will process all active rules.')) return;
     this._successMsg = '';
     this._error = '';
     try {
-      const res = (await this._api.triggerRun()) as { data?: { runId?: string } };
-      const runId = res.data?.runId ?? 'unknown';
-      this._successMsg = `Run started (ID: ${runId})`;
+      const res = (await this._api.triggerRun()) as Record<string, unknown>;
+      const runId = res['runId'] ?? res['_id'] ?? 'ok';
+      this._successMsg = `Run triggered (${runId})`;
+      // Auto-reload history after a short delay to let the run register
+      setTimeout(() => this._loadLogs(), 1500);
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to trigger run';
     }
@@ -270,7 +250,10 @@ export class AlxRunHistory extends LitElement {
         ${this._loading
           ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
           : this._logs.length === 0
-            ? html`<div class="alx-empty">No run history found</div>`
+            ? html`<div class="alx-empty">
+  <p>Runs appear here when rules are executed.</p>
+  <p>Set up accounts, templates, and rules first — then trigger a run.</p>
+</div>`
             : html`
                 <table>
                   <thead>
@@ -379,6 +362,7 @@ export class AlxRunHistory extends LitElement {
     `;
   }
 }
+safeRegister('alx-run-history', AlxRunHistory);
 
 declare global {
   interface HTMLElementTagNameMap {

@@ -1,5 +1,6 @@
-import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { LitElement, html } from 'lit';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -9,26 +10,9 @@ import {
   alxLoadingStyles,
 } from '../../styles/shared.js';
 import { AccountAPI } from '../../api/account.api.js';
+import type { Settings } from './alx-global-settings.types.js';
+import { globalSettingsStyles } from './alx-global-settings.styles.js';
 
-interface Settings {
-  timezone?: string;
-  devMode?: boolean;
-  imap?: {
-    enabled?: boolean;
-    pollIntervalMinutes?: number;
-  };
-  approval?: {
-    enabled?: boolean;
-    autoApproveAfterMinutes?: number;
-  };
-  queue?: {
-    concurrency?: number;
-    retryAttempts?: number;
-    retryDelayMs?: number;
-  };
-}
-
-@customElement('alx-global-settings')
 export class AlxGlobalSettings extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -37,104 +21,7 @@ export class AlxGlobalSettings extends LitElement {
     alxInputStyles,
     alxCardStyles,
     alxLoadingStyles,
-    css`
-      .section {
-        border: 1px solid var(--alx-border);
-        border-radius: var(--alx-radius);
-        margin-bottom: 0.75rem;
-        overflow: hidden;
-      }
-      .section-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.75rem 1rem;
-        background: var(--alx-surface);
-        cursor: pointer;
-        user-select: none;
-      }
-      .section-header:hover {
-        background: var(--alx-bg);
-      }
-      .section-title {
-        font-weight: 600;
-        font-size: 0.9rem;
-      }
-      .section-toggle {
-        font-size: 0.75rem;
-        color: var(--alx-text-muted);
-      }
-      .section-body {
-        padding: 1rem;
-        display: none;
-      }
-      .section-body.open {
-        display: block;
-      }
-      .field-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 1rem;
-        margin-bottom: 0.75rem;
-      }
-      .field-group {
-        display: flex;
-        flex-direction: column;
-      }
-      .toggle-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 0.5rem 0;
-      }
-      .toggle-label {
-        font-size: 0.85rem;
-      }
-      .toggle-switch {
-        position: relative;
-        width: 44px;
-        height: 24px;
-        cursor: pointer;
-      }
-      .toggle-switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-        position: absolute;
-      }
-      .toggle-slider {
-        position: absolute;
-        inset: 0;
-        background: var(--alx-border);
-        border-radius: 12px;
-        transition: background 0.2s;
-      }
-      .toggle-slider::before {
-        content: '';
-        position: absolute;
-        left: 3px;
-        top: 3px;
-        width: 18px;
-        height: 18px;
-        background: var(--alx-text);
-        border-radius: 50%;
-        transition: transform 0.2s;
-      }
-      .toggle-switch input:checked + .toggle-slider {
-        background: var(--alx-primary);
-      }
-      .toggle-switch input:checked + .toggle-slider::before {
-        transform: translateX(20px);
-      }
-      .section-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 0.75rem;
-      }
-      input[type='number'] {
-        width: 100%;
-      }
-    `,
+    globalSettingsStyles,
   ];
 
   @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
@@ -217,8 +104,10 @@ export class AlxGlobalSettings extends LitElement {
     return html`
       <div class="alx-card">
         <div class="alx-card-header">
-          <h3>Global Settings</h3>
+          <h3>General</h3>
         </div>
+
+        <div class="info-banner">System-wide configuration. Changes apply to all accounts and rules.</div>
 
         ${this.error ? html`<div class="alx-error">${this.error}</div>` : ''}
 
@@ -226,6 +115,7 @@ export class AlxGlobalSettings extends LitElement {
           'timezone',
           'Timezone & General',
           html`
+            <div class="section-desc">All scheduled runs, date filters, and timestamps use this timezone.</div>
             <div class="field-row">
               <div class="field-group">
                 <label>Timezone</label>
@@ -268,6 +158,7 @@ export class AlxGlobalSettings extends LitElement {
           'imap',
           'IMAP Configuration',
           html`
+            <div class="section-desc">Automatically checks for bounced emails via IMAP. Adjusts account health scores.</div>
             <div class="toggle-row">
               <span class="toggle-label">IMAP Bounce Checking</span>
               <label class="toggle-switch">
@@ -316,6 +207,7 @@ export class AlxGlobalSettings extends LitElement {
           'approval',
           'Approval Workflow',
           html`
+            <div class="section-desc">When enabled, emails wait in a queue for manual approval before sending.</div>
             <div class="toggle-row">
               <span class="toggle-label">Require Approval</span>
               <label class="toggle-switch">
@@ -367,6 +259,7 @@ export class AlxGlobalSettings extends LitElement {
           'queue',
           'Queue Tuning',
           html`
+            <div class="section-desc">Background job processor tuning. Only change if you understand the impact.</div>
             <div class="field-row">
               <div class="field-group">
                 <label>Concurrency</label>
@@ -429,6 +322,7 @@ export class AlxGlobalSettings extends LitElement {
     `;
   }
 }
+safeRegister('alx-global-settings', AlxGlobalSettings);
 
 declare global {
   interface HTMLElementTagNameMap {

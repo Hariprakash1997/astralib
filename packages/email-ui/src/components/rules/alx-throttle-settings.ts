@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -24,7 +25,6 @@ const DEFAULT_THROTTLE: ThrottleData = {
   minGapDays: 1,
 };
 
-@customElement('alx-throttle-settings')
 export class AlxThrottleSettings extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -38,31 +38,32 @@ export class AlxThrottleSettings extends LitElement {
     css`
       .form-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: var(--alx-density-gap, 1rem);
+        grid-template-columns: 1fr 1fr;
+        gap: 0.625rem;
       }
-
       .form-group {
         display: flex;
         flex-direction: column;
       }
-
       .actions {
         display: flex;
-        gap: 0.75rem;
-        margin-top: 1.5rem;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
       }
-
       .hint {
+        font-size: 0.7rem;
+        color: var(--alx-text-muted);
+        margin-top: 0.15rem;
+      }
+      .info-banner {
         font-size: 0.75rem;
         color: var(--alx-text-muted);
-        margin-top: 0.25rem;
-      }
-
-      @media (max-width: 600px) {
-        .form-grid {
-          grid-template-columns: 1fr;
-        }
+        padding: 0.375rem 0.625rem;
+        background: color-mix(in srgb, var(--alx-info) 6%, transparent);
+        border-radius: var(--alx-radius);
+        margin-bottom: 0.75rem;
+        line-height: 1.5;
       }
     `,
   ];
@@ -135,8 +136,10 @@ export class AlxThrottleSettings extends LitElement {
     return html`
       <div class="alx-card">
         <div class="alx-card-header">
-          <h3>Throttle Settings</h3>
+          <h3>Throttle</h3>
         </div>
+
+        <div class="info-banner">Controls how many emails a single recipient can receive. Prevents spam complaints and protects sender reputation.</div>
 
         ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
 
@@ -188,12 +191,8 @@ export class AlxThrottleSettings extends LitElement {
         </div>
 
         <div class="actions">
-          <button
-            class="alx-btn-primary"
-            ?disabled=${this._saving}
-            @click=${this._onSave}
-          >
-            ${this._saving ? 'Saving...' : 'Save Settings'}
+          <button class="alx-btn-primary alx-btn-sm" ?disabled=${this._saving} @click=${this._onSave}>
+            ${this._saving ? 'Saving...' : 'Save'}
           </button>
           ${this._saved
             ? html`<span style="color: var(--alx-success); align-self: center; font-size: 0.875rem"
@@ -205,6 +204,7 @@ export class AlxThrottleSettings extends LitElement {
     `;
   }
 }
+safeRegister('alx-throttle-settings', AlxThrottleSettings);
 
 declare global {
   interface HTMLElementTagNameMap {

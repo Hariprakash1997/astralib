@@ -1,11 +1,13 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
   alxCardStyles,
   alxLoadingStyles,
   alxButtonStyles,
+  alxProgressBarStyles,
 } from '../../styles/shared.js';
 import { AccountAPI } from '../../api/account.api.js';
 
@@ -24,7 +26,6 @@ interface CapacityResponse {
   totalRemaining: number;
 }
 
-@customElement('alx-account-capacity')
 export class AlxAccountCapacity extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -32,6 +33,7 @@ export class AlxAccountCapacity extends LitElement {
     alxCardStyles,
     alxLoadingStyles,
     alxButtonStyles,
+    alxProgressBarStyles,
     css`
       .aggregate {
         display: grid;
@@ -79,34 +81,16 @@ export class AlxAccountCapacity extends LitElement {
       }
       .capacity-bar-container {
         flex: 1;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-      .capacity-bar-track {
-        flex: 1;
-        height: 12px;
-        background: var(--alx-border);
-        border-radius: 6px;
-        overflow: hidden;
-      }
-      .capacity-bar-fill {
-        height: 100%;
-        border-radius: 6px;
-        transition: width 0.3s ease;
-      }
-      .capacity-numbers {
-        font-size: 0.8rem;
-        color: var(--alx-text-muted);
-        white-space: nowrap;
-        min-width: 80px;
-        text-align: right;
       }
       .header-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
         margin-bottom: 1rem;
+      }
+      .progress-track {
+        width: 100%;
+        height: 6px;
       }
     `,
   ];
@@ -192,17 +176,17 @@ export class AlxAccountCapacity extends LitElement {
                     (a) => html`
                       <div class="capacity-item">
                         <span class="capacity-email">${a.email}</span>
-                        <div class="capacity-bar-container">
-                          <div class="capacity-bar-track">
-                            <div
-                              class="capacity-bar-fill"
+                        <span class="capacity-bar-container progress-bar">
+                          <span class="progress-track">
+                            <span
+                              class="progress-fill"
                               style="width:${this.usagePercent(a.sentToday, a.dailyLimit)}%;background:${this.capacityColor(a.remaining, a.dailyLimit)}"
-                            ></div>
-                          </div>
-                          <span class="capacity-numbers">
+                            ></span>
+                          </span>
+                          <span class="progress-label">
                             ${a.sentToday}/${a.dailyLimit}
                           </span>
-                        </div>
+                        </span>
                       </div>
                     `,
                   )}
@@ -212,6 +196,7 @@ export class AlxAccountCapacity extends LitElement {
     `;
   }
 }
+safeRegister('alx-account-capacity', AlxAccountCapacity);
 
 declare global {
   interface HTMLElementTagNameMap {

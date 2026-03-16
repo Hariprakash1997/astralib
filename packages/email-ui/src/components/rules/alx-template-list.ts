@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -11,6 +12,8 @@ import {
   alxBadgeStyles,
   alxLoadingStyles,
   alxCardStyles,
+  alxToolbarStyles,
+  alxToggleStyles,
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
 
@@ -25,7 +28,6 @@ interface TemplateRow {
   isActive: boolean;
 }
 
-@customElement('alx-template-list')
 export class AlxTemplateList extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -38,94 +40,8 @@ export class AlxTemplateList extends LitElement {
     alxBadgeStyles,
     alxLoadingStyles,
     alxCardStyles,
-    css`
-      .toolbar {
-        display: flex;
-        align-items: center;
-        gap: var(--alx-density-gap, 0.75rem);
-        flex-wrap: wrap;
-        margin-bottom: var(--alx-density-gap, 1rem);
-      }
-
-      .toolbar select {
-        width: auto;
-        min-width: 140px;
-      }
-
-      .spacer {
-        flex: 1;
-      }
-
-      tr[data-clickable] {
-        cursor: pointer;
-      }
-
-      .pagination {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--alx-density-gap, 1rem);
-        margin-top: var(--alx-density-gap, 1rem);
-      }
-
-      .toggle {
-        position: relative;
-        display: inline-block;
-        width: 36px;
-        height: 20px;
-      }
-
-      .toggle input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-        position: absolute;
-      }
-
-      .toggle-slider {
-        position: absolute;
-        inset: 0;
-        background: var(--alx-border);
-        border-radius: 20px;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-
-      .toggle-slider::before {
-        content: '';
-        position: absolute;
-        width: 14px;
-        height: 14px;
-        left: 3px;
-        bottom: 3px;
-        background: #fff;
-        border-radius: 50%;
-        transition: transform 0.2s;
-      }
-
-      .toggle input:checked + .toggle-slider {
-        background: var(--alx-success);
-      }
-
-      .toggle input:checked + .toggle-slider::before {
-        transform: translateX(16px);
-      }
-
-      .delete-btn {
-        background: none;
-        border: none;
-        color: var(--alx-text-muted);
-        cursor: pointer;
-        font-size: 1rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: var(--alx-radius);
-      }
-
-      .delete-btn:hover {
-        color: var(--alx-danger, #e53e3e);
-        background: color-mix(in srgb, var(--alx-danger, #e53e3e) 10%, transparent);
-      }
-    `,
+    alxToolbarStyles,
+    alxToggleStyles,
   ];
 
   @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
@@ -302,7 +218,11 @@ export class AlxTemplateList extends LitElement {
         ${this._loading
           ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
           : this._templates.length === 0
-            ? html`<div class="alx-empty">No templates found</div>`
+            ? html`<div class="alx-empty">
+  <p>Templates define email content — subject, body, and variables.</p>
+  <p>Create a template before setting up rules.</p>
+  <button class="alx-btn-primary alx-btn-sm" style="margin-top:0.5rem" @click=${this._onCreateClick}>+ Create Template</button>
+</div>`
             : html`
                 <table>
                   <thead>
@@ -336,7 +256,7 @@ export class AlxTemplateList extends LitElement {
                             </label>
                           </td>
                           <td>
-                            <button class="delete-btn" title="Delete" @click=${(e: Event) => this._onDelete(t, e)}>&times;</button>
+                            <button class="alx-btn-icon danger" title="Delete" @click=${(e: Event) => this._onDelete(t, e)}>&times;</button>
                           </td>
                         </tr>
                       `,
@@ -368,6 +288,7 @@ export class AlxTemplateList extends LitElement {
     `;
   }
 }
+safeRegister('alx-template-list', AlxTemplateList);
 
 declare global {
   interface HTMLElementTagNameMap {

@@ -5,3 +5,5 @@ dist/
 .turbo/
 coverage/
 .claude/
+*.log
+dev.html

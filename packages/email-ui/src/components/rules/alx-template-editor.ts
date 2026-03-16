@@ -1,5 +1,6 @@
-import { LitElement, html, css, nothing } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { LitElement, html, nothing } from 'lit';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -9,41 +10,14 @@ import {
   alxInputStyles,
   alxCardStyles,
   alxLoadingStyles,
+  alxToolbarStyles,
+  alxToggleStyles,
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
+import type { TemplateData } from './alx-template-editor.types.js';
+import { EMPTY_TEMPLATE } from './alx-template-editor.types.js';
+import { templateEditorStyles } from './alx-template-editor.styles.js';
 
-interface TemplateData {
-  _id?: string;
-  name: string;
-  slug: string;
-  category: string;
-  audience: string;
-  platform: string;
-  subjects: string[];
-  bodies: string[];
-  preheaders: string[];
-  fields: Record<string, string>;
-  textBody: string;
-  variables: string[];
-  isActive: boolean;
-}
-
-const EMPTY_TEMPLATE: TemplateData = {
-  name: '',
-  slug: '',
-  category: '',
-  audience: '',
-  platform: '',
-  subjects: [''],
-  bodies: [''],
-  preheaders: [],
-  fields: {},
-  textBody: '',
-  variables: [],
-  isActive: true,
-};
-
-@customElement('alx-template-editor')
 export class AlxTemplateEditor extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -54,163 +28,13 @@ export class AlxTemplateEditor extends LitElement {
     alxInputStyles,
     alxCardStyles,
     alxLoadingStyles,
-    css`
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--alx-density-gap, 1rem);
-      }
-
-      .form-group {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .form-group-full {
-        grid-column: 1 / -1;
-      }
-
-      textarea {
-        min-height: 200px;
-        font-family: 'Fira Code', 'Cascadia Code', monospace;
-        font-size: 0.8rem;
-        resize: vertical;
-      }
-
-      .variables-input {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        align-items: center;
-      }
-
-      .variable-tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        padding: 0.2rem 0.5rem;
-        background: color-mix(in srgb, var(--alx-primary) 15%, transparent);
-        color: var(--alx-primary);
-        border-radius: var(--alx-radius);
-        font-size: 0.8rem;
-      }
-
-      .variable-tag button {
-        background: none;
-        border: none;
-        color: var(--alx-text-muted);
-        cursor: pointer;
-        padding: 0;
-        font-size: 1rem;
-        line-height: 1;
-      }
-
-      .add-variable {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-      }
-
-      .add-variable input {
-        width: 180px;
-      }
-
-      .actions {
-        display: flex;
-        gap: 0.75rem;
-        margin-top: 1.5rem;
-      }
-
-      .actions .spacer {
-        flex: 1;
-      }
-
-      .preview-frame {
-        width: 100%;
-        height: 400px;
-        border: 1px solid var(--alx-border);
-        border-radius: var(--alx-radius);
-        background: #fff;
-        margin-top: 0.5rem;
-      }
-
-      .multi-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .multi-row {
-        display: flex;
-        gap: 0.5rem;
-        align-items: start;
-      }
-
-      .multi-row input,
-      .multi-row textarea {
-        flex: 1;
-      }
-
-      .multi-row textarea {
-        min-height: 150px;
-      }
-
-      .multi-row .remove-btn {
-        background: none;
-        border: none;
-        color: var(--alx-text-muted);
-        cursor: pointer;
-        font-size: 1.1rem;
-        padding: 0.25rem;
-        line-height: 1;
-        flex-shrink: 0;
-      }
-
-      .multi-row .remove-btn:hover {
-        color: var(--alx-danger, #e53e3e);
-      }
-
-      .kv-row {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-      }
-
-      .kv-row input {
-        flex: 1;
-      }
-
-      .kv-row .remove-btn {
-        background: none;
-        border: none;
-        color: var(--alx-text-muted);
-        cursor: pointer;
-        font-size: 1.1rem;
-        padding: 0.25rem;
-        line-height: 1;
-        flex-shrink: 0;
-      }
-
-      .kv-row .remove-btn:hover {
-        color: var(--alx-danger, #e53e3e);
-      }
-
-      .helper-text {
-        font-size: 0.75rem;
-        color: var(--alx-text-muted);
-        margin-top: 0.25rem;
-      }
-
-      .section-label {
-        font-weight: 600;
-        font-size: 0.85rem;
-        margin-bottom: 0.25rem;
-        color: var(--alx-text-secondary, var(--alx-text-muted));
-      }
-    `,
+    alxToolbarStyles,
+    alxToggleStyles,
+    templateEditorStyles,
   ];
 
   @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
+  @property({ type: Boolean, attribute: 'hide-header' }) hideHeader = false;
   @property({ attribute: 'template-id' }) templateId = '';
   @property({ type: String }) categories = '';
   @property({ type: String }) audiences = '';
@@ -424,9 +248,14 @@ export class AlxTemplateEditor extends LitElement {
 
   private _renderMultiInput(label: string, field: 'subjects' | 'preheaders', placeholder: string, required: boolean) {
     const items = this._form[field];
+    const helperMap: Record<string, string> = {
+      subjects: 'Supports {{variables}}. Multiple variants enable A/B testing.',
+    };
+    const hint = helperMap[field];
     return html`
       <div class="form-group form-group-full">
         <label class="section-label">${label}</label>
+        ${hint ? html`<span class="helper-text">${hint}</span>` : nothing}
         <div class="multi-list">
           ${items.map(
             (val, i) => html`
@@ -456,6 +285,7 @@ export class AlxTemplateEditor extends LitElement {
     return html`
       <div class="form-group form-group-full">
         <label class="section-label">${label}</label>
+        <span class="helper-text">HTML email body. Use MJML syntax for responsive emails.</span>
         <div class="multi-list">
           ${items.map(
             (val, i) => html`
@@ -532,11 +362,11 @@ export class AlxTemplateEditor extends LitElement {
 
     return html`
       <div class="alx-card">
-        <div class="alx-card-header">
-          <h3>${isEdit ? 'Edit Template' : 'Create Template'}</h3>
-        </div>
+        ${this.hideHeader ? '' : html`<div class="alx-card-header"><h3>${isEdit ? 'Edit Template' : 'Create Template'}</h3></div>`}
 
         ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
+
+        <div class="info-banner">Templates define the email content sent to recipients. Use <code>${'{{variable}}'}</code> syntax for personalization. Add multiple subject/body variants for A/B testing.</div>
 
         <div class="form-grid">
           <!-- Basic Info -->
@@ -640,6 +470,7 @@ export class AlxTemplateEditor extends LitElement {
           <!-- Variables -->
           <div class="form-group form-group-full">
             <label class="section-label">Variables</label>
+            <span class="helper-text">Define placeholder names used in subjects and bodies. Values are filled from recipient data at send time.</span>
             <div class="variables-input">
               ${this._form.variables.map(
                 (v) => html`
@@ -713,6 +544,7 @@ export class AlxTemplateEditor extends LitElement {
     `;
   }
 }
+safeRegister('alx-template-editor', AlxTemplateEditor);
 
 declare global {
   interface HTMLElementTagNameMap {

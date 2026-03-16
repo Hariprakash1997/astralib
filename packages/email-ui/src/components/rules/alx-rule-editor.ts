@@ -1,5 +1,6 @@
-import { LitElement, html, css, nothing } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { LitElement, html, nothing } from 'lit';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -9,67 +10,13 @@ import {
   alxInputStyles,
   alxCardStyles,
   alxLoadingStyles,
+  alxToolbarStyles,
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
+import type { Condition, TemplateOption, RuleData } from './alx-rule-editor.types.js';
+import { EMPTY_RULE, OPERATORS } from './alx-rule-editor.types.js';
+import { ruleEditorStyles } from './alx-rule-editor.styles.js';
 
-interface Condition {
-  field: string;
-  operator: string;
-  value: string;
-}
-
-interface TemplateOption {
-  _id: string;
-  name: string;
-}
-
-interface RuleData {
-  _id?: string;
-  name: string;
-  templateId: string;
-  platform: string;
-  audience: string;
-  targetMode: 'query' | 'list';
-  target: {
-    conditions: Condition[];
-    identifiers?: string[];
-  };
-  behavior: {
-    sendOnce: boolean;
-    resendAfterDays: number | null;
-    maxPerRun: number;
-    autoApprove: boolean;
-    emailType: string;
-    bypassThrottle: boolean;
-  };
-  validFrom?: string;
-  validTill?: string;
-  isActive: boolean;
-}
-
-const EMPTY_RULE: RuleData = {
-  name: '',
-  templateId: '',
-  platform: '',
-  audience: '',
-  targetMode: 'query',
-  target: { conditions: [], identifiers: [] },
-  behavior: {
-    sendOnce: true,
-    resendAfterDays: null,
-    maxPerRun: 50,
-    autoApprove: true,
-    emailType: 'marketing',
-    bypassThrottle: false,
-  },
-  validFrom: '',
-  validTill: '',
-  isActive: true,
-};
-
-const OPERATORS = ['equals', 'not_equals', 'contains', 'gt', 'gte', 'lt', 'lte', 'in', 'exists'];
-
-@customElement('alx-rule-editor')
 export class AlxRuleEditor extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -80,107 +27,12 @@ export class AlxRuleEditor extends LitElement {
     alxInputStyles,
     alxCardStyles,
     alxLoadingStyles,
-    css`
-      .form-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: var(--alx-density-gap, 1rem);
-      }
-
-      .form-group {
-        display: flex;
-        flex-direction: column;
-      }
-
-      .form-group-full {
-        grid-column: 1 / -1;
-      }
-
-      .section-title {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: var(--alx-text);
-        margin-top: 1rem;
-        margin-bottom: 0.5rem;
-        padding-bottom: 0.25rem;
-        border-bottom: 1px solid var(--alx-border);
-        grid-column: 1 / -1;
-      }
-
-      .condition-row {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        margin-bottom: 0.5rem;
-      }
-
-      .condition-row input,
-      .condition-row select {
-        flex: 1;
-      }
-
-      .condition-row button {
-        flex-shrink: 0;
-      }
-
-      .checkbox-group {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 0.25rem;
-      }
-
-      .checkbox-group input[type='checkbox'] {
-        width: auto;
-      }
-
-      .actions {
-        display: flex;
-        gap: 0.75rem;
-        margin-top: 1.5rem;
-      }
-
-      .mode-toggle {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        margin-bottom: 0.5rem;
-        grid-column: 1 / -1;
-      }
-
-      .mode-toggle label {
-        display: flex;
-        align-items: center;
-        gap: 0.35rem;
-        margin-bottom: 0;
-        cursor: pointer;
-      }
-
-      .mode-toggle input[type='radio'] {
-        width: auto;
-      }
-
-      textarea {
-        width: 100%;
-        min-height: 100px;
-        font-family: monospace;
-        font-size: 0.85rem;
-        resize: vertical;
-      }
-
-      .helper-text {
-        font-size: 0.75rem;
-        color: var(--alx-text-muted);
-        margin-top: 0.25rem;
-      }
-
-      .actions-right {
-        margin-left: auto;
-      }
-    `,
+    alxToolbarStyles,
+    ruleEditorStyles,
   ];
 
   @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
+  @property({ type: Boolean, attribute: 'hide-header' }) hideHeader = false;
   @property({ attribute: 'rule-id' }) ruleId = '';
 
   @state() private _form: RuleData = JSON.parse(JSON.stringify(EMPTY_RULE));
@@ -248,7 +100,7 @@ export class AlxRuleEditor extends LitElement {
       } else {
         delete (target as any).identifiers;
       }
-      this._form = { ...this._form, [field]: value, target };
+      this._form = { ...this._form, [field]: value as RuleData[typeof field], target };
       return;
     }
     this._form = { ...this._form, [field]: value };
@@ -350,9 +202,7 @@ export class AlxRuleEditor extends LitElement {
 
     return html`
       <div class="alx-card">
-        <div class="alx-card-header">
-          <h3>${isEdit ? 'Edit Rule' : 'Create Rule'}</h3>
-        </div>
+        ${this.hideHeader ? '' : html`<div class="alx-card-header"><h3>${isEdit ? 'Edit Rule' : 'Create Rule'}</h3></div>`}
 
         ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
 
@@ -638,6 +488,7 @@ export class AlxRuleEditor extends LitElement {
     `;
   }
 }
+safeRegister('alx-rule-editor', AlxRuleEditor);
 
 declare global {
   interface HTMLElementTagNameMap {

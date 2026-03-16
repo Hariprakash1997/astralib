@@ -66,7 +66,16 @@ async function handleResponse<T>(response: Response): Promise<T> {
         json,
       );
     }
-    return (json.data ?? json) as T;
+    const data = json.data ?? json;
+    // Auto-unwrap single-item responses: { account: {...} } → {...}
+    // But NOT arrays or multi-key objects: { accounts: [...], total: 5 } stays as-is
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const keys = Object.keys(data);
+      if (keys.length === 1 && typeof data[keys[0]] === 'object' && !Array.isArray(data[keys[0]])) {
+        return data[keys[0]] as T;
+      }
+    }
+    return data as T;
   }
   return json as T;
 }

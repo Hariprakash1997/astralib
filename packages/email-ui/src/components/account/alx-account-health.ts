@@ -1,11 +1,13 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
   alxCardStyles,
   alxLoadingStyles,
   alxBadgeStyles,
+  alxProgressBarStyles,
 } from '../../styles/shared.js';
 import { AccountAPI } from '../../api/account.api.js';
 
@@ -20,7 +22,6 @@ interface AccountHealth {
   status: string;
 }
 
-@customElement('alx-account-health')
 export class AlxAccountHealth extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -28,6 +29,7 @@ export class AlxAccountHealth extends LitElement {
     alxCardStyles,
     alxLoadingStyles,
     alxBadgeStyles,
+    alxProgressBarStyles,
     css`
       .health-grid {
         display: grid;
@@ -54,18 +56,8 @@ export class AlxAccountHealth extends LitElement {
         font-size: 1.5rem;
         font-weight: 700;
       }
-      .health-bar-track {
-        width: 100%;
-        height: 10px;
-        background: var(--alx-border);
-        border-radius: 5px;
-        overflow: hidden;
+      .health-bar {
         margin-bottom: 0.75rem;
-      }
-      .health-bar-fill {
-        height: 100%;
-        border-radius: 5px;
-        transition: width 0.4s ease;
       }
       .health-stats {
         display: grid;
@@ -84,6 +76,10 @@ export class AlxAccountHealth extends LitElement {
         align-items: center;
         justify-content: space-between;
         margin-bottom: 1rem;
+      }
+      .progress-track {
+        width: 100%;
+        height: 6px;
       }
     `,
   ];
@@ -180,12 +176,15 @@ export class AlxAccountHealth extends LitElement {
                             ${a.healthScore}
                           </span>
                         </div>
-                        <div class="health-bar-track">
-                          <span
-                            class="health-bar-fill"
-                            style="width:${a.healthScore}%;background:${this.healthColor(a.healthScore)}"
-                          ></span>
-                        </div>
+                        <span class="progress-bar health-bar">
+                          <span class="progress-track">
+                            <span
+                              class="progress-fill"
+                              style="width:${a.healthScore}%;background:${this.healthColor(a.healthScore)}"
+                            ></span>
+                          </span>
+                          <span class="progress-label">${a.healthScore}%</span>
+                        </span>
                         <div class="health-stats">
                           <span class="stat-label">Bounce Rate</span>
                           <span class="stat-value">${(a.bounceRate * 100).toFixed(1)}%</span>
@@ -208,6 +207,7 @@ export class AlxAccountHealth extends LitElement {
     `;
   }
 }
+safeRegister('alx-account-health', AlxAccountHealth);
 
 declare global {
   interface HTMLElementTagNameMap {

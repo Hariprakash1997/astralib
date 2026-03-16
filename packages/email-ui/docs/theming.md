@@ -17,6 +17,8 @@ All components use CSS custom properties for styling. Override them at any level
 | `--alx-text` | `#ccc` | `#1a1a1a` | Primary text color |
 | `--alx-text-muted` | `#888` | `#64748b` | Secondary/muted text color |
 | `--alx-radius` | `6px` | `6px` | Border radius for cards, inputs, badges |
+| `--alx-shadow` | `0 2px 8px rgba(0,0,0,0.3)` | `0 2px 8px rgba(0,0,0,0.1)` | Default box shadow |
+| `--alx-shadow-sm` | `0 1px 3px rgba(0,0,0,0.2)` | `0 1px 3px rgba(0,0,0,0.05)` | Small box shadow |
 | `--alx-font-family` | `'Inter', sans-serif` | `'Inter', sans-serif` | Font family |
 
 ## Built-in Themes
@@ -131,6 +133,9 @@ import {
   alxCardStyles,       // .alx-card, .alx-card-header
   alxBadgeStyles,      // .alx-badge, .alx-badge-success/danger/warning/info/muted
   alxLoadingStyles,    // .alx-loading, .alx-spinner, .alx-empty, .alx-error
+  alxToolbarStyles,    // Toolbar, spacer, pagination layout
+  alxToggleStyles,     // Toggle switch component
+  alxProgressBarStyles,// Thin progress bars with labels
 } from '@astralibx/email-ui';
 ```
 

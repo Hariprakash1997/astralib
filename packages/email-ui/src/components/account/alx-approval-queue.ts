@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -8,6 +9,7 @@ import {
   alxBadgeStyles,
   alxCardStyles,
   alxLoadingStyles,
+  alxToolbarStyles,
 } from '../../styles/shared.js';
 import { AccountAPI } from '../../api/account.api.js';
 
@@ -19,7 +21,6 @@ interface Draft {
   createdAt: string;
 }
 
-@customElement('alx-approval-queue')
 export class AlxApprovalQueue extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -29,17 +30,8 @@ export class AlxApprovalQueue extends LitElement {
     alxBadgeStyles,
     alxCardStyles,
     alxLoadingStyles,
+    alxToolbarStyles,
     css`
-      .toolbar {
-        display: flex;
-        align-items: center;
-        gap: var(--alx-density-gap, 0.75rem);
-        margin-bottom: var(--alx-density-gap, 1rem);
-        flex-wrap: wrap;
-      }
-      .spacer {
-        flex: 1;
-      }
       .bulk-actions {
         display: flex;
         gap: 0.5rem;
@@ -306,6 +298,7 @@ export class AlxApprovalQueue extends LitElement {
     `;
   }
 }
+safeRegister('alx-approval-queue', AlxApprovalQueue);
 
 declare global {
   interface HTMLElementTagNameMap {

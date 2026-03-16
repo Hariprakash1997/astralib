@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -9,6 +10,8 @@ import {
   alxBadgeStyles,
   alxLoadingStyles,
   alxCardStyles,
+  alxToolbarStyles,
+  alxProgressBarStyles,
 } from '../../styles/shared.js';
 import { AccountAPI } from '../../api/account.api.js';
 
@@ -18,15 +21,16 @@ interface Account {
   senderName?: string;
   provider: string;
   status: string;
-  healthScore?: number;
-  dailyLimit?: number;
-  sentToday?: number;
-  warmupActive?: boolean;
-  smtpConfig?: { host?: string; port?: number; user?: string };
-  imapConfig?: { host?: string; port?: number; user?: string };
+  smtp?: { host?: string; port?: number; user?: string };
+  imap?: { host?: string; port?: number; user?: string };
+  limits?: { dailyMax?: number };
+  health?: { score?: number; consecutiveErrors?: number; bounceCount?: number };
+  warmup?: { enabled?: boolean; currentDay?: number };
+  metadata?: Record<string, unknown>;
+  totalEmailsSent?: number;
+  createdAt?: string;
 }
 
-@customElement('alx-account-list')
 export class AlxAccountList extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -37,76 +41,58 @@ export class AlxAccountList extends LitElement {
     alxBadgeStyles,
     alxLoadingStyles,
     alxCardStyles,
+    alxToolbarStyles,
+    alxProgressBarStyles,
     css`
-      .toolbar {
-        display: flex;
-        align-items: center;
-        gap: var(--alx-density-gap, 0.75rem);
-        margin-bottom: var(--alx-density-gap, 1rem);
-        flex-wrap: wrap;
+      .email-cell {
+        line-height: 1.3;
       }
-      .toolbar select {
-        width: auto;
-        min-width: 140px;
-      }
-      .spacer {
-        flex: 1;
-      }
-      tr[data-clickable] {
-        cursor: pointer;
-      }
-      .health-bar {
-        display: inline-block;
-        width: 60px;
-        height: 8px;
-        background: var(--alx-border);
-        border-radius: 4px;
-        overflow: hidden;
-        vertical-align: middle;
-        margin-right: 0.5rem;
-      }
-      .health-bar-fill {
-        height: 100%;
-        border-radius: 4px;
-        transition: width 0.3s;
-      }
-      .capacity-bar {
-        display: inline-block;
-        width: 80px;
-        height: 8px;
-        background: var(--alx-border);
-        border-radius: 4px;
-        overflow: hidden;
-        vertical-align: middle;
-        margin-right: 0.5rem;
-      }
-      .capacity-bar-fill {
-        height: 100%;
-        border-radius: 4px;
+      .email-cell-main {
+        font-weight: 500;
       }
       .email-cell-sub {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         color: var(--alx-text-muted);
-        margin-top: 0.15rem;
+        margin-top: 0.1rem;
       }
-      .btn-delete {
-        padding: 0.2rem 0.5rem;
-        font-size: 0.75rem;
-        background: transparent;
-        border: 1px solid var(--alx-danger);
-        color: var(--alx-danger);
-        border-radius: var(--alx-radius);
-        cursor: pointer;
-      }
-      .btn-delete:hover {
-        background: color-mix(in srgb, var(--alx-danger) 15%, transparent);
-      }
-      .pagination {
+      .action-group {
         display: flex;
+        gap: 0.25rem;
         align-items: center;
-        justify-content: center;
-        gap: var(--alx-density-gap, 0.75rem);
-        margin-top: var(--alx-density-gap, 1rem);
+      }
+      .capacity-text {
+        font-variant-numeric: tabular-nums;
+        font-size: 0.8rem;
+        color: var(--alx-text-muted);
+      }
+      .meta-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.2rem;
+        max-width: 220px;
+      }
+      .meta-tag {
+        display: inline-block;
+        padding: 0.05rem 0.35rem;
+        border-radius: 3px;
+        font-size: 0.65rem;
+        line-height: 1.5;
+        background: color-mix(in srgb, var(--alx-primary) 10%, transparent);
+        color: var(--alx-primary);
+        white-space: nowrap;
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .meta-more {
+        font-size: 0.6rem;
+        color: var(--alx-primary);
+        padding: 0.05rem 0.25rem;
+        cursor: pointer;
+        border-radius: 3px;
+      }
+      .meta-more:hover {
+        background: color-mix(in srgb, var(--alx-primary) 10%, transparent);
       }
     `,
   ];
@@ -165,7 +151,7 @@ export class AlxAccountList extends LitElement {
     return Math.max(1, Math.ceil(this.total / this.limit));
   }
 
-  private onRowClick(account: Account): void {
+  private onEdit(account: Account): void {
     this.dispatchEvent(
       new CustomEvent('alx-account-selected', {
         detail: account,
@@ -219,17 +205,6 @@ export class AlxAccountList extends LitElement {
     }
   }
 
-  private connectionInfo(account: Account): string {
-    const parts: string[] = [];
-    if (account.smtpConfig?.host) {
-      parts.push(`SMTP ${account.smtpConfig.host}:${account.smtpConfig.port ?? 587}`);
-    }
-    if (account.imapConfig?.host) {
-      parts.push(`IMAP ${account.imapConfig.host}:${account.imapConfig.port ?? 993}`);
-    }
-    return parts.join(' | ');
-  }
-
   private onCreate(): void {
     this.dispatchEvent(
       new CustomEvent('alx-account-create', {
@@ -250,6 +225,48 @@ export class AlxAccountList extends LitElement {
     if (remaining > 0.5) return 'var(--alx-success)';
     if (remaining > 0.2) return 'var(--alx-warning)';
     return 'var(--alx-danger)';
+  }
+
+  /**
+   * Scan all loaded accounts to find the top 3 metadata keys.
+   * Prioritizes string-array keys (most accounts have them), then string keys.
+   */
+  private get metaColumns(): string[] {
+    const freq = new Map<string, { count: number; isArray: boolean }>();
+    for (const a of this.accounts) {
+      if (!a.metadata) continue;
+      for (const [key, val] of Object.entries(a.metadata)) {
+        const isArr = Array.isArray(val) && val.length > 0 && typeof val[0] === 'string';
+        const isStr = typeof val === 'string' && val.length > 0;
+        if (!isArr && !isStr) continue;
+        const existing = freq.get(key);
+        if (existing) {
+          existing.count++;
+        } else {
+          freq.set(key, { count: 1, isArray: isArr });
+        }
+      }
+    }
+    // Sort: arrays first, then by frequency desc
+    return [...freq.entries()]
+      .sort((a, b) => {
+        if (a[1].isArray !== b[1].isArray) return a[1].isArray ? -1 : 1;
+        return b[1].count - a[1].count;
+      })
+      .slice(0, 3)
+      .map(([key]) => key);
+  }
+
+  private formatMetaKey(key: string): string {
+    return key.replace(/_/g, ' ');
+  }
+
+  private getMetaValues(meta: Record<string, unknown> | undefined, key: string): string[] {
+    if (!meta || !(key in meta)) return [];
+    const val = meta[key];
+    if (Array.isArray(val)) return val.filter((v): v is string => typeof v === 'string');
+    if (typeof val === 'string' && val) return [val];
+    return [];
   }
 
   private statusBadgeClass(status: string): string {
@@ -300,34 +317,35 @@ export class AlxAccountList extends LitElement {
         ${this.loading
           ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
           : this.accounts.length === 0
-            ? html`<div class="alx-empty">No accounts found</div>`
+            ? html`<div class="alx-empty">
+  <p>Add your email accounts to start sending.</p>
+  <p>Each account needs SMTP credentials (host, port, user, app password).</p>
+  <button class="alx-btn-primary alx-btn-sm" style="margin-top:0.5rem" @click=${this.onCreate}>+ Create Account</button>
+</div>`
             : html`
                 <table>
                   <thead>
                     <tr>
-                      <th>Email</th>
-                      <th>Provider</th>
-                      <th>Connection</th>
-                      <th>Status</th>
-                      <th>Health</th>
-                      <th>Capacity</th>
-                      <th>Warmup</th>
+                      <th>ACCOUNT</th>
+                      <th>STATUS</th>
+                      <th>HEALTH</th>
+                      <th>TOTAL SENT</th>
+                      <th>WARMUP</th>
+                      ${this.metaColumns.map(k => html`<th>${this.formatMetaKey(k)}</th>`)}
                       <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     ${this.accounts.map(
                       (a) => html`
-                        <tr
-                          data-clickable
-                          @click=${() => this.onRowClick(a)}
-                        >
-                          <td>${a.email}</td>
-                          <td>${a.provider}</td>
+                        <tr>
                           <td>
-                            <span class="text-small text-muted">
-                              ${this.connectionInfo(a) || '\u2014'}
-                            </span>
+                            <div class="email-cell">
+                              <div class="email-cell-main">${a.email}</div>
+                              ${a.senderName
+                                ? html`<div class="email-cell-sub">${a.senderName}</div>`
+                                : ''}
+                            </div>
                           </td>
                           <td>
                             <span class=${this.statusBadgeClass(a.status)}>
@@ -335,33 +353,51 @@ export class AlxAccountList extends LitElement {
                             </span>
                           </td>
                           <td>
-                            <span class="health-bar">
-                              <span
-                                class="health-bar-fill"
-                                style="width:${a.healthScore ?? 0}%;background:${this.healthColor(a.healthScore ?? 0)}"
-                              ></span>
+                            <span class="progress-bar">
+                              <span class="progress-track">
+                                <span
+                                  class="progress-fill"
+                                  style="width:${a.health?.score ?? 0}%;background:${this.healthColor(a.health?.score ?? 0)}"
+                                ></span>
+                              </span>
+                              <span class="progress-label">${a.health?.score ?? 0}</span>
                             </span>
-                            ${a.healthScore ?? 0}
                           </td>
                           <td>
-                            <span class="capacity-bar">
-                              <span
-                                class="capacity-bar-fill"
-                                style="width:${a.dailyLimit ? ((a.sentToday ?? 0) / a.dailyLimit) * 100 : 0}%;background:${this.capacityColor(a.sentToday ?? 0, a.dailyLimit ?? 1)}"
-                              ></span>
-                            </span>
-                            ${a.sentToday ?? 0}/${a.dailyLimit ?? 0}
+                            <span class="capacity-text">${a.totalEmailsSent ?? 0}</span>
                           </td>
                           <td>
-                            ${a.warmupActive
-                              ? html`<span class="alx-badge alx-badge-warning">Active</span>`
+                            ${a.warmup?.enabled
+                              ? html`<span class="alx-badge alx-badge-warning">Day ${a.warmup.currentDay ?? 0}</span>`
                               : html`<span class="alx-badge alx-badge-muted">Off</span>`}
                           </td>
+                          ${this.metaColumns.map(key => {
+                            const vals = this.getMetaValues(a.metadata, key);
+                            if (vals.length === 0) return html`<td><span class="text-small text-muted">\u2014</span></td>`;
+                            const show = vals.slice(0, 3);
+                            const rest = vals.length - show.length;
+                            return html`<td>
+                              <div class="meta-tags">
+                                ${show.map(v => html`<span class="meta-tag">${v}</span>`)}
+                                ${rest > 0
+                                  ? html`<span class="meta-more" title="${vals.join(', ')}" @click=${() => this.onEdit(a)}>+${rest}</span>`
+                                  : ''}
+                              </div>
+                            </td>`;
+                          })}
                           <td>
-                            <button
-                              class="btn-delete"
-                              @click=${(e: Event) => this.onDelete(e, a)}
-                            >Delete</button>
+                            <div class="action-group">
+                              <button
+                                class="alx-btn-icon"
+                                title="Edit"
+                                @click=${() => this.onEdit(a)}
+                              >&#9998;</button>
+                              <button
+                                class="alx-btn-icon danger"
+                                title="Delete"
+                                @click=${(e: Event) => this.onDelete(e, a)}
+                              >&times;</button>
+                            </div>
                           </td>
                         </tr>
                       `,
@@ -393,6 +429,7 @@ export class AlxAccountList extends LitElement {
     `;
   }
 }
+safeRegister('alx-account-list', AlxAccountList);
 
 declare global {
   interface HTMLElementTagNameMap {

@@ -1,5 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -17,7 +18,6 @@ interface OverviewMetric {
   color: 'success' | 'danger' | 'info' | 'muted';
 }
 
-@customElement('alx-analytics-overview')
 export class AlxAnalyticsOverview extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -36,7 +36,7 @@ export class AlxAnalyticsOverview extends LitElement {
         background: var(--alx-surface);
         border: 1px solid var(--alx-border);
         border-radius: var(--alx-radius);
-        padding: var(--alx-density-gap, 1.25rem);
+        padding: var(--alx-density-padding, 0.5rem) var(--alx-density-gap, 0.75rem);
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
@@ -53,10 +53,12 @@ export class AlxAnalyticsOverview extends LitElement {
         font-size: 1.75rem;
         font-weight: 700;
         line-height: 1.2;
+        font-variant-numeric: tabular-nums;
       }
 
       .metric-card .percentage {
         font-size: 0.85rem;
+        font-variant-numeric: tabular-nums;
       }
 
       .color-success .count,
@@ -183,7 +185,10 @@ export class AlxAnalyticsOverview extends LitElement {
     }
 
     if (this._metrics.length === 0) {
-      return html`<div class="alx-empty">No analytics data available for the selected period.</div>`;
+      return html`<div class="alx-empty">
+        <p>Analytics populate after emails are sent.</p>
+        <p>Set up accounts, templates, and rules to start tracking.</p>
+      </div>`;
     }
 
     return html`
@@ -204,6 +209,7 @@ export class AlxAnalyticsOverview extends LitElement {
     `;
   }
 }
+safeRegister('alx-analytics-overview', AlxAnalyticsOverview);
 
 declare global {
   interface HTMLElementTagNameMap {

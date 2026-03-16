@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -16,7 +17,6 @@ interface EngagementData {
   unsubscribed: number;
 }
 
-@customElement('alx-analytics-engagement')
 export class AlxAnalyticsEngagement extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -46,7 +46,7 @@ export class AlxAnalyticsEngagement extends LitElement {
         background: var(--alx-surface);
         border: 1px solid var(--alx-border);
         border-radius: var(--alx-radius);
-        padding: var(--alx-density-gap, 1.25rem);
+        padding: var(--alx-density-padding, 0.5rem) var(--alx-density-gap, 0.75rem);
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
@@ -64,11 +64,13 @@ export class AlxAnalyticsEngagement extends LitElement {
         font-weight: 700;
         line-height: 1.2;
         color: var(--alx-info);
+        font-variant-numeric: tabular-nums;
       }
 
       .metric-card .detail {
         font-size: 0.8rem;
         color: var(--alx-text-muted);
+        font-variant-numeric: tabular-nums;
       }
 
       .rate-unsub {
@@ -217,6 +219,7 @@ export class AlxAnalyticsEngagement extends LitElement {
     `;
   }
 }
+safeRegister('alx-analytics-engagement', AlxAnalyticsEngagement);
 
 declare global {
   interface HTMLElementTagNameMap {

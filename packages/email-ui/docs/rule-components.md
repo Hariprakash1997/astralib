@@ -57,6 +57,7 @@ Create or edit email templates with MJML/Handlebars body, variable management, a
 | `categories` | `string` | `''` | JSON array of category options |
 | `audiences` | `string` | `''` | JSON array of audience options |
 | `platforms` | `string` | `''` | JSON array of platform options |
+| `hide-header` | Boolean | `false` | Hide the card header (use when inside a drawer) |
 
 ### Events
 
@@ -71,6 +72,7 @@ Create or edit email templates with MJML/Handlebars body, variable management, a
 - Template fields: key-value editor for template-level placeholder defaults
 - Category/audience/platform render as dropdowns when options are provided, text inputs otherwise
 - Variable tag management (add/remove, displayed as `{{variableName}}` chips)
+- Info hints for each form section
 - Delete button in edit mode (dispatches `alx-template-deleted`)
 - "Preview" button renders MJML bodies via the API and displays in an iframe
 - Monospace font for bodies textarea
@@ -114,7 +116,6 @@ None.
 ### Features
 - Columns: name, template, active toggle, last run date, sent count, skipped count
 - Per-row "Dry Run" button to preview matched users without sending
-- "Run Now" button per row to trigger a manual run (returns `runId`)
 - Delete button per row (dispatches `alx-rule-deleted`)
 - Active/inactive toggle (calls `toggleRule` API)
 - Pagination with totals
@@ -143,6 +144,7 @@ Create or edit an automation rule with condition builder, template selection, an
 | Attribute | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `rule-id` | `string` | `''` | Rule ID to edit. Empty = create mode. |
+| `hide-header` | Boolean | `false` | Hide the card header (use when inside a drawer) |
 
 ### Events
 
@@ -194,7 +196,7 @@ None.
 - Date range filter (from/to date inputs)
 - Columns: run time, triggered by, duration, rules processed, sent, skipped, errors
 - Run status badges: color-coded by state (running, completed, cancelled, failed)
-- "Run Now" button to trigger a manual run (returns `runId`)
+- Run Now button with confirmation dialog
 - Cancel button on running jobs to abort in-progress runs
 - Expandable rows showing per-rule stats (rule name, sent, skipped, errors)
 - Duration formatted as milliseconds or seconds

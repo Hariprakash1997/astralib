@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -20,7 +21,6 @@ interface BounceInfo {
   status: string;
 }
 
-@customElement('alx-bounce-status')
 export class AlxBounceStatus extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -196,6 +196,7 @@ export class AlxBounceStatus extends LitElement {
     `;
   }
 }
+safeRegister('alx-bounce-status', AlxBounceStatus);
 
 declare global {
   interface HTMLElementTagNameMap {

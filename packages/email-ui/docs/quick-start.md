@@ -1,0 +1,176 @@
+# Quick Start
+
+Get up and running with @astralibx/email-ui in 5 minutes.
+
+## Install
+
+```bash
+npm install @astralibx/email-ui
+```
+
+## Configure
+
+```typescript
+import { AlxConfig } from '@astralibx/email-ui';
+
+AlxConfig.setup({
+  accountManagerApi: 'https://your-api.com/mailer/eam',
+  ruleEngineApi: 'https://your-api.com/mailer/engine',
+  analyticsApi: 'https://your-api.com/mailer/analytics',
+  authToken: 'your-auth-token',
+});
+```
+
+> **Important:** Call `AlxConfig.setup()` before importing any components. Components read the config on registration.
+
+## Import Components
+
+```typescript
+// Import everything (tree-shakeable)
+import '@astralibx/email-ui';
+
+// Or import specific components
+import '@astralibx/email-ui/components/account';
+import '@astralibx/email-ui/components/rules';
+```
+
+## The Email Pipeline
+
+@astralibx/email-ui manages a 4-step email automation pipeline:
+
+```
+Accounts → Templates → Rules → Runs
+```
+
+| Step | What It Does | Component |
+|------|-------------|-----------|
+| **1. Accounts** | Email sender accounts with SMTP credentials | `<alx-account-list>` + `<alx-account-form>` |
+| **2. Templates** | Email content — subjects, bodies, variables | `<alx-template-list>` + `<alx-template-editor>` |
+| **3. Rules** | Connect templates to audiences — who gets what, when | `<alx-rule-list>` + `<alx-rule-editor>` |
+| **4. Runs** | Execute rules, track results | `<alx-run-history>` |
+
+**Supporting components:** Analytics, Settings (throttle, IMAP, approval queue), Health monitoring, Warmup tracking.
+
+## Minimal Setup
+
+```html
+<!-- Account management -->
+<alx-account-list></alx-account-list>
+
+<!-- Template management -->
+<alx-template-list></alx-template-list>
+
+<!-- Rule management -->
+<alx-rule-list></alx-rule-list>
+
+<!-- Run history -->
+<alx-run-history></alx-run-history>
+```
+
+## Edit Flow: The Drawer Pattern
+
+List components emit events when users click edit. Your app catches these events and opens the editor — typically in a slide-in drawer:
+
+```html
+<alx-drawer id="drawer">
+  <alx-account-form id="form" hide-header></alx-account-form>
+</alx-drawer>
+
+<script>
+  const drawer = document.getElementById('drawer');
+  const form = document.getElementById('form');
+
+  // Open drawer on edit click
+  document.addEventListener('alx-account-selected', (e) => {
+    form.setAttribute('account-id', e.detail._id);
+    drawer.heading = 'Edit Account';
+    drawer.open = true;
+  });
+
+  // Open drawer for create
+  document.addEventListener('alx-account-create', () => {
+    form.removeAttribute('account-id');
+    drawer.heading = 'Create Account';
+    drawer.open = true;
+  });
+
+  // Close drawer after save/delete
+  document.addEventListener('alx-account-saved', () => {
+    drawer.open = false;
+    document.querySelector('alx-account-list').load();
+  });
+</script>
+```
+
+### Drawer Component
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `open` | Boolean | Show/hide the drawer |
+| `heading` | String | Title shown in the drawer header |
+
+| Event | Description |
+|-------|-------------|
+| `alx-drawer-closed` | Emitted when drawer is closed (backdrop click, Escape, or close button) |
+
+### Form `hide-header` Attribute
+
+When editors are inside a drawer, add `hide-header` to avoid duplicate headings:
+
+```html
+<alx-drawer heading="Edit Account">
+  <alx-account-form hide-header account-id="123"></alx-account-form>
+</alx-drawer>
+```
+
+## Theming
+
+Components ship with light and dark themes. Apply via CSS custom properties:
+
+```css
+alx-account-list {
+  --alx-primary: #2563eb;
+  --alx-bg: #f8fafc;
+  --alx-surface: #ffffff;
+  --alx-border: #e2e8f0;
+  --alx-text: #0f172a;
+  --alx-text-muted: #64748b;
+}
+```
+
+### Density Mode
+
+All components support a compact density mode:
+
+```html
+<alx-account-list density="compact"></alx-account-list>
+```
+
+## Shared Styles
+
+If building custom components that match the library's design, import shared style modules:
+
+```typescript
+import {
+  alxButtonStyles, alxInputStyles, alxTableStyles,
+  alxCardStyles, alxBadgeStyles, alxToolbarStyles,
+  alxToggleStyles, alxProgressBarStyles
+} from '@astralibx/email-ui';
+```
+
+## Exported Types
+
+TypeScript types for working with the library's data models:
+
+```typescript
+import type { TemplateData, RuleData, Condition, Settings } from '@astralibx/email-ui';
+```
+
+## Next Steps
+
+- [Configuration](./configuration.md) — API setup details
+- [Account Components](./account-components.md) — Full account component API
+- [Rule Components](./rule-components.md) — Templates, rules, runs
+- [Events](./events.md) — All events reference
+- [Theming](./theming.md) — Design tokens and customization
+- [Framework Integration](./framework-integration.md) — Angular, React, Vue, Next.js examples

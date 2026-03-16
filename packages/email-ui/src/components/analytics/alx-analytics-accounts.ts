@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -21,7 +22,6 @@ interface AccountStat {
 
 type SortKey = 'email' | 'sent' | 'delivered' | 'bounced' | 'failed' | 'deliveryRate';
 
-@customElement('alx-analytics-accounts')
 export class AlxAnalyticsAccounts extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -217,6 +217,7 @@ export class AlxAnalyticsAccounts extends LitElement {
     `;
   }
 }
+safeRegister('alx-analytics-accounts', AlxAnalyticsAccounts);
 
 declare global {
   interface HTMLElementTagNameMap {

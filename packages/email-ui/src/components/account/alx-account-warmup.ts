@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -7,6 +8,7 @@ import {
   alxCardStyles,
   alxBadgeStyles,
   alxLoadingStyles,
+  alxProgressBarStyles,
 } from '../../styles/shared.js';
 import { AccountAPI } from '../../api/account.api.js';
 
@@ -26,7 +28,6 @@ interface WarmupStatus {
   completedAt?: string;
 }
 
-@customElement('alx-account-warmup')
 export class AlxAccountWarmup extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -35,22 +36,10 @@ export class AlxAccountWarmup extends LitElement {
     alxCardStyles,
     alxBadgeStyles,
     alxLoadingStyles,
+    alxProgressBarStyles,
     css`
       .warmup-progress {
         margin: var(--alx-density-gap, 1rem) 0;
-      }
-      .progress-bar-track {
-        width: 100%;
-        height: 16px;
-        background: var(--alx-border);
-        border-radius: 8px;
-        overflow: hidden;
-      }
-      .progress-bar-fill {
-        height: 100%;
-        background: var(--alx-primary);
-        border-radius: 8px;
-        transition: width 0.4s ease;
       }
       .progress-info {
         display: flex;
@@ -111,6 +100,10 @@ export class AlxAccountWarmup extends LitElement {
       .schedule-active {
         color: var(--alx-primary);
         font-weight: 600;
+      }
+      .progress-track {
+        width: 100%;
+        height: 8px;
       }
     `,
   ];
@@ -209,12 +202,15 @@ export class AlxAccountWarmup extends LitElement {
         </div>
 
         <div class="warmup-progress">
-          <div class="progress-bar-track">
-            <div
-              class="progress-bar-fill"
-              style="width:${this.progressPercent}%"
-            ></div>
-          </div>
+          <span class="progress-bar">
+            <span class="progress-track">
+              <span
+                class="progress-fill"
+                style="width:${this.progressPercent}%;background:var(--alx-primary)"
+              ></span>
+            </span>
+            <span class="progress-label">${this.progressPercent.toFixed(0)}%</span>
+          </span>
           <div class="progress-info">
             <span>Day ${w.currentDay}</span>
             <span>${this.progressPercent.toFixed(0)}%</span>
@@ -253,6 +249,7 @@ export class AlxAccountWarmup extends LitElement {
     `;
   }
 }
+safeRegister('alx-account-warmup', AlxAccountWarmup);
 
 declare global {
   interface HTMLElementTagNameMap {

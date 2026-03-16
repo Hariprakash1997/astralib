@@ -1,5 +1,6 @@
 import { LitElement, html, css } from 'lit';
-import { customElement, state, property } from 'lit/decorators.js';
+import { state, property } from 'lit/decorators.js';
+import { safeRegister } from '../../utils/safe-register.js';
 import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
@@ -89,7 +90,6 @@ Use hooks to integrate with your own analytics, logging, or alerting systems.
   },
 ];
 
-@customElement('alx-guide-panel')
 export class AlxGuidePanel extends LitElement {
   static override styles = [
     alxBaseStyles,
@@ -230,6 +230,7 @@ export class AlxGuidePanel extends LitElement {
     `;
   }
 }
+safeRegister('alx-guide-panel', AlxGuidePanel);
 
 declare global {
   interface HTMLElementTagNameMap {
