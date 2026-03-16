@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.4.0
+
+### Minor Changes
+
+- 86b9214: add alx-email-dashboard component, fix drawer slot rendering, willUpdate lifecycle, public load method, dark mode toggle, dashboard docs
+
 ## 2.3.0
 
 ### Minor Changes
