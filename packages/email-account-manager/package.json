@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/email-account-manager",
-  "version": "10.1.0",
+  "version": "10.2.0",
   "description": "Reusable email account management with Gmail + SES support, BullMQ queues, health tracking, warmup, and optional approval workflow",
   "repository": {
     "type": "git",
