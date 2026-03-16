@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.3.0
+
+### Minor Changes
+
+- 34acb9f: channel analytics, beforeSend context, POST /track, fetch timeout, 401 detection, form validation, docs and tests
+
 ## 2.2.0
 
 ### Minor Changes
