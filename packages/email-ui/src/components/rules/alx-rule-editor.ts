@@ -54,8 +54,13 @@ export class AlxRuleEditor extends LitElement {
   }
 
   override willUpdate(changed: Map<PropertyKey, unknown>): void {
-    if (changed.has('ruleId') && this.ruleId) {
-      this._loadRule();
+    if (changed.has('ruleId')) {
+      if (this.ruleId) {
+        this._loadRule();
+      } else {
+        this._form = JSON.parse(JSON.stringify(EMPTY_RULE));
+        this._error = '';
+      }
     }
   }
 
@@ -113,15 +118,12 @@ export class AlxRuleEditor extends LitElement {
 
   private _updateField(field: keyof RuleData, value: unknown): void {
     if (field === 'targetMode') {
-      const target = { ...this._form.target };
-      if (value === 'list') {
-        delete (target as any).conditions;
-        delete (target as any).platform;
-        delete (target as any).audience;
-      } else {
-        delete (target as any).identifiers;
-      }
-      this._form = { ...this._form, [field]: value as RuleData[typeof field], target };
+      // Always keep both conditions and identifiers — just switch which mode is active
+      const target = {
+        conditions: this._form.target.conditions ?? [],
+        identifiers: this._form.target.identifiers ?? [],
+      };
+      this._form = { ...this._form, targetMode: value as 'query' | 'list', target };
       return;
     }
     this._form = { ...this._form, [field]: value };
@@ -289,26 +291,14 @@ export class AlxRuleEditor extends LitElement {
           <div class="section-title">Targeting</div>
 
           <div class="mode-toggle">
-            <label>
-              <input
-                type="radio"
-                name="targetMode"
-                value="query"
-                ?checked=${this._form.targetMode !== 'list'}
-                @change=${() => this._updateField('targetMode', 'query')}
-              />
-              Query
-            </label>
-            <label>
-              <input
-                type="radio"
-                name="targetMode"
-                value="list"
-                ?checked=${this._form.targetMode === 'list'}
-                @change=${() => this._updateField('targetMode', 'list')}
-              />
-              List
-            </label>
+            <label
+              class="mode-option ${this._form.targetMode !== 'list' ? 'active' : ''}"
+              @click=${() => this._updateField('targetMode', 'query')}
+            >Query</label>
+            <label
+              class="mode-option ${this._form.targetMode === 'list' ? 'active' : ''}"
+              @click=${() => this._updateField('targetMode', 'list')}
+            >List</label>
           </div>
 
           ${this._form.targetMode === 'list'

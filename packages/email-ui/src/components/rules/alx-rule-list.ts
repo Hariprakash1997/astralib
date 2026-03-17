@@ -21,7 +21,7 @@ interface RuleRow {
   _id: string;
   name: string;
   templateName?: string;
-  templateId: string;
+  templateId: string | { _id: string; name: string; slug?: string };
   isActive: boolean;
   lastRunAt: string | null;
   totalSent: number;
@@ -211,7 +211,7 @@ export class AlxRuleList extends LitElement {
                       (r) => html`
                         <tr data-clickable @click=${() => this._onRowClick(r)}>
                           <td>${r.name}</td>
-                          <td>${r.templateName ?? r.templateId}</td>
+                          <td>${r.templateName ?? (typeof r.templateId === 'object' && r.templateId ? r.templateId.name : r.templateId ?? '')}</td>
                           <td>
                             <label class="toggle" @click=${(e: Event) => e.stopPropagation()}>
                               <input

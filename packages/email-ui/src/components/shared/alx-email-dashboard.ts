@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { state, property } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
@@ -154,6 +154,7 @@ export class AlxEmailDashboard extends LitElement {
   @property({ attribute: 'hide-tabs' }) hideTabs = '';
 
   @state() private _activeTab: TabId = 'accounts';
+  @state() private _loadedTabs = new Set<TabId>(['accounts']);
   @state() private _drawerOpen = false;
   @state() private _drawerHeading = '';
   @state() private _drawerType: 'account' | 'template' | 'rule' | null = null;
@@ -202,7 +203,9 @@ export class AlxEmailDashboard extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     this._applyTheme();
-    this._activeTab = this._parseHash() || this.defaultTab;
+    const initialTab = this._parseHash() || this.defaultTab;
+    this._activeTab = initialTab;
+    this._loadedTabs = new Set([initialTab]);
     if (!this._hashListening) {
       window.addEventListener('hashchange', this._onHashChange);
       this._hashListening = true;
@@ -219,7 +222,7 @@ export class AlxEmailDashboard extends LitElement {
 
   private _onHashChange = (): void => {
     const tab = this._parseHash();
-    if (tab) this._activeTab = tab;
+    if (tab) this._setTab(tab);
   };
 
   private _parseHash(): TabId | null {
@@ -231,6 +234,9 @@ export class AlxEmailDashboard extends LitElement {
 
   private _setTab(tab: TabId): void {
     this._activeTab = tab;
+    if (!this._loadedTabs.has(tab)) {
+      this._loadedTabs = new Set([...this._loadedTabs, tab]);
+    }
     window.location.hash = tab;
   }
 
@@ -390,48 +396,60 @@ export class AlxEmailDashboard extends LitElement {
         ${this._renderControls()}
       </div>
 
-      <div class="panel ${this._activeTab === 'accounts' ? 'active' : ''}">
-        <alx-account-list
-          .density=${this.density}
-          @alx-account-selected=${this._onAccountSelected}
-          @alx-account-create=${this._onAccountCreate}
-        ></alx-account-list>
-      </div>
-
-      <div class="panel ${this._activeTab === 'templates' ? 'active' : ''}">
-        <alx-template-list
-          .density=${this.density}
-          @alx-template-selected=${this._onTemplateSelected}
-          @alx-template-create=${this._onTemplateCreate}
-        ></alx-template-list>
-      </div>
-
-      <div class="panel ${this._activeTab === 'rules' ? 'active' : ''}">
-        <alx-rule-list
-          .density=${this.density}
-          @alx-rule-selected=${this._onRuleSelected}
-          @alx-rule-create=${this._onRuleCreate}
-        ></alx-rule-list>
-      </div>
-
-      <div class="panel ${this._activeTab === 'runs' ? 'active' : ''}">
-        <alx-run-history .density=${this.density}></alx-run-history>
-      </div>
-
-      <div class="panel ${this._activeTab === 'analytics' ? 'active' : ''}">
-        <div class="analytics-stack">
-          <alx-analytics-overview .density=${this.density}></alx-analytics-overview>
-          <alx-analytics-timeline .density=${this.density}></alx-analytics-timeline>
-          <alx-analytics-channels .density=${this.density}></alx-analytics-channels>
+      ${this._loadedTabs.has('accounts') ? html`
+        <div class="panel ${this._activeTab === 'accounts' ? 'active' : ''}">
+          <alx-account-list
+            .density=${this.density}
+            @alx-account-selected=${this._onAccountSelected}
+            @alx-account-create=${this._onAccountCreate}
+          ></alx-account-list>
         </div>
-      </div>
+      ` : nothing}
 
-      <div class="panel ${this._activeTab === 'settings' ? 'active' : ''}">
-        <div class="settings-grid">
-          <alx-throttle-settings .density=${this.density}></alx-throttle-settings>
-          <alx-global-settings .density=${this.density}></alx-global-settings>
+      ${this._loadedTabs.has('templates') ? html`
+        <div class="panel ${this._activeTab === 'templates' ? 'active' : ''}">
+          <alx-template-list
+            .density=${this.density}
+            @alx-template-selected=${this._onTemplateSelected}
+            @alx-template-create=${this._onTemplateCreate}
+          ></alx-template-list>
         </div>
-      </div>
+      ` : nothing}
+
+      ${this._loadedTabs.has('rules') ? html`
+        <div class="panel ${this._activeTab === 'rules' ? 'active' : ''}">
+          <alx-rule-list
+            .density=${this.density}
+            @alx-rule-selected=${this._onRuleSelected}
+            @alx-rule-create=${this._onRuleCreate}
+          ></alx-rule-list>
+        </div>
+      ` : nothing}
+
+      ${this._loadedTabs.has('runs') ? html`
+        <div class="panel ${this._activeTab === 'runs' ? 'active' : ''}">
+          <alx-run-history .density=${this.density}></alx-run-history>
+        </div>
+      ` : nothing}
+
+      ${this._loadedTabs.has('analytics') ? html`
+        <div class="panel ${this._activeTab === 'analytics' ? 'active' : ''}">
+          <div class="analytics-stack">
+            <alx-analytics-overview .density=${this.density}></alx-analytics-overview>
+            <alx-analytics-timeline .density=${this.density}></alx-analytics-timeline>
+            <alx-analytics-channels .density=${this.density}></alx-analytics-channels>
+          </div>
+        </div>
+      ` : nothing}
+
+      ${this._loadedTabs.has('settings') ? html`
+        <div class="panel ${this._activeTab === 'settings' ? 'active' : ''}">
+          <div class="settings-grid">
+            <alx-throttle-settings .density=${this.density}></alx-throttle-settings>
+            <alx-global-settings .density=${this.density}></alx-global-settings>
+          </div>
+        </div>
+      ` : nothing}
 
       ${this._renderDrawer()}
     `;

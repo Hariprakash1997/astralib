@@ -63,22 +63,46 @@ export const ruleEditorStyles = css`
 
   .mode-toggle {
     display: flex;
-    gap: 1rem;
+    gap: 0;
     align-items: center;
     margin-bottom: 0.25rem;
     grid-column: 1 / -1;
   }
 
-  .mode-toggle label {
-    display: flex;
+  .mode-option {
+    display: inline-flex;
     align-items: center;
-    gap: 0.35rem;
-    margin-bottom: 0;
+    padding: 0.3rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
     cursor: pointer;
+    border: 1px solid var(--alx-border);
+    background: var(--alx-surface);
+    color: var(--alx-text-muted);
+    transition: all 0.15s;
+    text-transform: none;
+    letter-spacing: normal;
+    margin-bottom: 0;
   }
 
-  .mode-toggle input[type='radio'] {
-    width: auto;
+  .mode-option:first-child {
+    border-radius: var(--alx-radius) 0 0 var(--alx-radius);
+  }
+
+  .mode-option:last-child {
+    border-radius: 0 var(--alx-radius) var(--alx-radius) 0;
+    border-left: none;
+  }
+
+  .mode-option.active {
+    background: var(--alx-primary);
+    color: #fff;
+    border-color: var(--alx-primary);
+  }
+
+  .mode-option:hover:not(.active) {
+    border-color: var(--alx-primary);
+    color: var(--alx-primary);
   }
 
   textarea {

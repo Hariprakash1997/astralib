@@ -57,8 +57,14 @@ export class AlxTemplateEditor extends LitElement {
   }
 
   override willUpdate(changed: Map<PropertyKey, unknown>): void {
-    if (changed.has('templateId') && this.templateId) {
-      this._loadTemplate();
+    if (changed.has('templateId')) {
+      if (this.templateId) {
+        this._loadTemplate();
+      } else {
+        this._form = { ...EMPTY_TEMPLATE, subjects: [''], bodies: [''], preheaders: [], fields: {} };
+        this._error = '';
+        this._previewHtml = '';
+      }
     }
   }
 

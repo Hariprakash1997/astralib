@@ -7,7 +7,7 @@ REM  Edit these 3 values before each run, then execute deploy.bat
 REM ============================================================
 
 REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=fix template preview strict mode, fix rule editor payload structure and data mapping, fix operators and emailType enum mismatch"
+set "COMMIT_MSG=fix rule editor data mapping, toggle, form reset, operators, emailType, lazy tab loading, populated templateId display"
 
 REM Default bump type: used when package has no :type suffix
 set "DEFAULT_BUMP=patch"
