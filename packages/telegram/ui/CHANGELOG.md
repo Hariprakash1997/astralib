@@ -1,5 +1,11 @@
 # @astralibx/telegram-ui
 
+## 0.2.0
+
+### Minor Changes
+
+- ed50601: Features: chat dashboard overhaul, drawer component, shared styles, prompt editor. Telegram rule list, template list, throttle settings, dashboard updates. Fixes: template render service
+
 ## 0.1.2
 
 ### Patch Changes
