@@ -131,6 +131,21 @@ export function createAnalyticsController(
       }
     },
 
+    async getVariantStats(req: Request, res: Response) {
+      try {
+        const parsed = parseDateRange(req);
+        if ('error' in parsed) {
+          return res.status(400).json({ success: false, error: parsed.error });
+        }
+        const templateId = req.query.templateId as string | undefined;
+        const data = await queryService.getVariantBreakdown(parsed.dateFrom, parsed.dateTo, templateId);
+        res.json({ success: true, data });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ success: false, error: message });
+      }
+    },
+
     async trackEvent(req: Request, res: Response) {
       try {
         const { type, recipientEmail, externalUserId, channel, ruleId, templateId, accountId, metadata } = req.body;

@@ -504,6 +504,84 @@ Standard CRUD. Request body matches the `RuleData` interface.
 
 ---
 
+### `POST /templates/:id/clone`
+
+**Component:** `<alx-template-list>`, `<alx-template-editor>`
+
+**Request body:** `{ "name": "optional new name" }`
+
+**Response `data`:** Cloned template object (same shape as GET /templates item).
+
+> Generates a unique slug. Cloned template is deactivated by default.
+
+---
+
+### `POST /rules/:id/clone`
+
+**Component:** `<alx-rule-list>`, `<alx-rule-editor>`
+
+**Request body:** `{ "name": "optional new name" }`
+
+**Response `data`:** Cloned rule object (same shape as GET /rules item).
+
+> Resets stats (totalSent, totalSkipped). Cloned rule is deactivated by default.
+
+---
+
+### `POST /templates/:id/preview-with-data`
+
+**Component:** `<alx-template-editor>`
+
+**Request body:**
+```json
+{
+  "recipientData": { "name": "John", "company": "Acme" }
+}
+```
+
+**Response `data`:**
+```json
+{
+  "html": "string (rendered HTML)",
+  "text": "string (rendered text)",
+  "subject": "string (rendered subject)"
+}
+```
+
+> Merges template fields with provided recipient data for a realistic preview.
+
+---
+
+### `GET /sends`
+
+**Component:** `<alx-send-log>`
+
+**Query params:** `ruleId`, `status`, `email`, `from`, `to`, `page`, `limit`
+
+**Response `data`:**
+```json
+{
+  "sends": [
+    {
+      "_id": "string",
+      "ruleId": "string",
+      "email": "string",
+      "status": "string",
+      "sentAt": "ISO 8601 string",
+      "subjectIndex": "number",
+      "bodyIndex": "number"
+    }
+  ],
+  "total": "number"
+}
+```
+
+**UI reads:** `res.sends[]`, `res.total`
+
+> Individual send log records from `email_rule_sends`.
+
+---
+
 ## Analytics API (`/mailer/analytics`)
 
 ### `GET /overview`
@@ -579,6 +657,34 @@ Standard CRUD. Request body matches the `RuleData` interface.
 ```
 
 **UI reads:** `res.channels[]`
+
+---
+
+### `GET /variants`
+
+**Component:** `<alx-analytics-variants>`
+
+**Query params:** `dateFrom`, `dateTo`, `templateId`
+
+**Response `data`:**
+```json
+{
+  "variants": [
+    {
+      "subjectIndex": "number",
+      "bodyIndex": "number",
+      "sent": "number",
+      "opened": "number",
+      "clicked": "number",
+      "bounced": "number",
+      "openRate": "number",
+      "clickRate": "number"
+    }
+  ]
+}
+```
+
+**UI reads:** `res.variants[]`
 
 ---
 

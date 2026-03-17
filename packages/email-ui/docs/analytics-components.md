@@ -1,6 +1,6 @@
 # Analytics Components
 
-5 components for email analytics: overview metrics, send volume timeline, per-account stats, per-rule stats, and engagement tracking.
+6 components for email analytics: overview metrics, send volume timeline, per-account stats, per-rule stats, engagement tracking, and variant performance.
 
 All components use `AnalyticsAPI` internally and require `analyticsApi` to be configured via `AlxConfig.setup()`.
 
@@ -213,9 +213,45 @@ Displays event counts per channel as cards and horizontal bar chart. Shows which
 
 ---
 
+## `<alx-analytics-variants>`
+
+Performance breakdown by template variant (subject/body index combinations), showing which A/B variants perform best.
+
+### Attributes
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `density` | `"default" \| "compact"` | `"default"` | Display density |
+| `date-from` | `string` | Last 30 days | Start date (YYYY-MM-DD) |
+| `date-to` | `string` | Today | End date (YYYY-MM-DD) |
+| `template-id` | `string` | `''` | Filter variants by template ID |
+
+### Events
+
+None.
+
+### Features
+- Table showing per-variant stats: subject index, body index, sent, opened, clicked, bounced, open rate, click rate
+- Filter by template ID
+- Sortable columns
+- Rate columns color-coded for quick comparison
+- Auto-reloads when date or template-id attributes change
+
+### Usage
+
+```html
+<alx-analytics-variants
+  date-from="2025-01-01"
+  date-to="2025-01-31"
+  template-id="64a1b2c3d4e5f6a7b8c9d0e1"
+></alx-analytics-variants>
+```
+
+---
+
 ## Composing an Analytics Dashboard
 
-Combine all five components for a full dashboard:
+Combine all six components for a full dashboard:
 
 ```html
 <div style="display: grid; gap: 1.5rem;">
@@ -226,6 +262,11 @@ Combine all five components for a full dashboard:
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
     <alx-analytics-accounts date-from="2025-01-01" date-to="2025-01-31"></alx-analytics-accounts>
     <alx-analytics-rules date-from="2025-01-01" date-to="2025-01-31"></alx-analytics-rules>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+    <alx-analytics-channels date-from="2025-01-01" date-to="2025-01-31"></alx-analytics-channels>
+    <alx-analytics-variants date-from="2025-01-01" date-to="2025-01-31"></alx-analytics-variants>
   </div>
 </div>
 ```

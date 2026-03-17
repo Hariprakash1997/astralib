@@ -74,6 +74,15 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
       },
       emailType: { type: String, enum: Object.values(EMAIL_TYPE), default: EMAIL_TYPE.Automated },
 
+      schedule: {
+        type: {
+          enabled: { type: Boolean, default: false },
+          cron: { type: String },
+          timezone: { type: String, default: 'UTC' },
+        },
+        _id: false,
+      },
+
       totalSent: { type: Number, default: 0 },
       totalSkipped: { type: Number, default: 0 },
       lastRunAt: Date,
@@ -109,6 +118,7 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
             validTill: input.validTill,
             bypassThrottle: input.bypassThrottle ?? false,
             throttleOverride: input.throttleOverride,
+            schedule: input.schedule,
             emailType: input.emailType ?? EMAIL_TYPE.Automated,
             totalSent: 0,
             totalSkipped: 0

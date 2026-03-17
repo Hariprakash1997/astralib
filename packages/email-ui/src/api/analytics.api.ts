@@ -41,6 +41,10 @@ export class AnalyticsAPI {
     return this.http.get('/channels', params);
   }
 
+  getVariantStats(params?: Record<string, unknown>): Promise<any> {
+    return this.http.get('/variants', params);
+  }
+
   trackEvent(data: Record<string, unknown>): Promise<any> {
     return this.http.post('/track', data);
   }

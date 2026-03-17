@@ -87,6 +87,7 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleE
     ruleService,
     runnerService,
     EmailRuleRunLog,
+    EmailRuleSend,
     EmailThrottleConfig,
     platformValues: config.platforms,
     categoryValues: config.categories,
@@ -113,3 +114,4 @@ export { TemplateService } from './services/template.service';
 export { RuleService } from './services/rule.service';
 export { RuleRunnerService } from './services/rule-runner.service';
 export { RedisLock } from './utils/redis-lock';
+export { SchedulerService } from './services/scheduler.service';

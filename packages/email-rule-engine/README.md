@@ -80,9 +80,12 @@ The factory returns an `EmailRuleEngine` instance with:
 
 - `routes` -- Express Router with all CRUD and runner endpoints
 - `runner` -- `RuleRunnerService` for triggering runs programmatically
-- `templateService` -- `TemplateService` for CRUD and preview
-- `ruleService` -- `RuleService` for CRUD and dry runs
+- `scheduler` -- `SchedulerService` for cron-based scheduled rule execution
+- `templateService` -- `TemplateService` for CRUD, preview, and cloning (`POST /templates/:id/clone`, `POST /templates/:id/preview-with-data`)
+- `ruleService` -- `RuleService` for CRUD, dry runs, and cloning (`POST /rules/:id/clone`)
 - `models` -- Direct Mongoose model access (`EmailTemplate`, `EmailRule`, `EmailRuleSend`, `EmailRuleRunLog`, `EmailThrottleConfig`)
+
+The `routes` router includes `GET /sends` for querying individual send log records and `schedule` field support on rules for cron-based execution.
 
 ## Configuration
 

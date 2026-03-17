@@ -11,6 +11,8 @@ export interface IEmailEvent {
   externalUserId?: string;
   channel?: EventChannel;
   identifierId?: Types.ObjectId;
+  subjectIndex?: number;
+  bodyIndex?: number;
   metadata?: Record<string, unknown>;
   timestamp: Date;
   createdAt: Date;
@@ -29,6 +31,8 @@ export interface EmailEventStatics {
     externalUserId?: string;
     channel?: string;
     identifierId?: string;
+    subjectIndex?: number;
+    bodyIndex?: number;
     metadata?: Record<string, unknown>;
     timestamp?: Date;
   }): Promise<EmailEventDocument>;
@@ -60,6 +64,8 @@ export function createEmailEventSchema(options?: CreateEmailEventSchemaOptions) 
       externalUserId: { type: String, index: true },
       channel: { type: String, enum: channelValues, index: true },
       identifierId: { type: Schema.Types.ObjectId },
+      subjectIndex: { type: Number },
+      bodyIndex: { type: Number },
       metadata: { type: Schema.Types.Mixed },
       timestamp: { type: Date, required: true, default: () => new Date() },
     },
@@ -77,6 +83,8 @@ export function createEmailEventSchema(options?: CreateEmailEventSchemaOptions) 
           externalUserId?: string;
           channel?: string;
           identifierId?: string;
+          subjectIndex?: number;
+          bodyIndex?: number;
           metadata?: Record<string, unknown>;
           timestamp?: Date;
         }) {
@@ -89,6 +97,8 @@ export function createEmailEventSchema(options?: CreateEmailEventSchemaOptions) 
             externalUserId: event.externalUserId,
             channel: event.channel,
             identifierId: event.identifierId ? new Types.ObjectId(event.identifierId) : undefined,
+            subjectIndex: event.subjectIndex,
+            bodyIndex: event.bodyIndex,
             metadata: event.metadata,
             timestamp: event.timestamp || new Date(),
           });

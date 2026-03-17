@@ -47,6 +47,7 @@ export {
   AlxRunHistory,
   AlxThrottleSettings,
   AlxGuidePanel,
+  AlxSendLog,
 } from './components/rules/index.js';
 
 export {
@@ -56,6 +57,7 @@ export {
   AlxAnalyticsRules,
   AlxAnalyticsEngagement,
   AlxAnalyticsChannels,
+  AlxAnalyticsVariants,
 } from './components/analytics/index.js';
 
 export { AlxDrawer, AlxEmailDashboard } from './components/shared/index.js';

@@ -104,6 +104,11 @@ export class AlxRuleEditor extends LitElement {
             emailType: r.emailType ?? 'automated',
             bypassThrottle: r.bypassThrottle ?? false,
           },
+          schedule: r.schedule ? {
+            enabled: r.schedule.enabled ?? false,
+            cron: r.schedule.cron ?? '',
+            timezone: r.schedule.timezone ?? 'UTC',
+          } : undefined,
           validFrom: r.validFrom ? String(r.validFrom).slice(0, 10) : '',
           validTill: r.validTill ? String(r.validTill).slice(0, 10) : '',
           isActive: r.isActive ?? true,
@@ -188,6 +193,16 @@ export class AlxRuleEditor extends LitElement {
       };
       payload.validFrom = this._form.validFrom || null;
       payload.validTill = this._form.validTill || null;
+
+      if (this._form.schedule?.enabled) {
+        payload.schedule = {
+          enabled: true,
+          cron: this._form.schedule.cron,
+          timezone: this._form.schedule.timezone || 'UTC',
+        };
+      } else {
+        payload.schedule = { enabled: false, cron: '', timezone: 'UTC' };
+      }
 
       let result: unknown;
       if (this._form._id) {
@@ -415,6 +430,71 @@ export class AlxRuleEditor extends LitElement {
               >Rule only runs within this date range. Leave empty for always active.</span
             >
           </div>
+
+          <!-- Schedule -->
+          <div class="section-title">Schedule</div>
+
+          <div class="schedule-toggle">
+            <input
+              type="checkbox"
+              id="scheduleEnabled"
+              .checked=${this._form.schedule?.enabled ?? false}
+              @change=${(e: Event) => {
+                const enabled = (e.target as HTMLInputElement).checked;
+                this._form = {
+                  ...this._form,
+                  schedule: {
+                    enabled,
+                    cron: this._form.schedule?.cron ?? '',
+                    timezone: this._form.schedule?.timezone ?? 'UTC',
+                  },
+                };
+              }}
+            />
+            <label for="scheduleEnabled">Enable scheduled execution</label>
+          </div>
+
+          ${this._form.schedule?.enabled
+            ? html`
+                <div class="form-group">
+                  <label>Cron Expression</label>
+                  <input
+                    type="text"
+                    .value=${this._form.schedule?.cron ?? ''}
+                    @input=${(e: Event) => {
+                      this._form = {
+                        ...this._form,
+                        schedule: {
+                          ...this._form.schedule!,
+                          cron: (e.target as HTMLInputElement).value,
+                        },
+                      };
+                    }}
+                    placeholder="0 9 * * 1"
+                  />
+                  <span class="helper-text">Cron expression (e.g. 0 9 * * 1 = every Monday at 9 AM)</span>
+                </div>
+
+                <div class="form-group">
+                  <label>Timezone</label>
+                  <input
+                    type="text"
+                    .value=${this._form.schedule?.timezone ?? 'UTC'}
+                    @input=${(e: Event) => {
+                      this._form = {
+                        ...this._form,
+                        schedule: {
+                          ...this._form.schedule!,
+                          timezone: (e.target as HTMLInputElement).value,
+                        },
+                      };
+                    }}
+                    placeholder="Asia/Kolkata"
+                  />
+                  <span class="helper-text">IANA timezone</span>
+                </div>
+              `
+            : nothing}
 
           <!-- Behavior -->
           <div class="section-title">Behavior</div>

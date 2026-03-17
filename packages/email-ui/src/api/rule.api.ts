@@ -77,11 +77,27 @@ export class RuleAPI {
     return this.http.get('/runner/logs', params);
   }
 
+  previewWithRecipient(templateId: string, recipientData: Record<string, unknown>): Promise<any> {
+    return this.http.post(`/templates/${templateId}/preview-with-data`, { recipientData });
+  }
+
   getThrottleSettings(): Promise<any> {
     return this.http.get('/throttle');
   }
 
   updateThrottleSettings(data: Record<string, unknown>): Promise<any> {
     return this.http.put('/throttle', data);
+  }
+
+  cloneTemplate(id: string, name?: string): Promise<any> {
+    return this.http.post(`/templates/${id}/clone`, name ? { name } : {});
+  }
+
+  cloneRule(id: string, name?: string): Promise<any> {
+    return this.http.post(`/rules/${id}/clone`, name ? { name } : {});
+  }
+
+  getSendLogs(params?: Record<string, unknown>): Promise<any> {
+    return this.http.get('/sends', params);
   }
 }

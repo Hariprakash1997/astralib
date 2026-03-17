@@ -158,6 +158,17 @@ export function createRuleController(ruleService: RuleService, options?: RuleCon
     }
   }
 
+  async function clone(req: Request, res: Response) {
+    try {
+      const { name } = req.body;
+      const result = await ruleService.clone(getParam(req, 'id'), name);
+      res.json({ success: true, data: result });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      res.status(error instanceof Error && error.message === 'Rule not found' ? 404 : 500).json({ success: false, error: message });
+    }
+  }
+
   async function runHistory(req: Request, res: Response) {
     try {
       const limitParam = req.query.limit;
@@ -170,5 +181,5 @@ export function createRuleController(ruleService: RuleService, options?: RuleCon
     }
   }
 
-  return { list, getById, create, update, remove, toggleActive, dryRun, runHistory };
+  return { list, getById, create, update, remove, toggleActive, dryRun, runHistory, clone };
 }

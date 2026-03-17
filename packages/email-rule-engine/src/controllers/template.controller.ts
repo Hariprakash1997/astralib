@@ -161,6 +161,17 @@ export function createTemplateController(templateService: TemplateService, optio
     }
   }
 
+  async function clone(req: Request, res: Response) {
+    try {
+      const { name } = req.body;
+      const result = await templateService.clone(getParam(req, 'id'), name);
+      res.json({ success: true, data: result });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      res.status(error instanceof Error && error.message === 'Template not found' ? 404 : 500).json({ success: false, error: message });
+    }
+  }
+
   async function sendTestEmail(req: Request, res: Response) {
     try {
       const { testEmail, sampleData } = req.body;
@@ -178,5 +189,22 @@ export function createTemplateController(templateService: TemplateService, optio
     }
   }
 
-  return { list, getById, create, update, remove, toggleActive, preview, previewRaw, validate, sendTestEmail };
+  async function previewWithRecipient(req: Request, res: Response) {
+    try {
+      const { recipientData } = req.body;
+      if (!recipientData || typeof recipientData !== 'object') {
+        return res.status(400).json({ success: false, error: 'recipientData object is required' });
+      }
+      const result = await templateService.previewWithRecipient(getParam(req, 'id'), recipientData);
+      if (!result) {
+        return res.status(404).json({ success: false, error: 'Template not found' });
+      }
+      res.json({ success: true, data: result });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      res.status(500).json({ success: false, error: message });
+    }
+  }
+
+  return { list, getById, create, update, remove, toggleActive, preview, previewRaw, validate, sendTestEmail, clone, previewWithRecipient };
 }

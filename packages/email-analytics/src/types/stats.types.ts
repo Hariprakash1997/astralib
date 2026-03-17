@@ -47,3 +47,14 @@ export interface ChannelBreakdown {
   bounced: number;
   unsubscribed: number;
 }
+
+export interface VariantStats {
+  subjectIndex: number;
+  bodyIndex: number;
+  sent: number;
+  opened: number;
+  clicked: number;
+  bounced: number;
+  openRate: number;
+  clickRate: number;
+}

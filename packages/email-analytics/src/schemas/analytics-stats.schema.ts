@@ -9,6 +9,8 @@ export interface IAnalyticsStats {
   ruleId: Types.ObjectId | null;
   templateId: Types.ObjectId | null;
   channel: string | null;
+  subjectIndex: number | null;
+  bodyIndex: number | null;
   sent: number;
   delivered: number;
   bounced: number;
@@ -27,7 +29,7 @@ export interface AnalyticsStatsStatics {
   upsertStats(
     date: string,
     interval: AggregationInterval,
-    dimensions: { accountId?: string; ruleId?: string; templateId?: string; channel?: string },
+    dimensions: { accountId?: string; ruleId?: string; templateId?: string; channel?: string; subjectIndex?: number | null; bodyIndex?: number | null },
     increments: Partial<Record<'sent' | 'delivered' | 'bounced' | 'complained' | 'opened' | 'clicked' | 'unsubscribed' | 'failed', number>>,
   ): Promise<AnalyticsStatsDocument>;
 }
@@ -49,6 +51,8 @@ export function createAnalyticsStatsSchema(options?: CreateAnalyticsStatsSchemaO
       ruleId: { type: Schema.Types.ObjectId, default: null },
       templateId: { type: Schema.Types.ObjectId, default: null },
       channel: { type: String, default: null },
+      subjectIndex: { type: Number, default: null },
+      bodyIndex: { type: Number, default: null },
       sent: { type: Number, default: 0 },
       delivered: { type: Number, default: 0 },
       bounced: { type: Number, default: 0 },
@@ -66,7 +70,7 @@ export function createAnalyticsStatsSchema(options?: CreateAnalyticsStatsSchemaO
         upsertStats(
           date: string,
           interval: AggregationInterval,
-          dimensions: { accountId?: string; ruleId?: string; templateId?: string; channel?: string },
+          dimensions: { accountId?: string; ruleId?: string; templateId?: string; channel?: string; subjectIndex?: number | null; bodyIndex?: number | null },
           increments: Partial<Record<string, number>>,
         ) {
           const filter: Record<string, unknown> = { date, interval };
@@ -75,6 +79,8 @@ export function createAnalyticsStatsSchema(options?: CreateAnalyticsStatsSchemaO
           filter.ruleId = dimensions.ruleId ? new Types.ObjectId(dimensions.ruleId) : null;
           filter.templateId = dimensions.templateId ? new Types.ObjectId(dimensions.templateId) : null;
           filter.channel = dimensions.channel || null;
+          filter.subjectIndex = dimensions.subjectIndex ?? null;
+          filter.bodyIndex = dimensions.bodyIndex ?? null;
 
           const $inc: Record<string, number> = {};
           for (const [key, value] of Object.entries(increments)) {
@@ -91,9 +97,10 @@ export function createAnalyticsStatsSchema(options?: CreateAnalyticsStatsSchemaO
     },
   );
 
-  schema.index({ date: 1, interval: 1, accountId: 1, ruleId: 1, templateId: 1, channel: 1 }, { unique: true });
+  schema.index({ date: 1, interval: 1, accountId: 1, ruleId: 1, templateId: 1, channel: 1, subjectIndex: 1, bodyIndex: 1 }, { unique: true });
   schema.index({ date: 1, interval: 1 });
   schema.index({ channel: 1, date: 1, interval: 1 });
+  schema.index({ subjectIndex: 1, bodyIndex: 1, date: 1, interval: 1 });
 
   return schema;
 }

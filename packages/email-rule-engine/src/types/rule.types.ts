@@ -56,6 +56,12 @@ export interface EmailRule {
   };
   emailType: EmailType;
 
+  schedule?: {
+    enabled: boolean;
+    cron: string;
+    timezone?: string;
+  };
+
   totalSent: number;
   totalSkipped: number;
   lastRunAt?: Date;
@@ -85,6 +91,11 @@ export interface CreateEmailRuleInput {
     minGapDays?: number;
   };
   emailType?: EmailType;
+  schedule?: {
+    enabled: boolean;
+    cron: string;
+    timezone?: string;
+  };
 }
 
 export interface UpdateEmailRuleInput {
@@ -108,6 +119,11 @@ export interface UpdateEmailRuleInput {
     minGapDays?: number;
   };
   emailType?: EmailType;
+  schedule?: {
+    enabled: boolean;
+    cron: string;
+    timezone?: string;
+  };
 }
 
 export interface EmailRuleSend {

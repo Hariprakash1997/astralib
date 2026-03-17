@@ -429,6 +429,7 @@ export class AlxEmailDashboard extends LitElement {
       ${this._loadedTabs.has('runs') ? html`
         <div class="panel ${this._activeTab === 'runs' ? 'active' : ''}">
           <alx-run-history .density=${this.density}></alx-run-history>
+          <alx-send-log .density=${this.density}></alx-send-log>
         </div>
       ` : nothing}
 
@@ -438,6 +439,7 @@ export class AlxEmailDashboard extends LitElement {
             <alx-analytics-overview .density=${this.density}></alx-analytics-overview>
             <alx-analytics-timeline .density=${this.density}></alx-analytics-timeline>
             <alx-analytics-channels .density=${this.density}></alx-analytics-channels>
+            <alx-analytics-variants .density=${this.density}></alx-analytics-variants>
           </div>
         </div>
       ` : nothing}

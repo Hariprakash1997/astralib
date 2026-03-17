@@ -51,7 +51,7 @@ The dashboard updates `window.location.hash` when tabs change:
 | `#templates` | Template list |
 | `#rules` | Rule list |
 | `#runs` | Run history |
-| `#analytics` | Overview + Timeline + Channel breakdown |
+| `#analytics` | Overview + Timeline + Channel breakdown + Variant performance |
 | `#settings` | Throttle + General settings side by side |
 
 This enables:
@@ -123,8 +123,8 @@ The dashboard internally renders and wires:
 - `<alx-account-list>` + `<alx-account-form>` (in drawer)
 - `<alx-template-list>` + `<alx-template-editor>` (in drawer)
 - `<alx-rule-list>` + `<alx-rule-editor>` (in drawer)
-- `<alx-run-history>`
-- `<alx-analytics-overview>` + `<alx-analytics-timeline>` + `<alx-analytics-channels>`
+- `<alx-run-history>` + `<alx-send-log>` (send logs appear under Run History tab)
+- `<alx-analytics-overview>` + `<alx-analytics-timeline>` + `<alx-analytics-channels>` + `<alx-analytics-variants>`
 - `<alx-throttle-settings>` + `<alx-global-settings>`
 - `<alx-drawer>` for edit flows
 

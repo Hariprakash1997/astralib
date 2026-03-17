@@ -128,6 +128,46 @@ hooks: {
 },
 ```
 
+## SchedulerService
+
+The engine includes a `SchedulerService` for cron-based rule execution. Rules with a `schedule` field are automatically executed on their cron schedule.
+
+### Schedule field on rules
+
+Rules accept an optional `schedule` object:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `schedule.cron` | `string` | Cron expression (e.g., `'0 9 * * *'` for daily at 9 AM) |
+| `schedule.timezone` | `string` | IANA timezone (e.g., `'Asia/Kolkata'`) |
+| `schedule.enabled` | `boolean` | Whether scheduled execution is active |
+
+### Creating and wiring the scheduler
+
+The scheduler is available on the engine instance and must be started explicitly:
+
+```typescript
+const engine = createEmailRuleEngine({ /* config */ });
+
+// Start the scheduler -- it reads schedule fields from active rules
+engine.scheduler.start();
+
+// Stop on shutdown
+process.on('SIGTERM', () => engine.scheduler.stop());
+```
+
+### Cron format examples
+
+| Expression | Schedule |
+|-----------|----------|
+| `0 9 * * *` | Every day at 9:00 AM |
+| `0 9 * * 1-5` | Weekdays at 9:00 AM |
+| `0 */6 * * *` | Every 6 hours |
+| `0 9,18 * * *` | Twice daily at 9 AM and 6 PM |
+| `0 0 1 * *` | First day of each month at midnight |
+
+---
+
 ## logger (optional)
 
 Any object with `info`, `warn`, `error` methods. Compatible with `console`, Winston, Pino, etc. Defaults to a silent no-op logger.

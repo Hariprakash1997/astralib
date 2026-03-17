@@ -192,6 +192,19 @@ export class TemplateService {
     return { ...validation, variables };
   }
 
+  async clone(sourceId: string, newName?: string): Promise<any> {
+    const source = await this.EmailTemplate.findById(sourceId);
+    if (!source) throw new Error('Template not found');
+
+    const { _id, __v, createdAt, updatedAt, ...rest } = source.toObject() as any;
+
+    rest.name = newName || `${rest.name} (copy)`;
+    rest.slug = `${rest.slug}-copy-${Date.now()}`;
+    rest.isActive = false;
+
+    return this.EmailTemplate.create(rest);
+  }
+
   async sendTestEmail(
     id: string,
     testEmail: string,
@@ -224,5 +237,22 @@ export class TemplateService {
     } catch (error) {
       return { success: false, error: (error as Error).message };
     }
+  }
+
+  async previewWithRecipient(
+    templateId: string,
+    recipientData: Record<string, unknown>
+  ): Promise<{ html: string; text: string; subject: string } | null> {
+    const template = await this.EmailTemplate.findById(templateId);
+    if (!template) return null;
+
+    const data = { ...(template.fields ?? {}), ...recipientData };
+
+    return this.renderService.renderPreview(
+      template.subjects[0],
+      template.bodies[0],
+      data,
+      template.textBody
+    );
   }
 }

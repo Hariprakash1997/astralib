@@ -12,6 +12,8 @@ export interface CreateEventInput {
   externalUserId?: string;
   channel?: string;
   identifierId?: string;
+  subjectIndex?: number;
+  bodyIndex?: number;
   metadata?: Record<string, unknown>;
   timestamp?: Date;
 }

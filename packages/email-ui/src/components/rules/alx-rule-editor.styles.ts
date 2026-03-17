@@ -121,4 +121,21 @@ export const ruleEditorStyles = css`
   .actions-right {
     margin-left: auto;
   }
+
+  .schedule-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    grid-column: 1 / -1;
+  }
+  .schedule-toggle input[type='checkbox'] {
+    width: auto;
+  }
+  .schedule-toggle label {
+    margin-bottom: 0;
+    text-transform: none;
+    font-size: 0.8125rem;
+    color: var(--alx-text);
+    cursor: pointer;
+  }
 `;

@@ -28,6 +28,11 @@ export interface RuleData {
     emailType: string;
     bypassThrottle: boolean;
   };
+  schedule?: {
+    enabled: boolean;
+    cron: string;
+    timezone: string;
+  };
   validFrom?: string;
   validTill?: string;
   isActive: boolean;

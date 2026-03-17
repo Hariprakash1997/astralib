@@ -1,6 +1,6 @@
 # Rule Components
 
-7 components for managing email templates, automation rules, execution history, throttle settings, and a built-in guide.
+8 components for managing email templates, automation rules, execution history, send logs, throttle settings, and a built-in guide.
 
 All components use `RuleAPI` internally and require `ruleEngineApi` to be configured via `AlxConfig.setup()`.
 
@@ -160,6 +160,7 @@ Create or edit an automation rule with condition builder, template selection, an
 - **Target Conditions** builder (Query mode): add/remove condition rows with field path, operator (equals, not_equals, contains, gt, gte, lt, lte, in, exists), and value
 - **Validity dates**: `validFrom` and `validTill` date pickers to constrain when the rule is active
 - Delete button in edit mode (dispatches `alx-rule-deleted`)
+- **Schedule** settings: cron expression, timezone, and enable/disable toggle for scheduled rule execution
 - **Behavior** settings:
   - Email type: marketing / transactional
   - Max per run (number)
@@ -263,4 +264,42 @@ None.
 
 ```html
 <alx-guide-panel></alx-guide-panel>
+```
+
+---
+
+## `<alx-send-log>`
+
+Paginated table of individual send records from `email_rule_sends`, with filters for rule, status, and recipient email.
+
+### Attributes
+
+| Attribute | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `density` | `"default" \| "compact"` | `"default"` | Display density |
+| `rule-id` | `string` | `''` | Pre-filter sends by rule ID |
+| `status` | `string` | `''` | Pre-filter by send status |
+| `email` | `string` | `''` | Pre-filter by recipient email |
+
+### Events
+
+| Event | Detail | Description |
+|-------|--------|-------------|
+| `alx-send-selected` | `{ _id, ruleId, email, status, sentAt }` | Row clicked |
+
+### Features
+- Columns: recipient email, rule, status, subject/body variant index, sent timestamp
+- Filter inputs for rule ID, status, and email
+- Date range filter (from/to)
+- Status badges color-coded by outcome (sent, error, skipped, throttled)
+- Pagination with totals
+- Compact density mode support
+
+### Usage
+
+```html
+<alx-send-log></alx-send-log>
+
+<!-- Pre-filtered to a specific rule -->
+<alx-send-log rule-id="64a1b2c3d4e5f6a7b8c9d0e1"></alx-send-log>
 ```

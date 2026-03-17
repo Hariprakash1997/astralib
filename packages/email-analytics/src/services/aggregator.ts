@@ -48,6 +48,7 @@ export class AggregatorService {
     await this.aggregateByRule(dayStart, dayEnd, dateKey);
     await this.aggregateByTemplate(dayStart, dayEnd, dateKey);
     await this.aggregateByChannel(dayStart, dayEnd, dateKey);
+    await this.aggregateByVariant(dayStart, dayEnd, dateKey);
     await this.aggregateOverall(dayStart, dayEnd, dateKey);
 
     this.logger.info('Daily aggregation complete', { date: dateKey });
@@ -97,7 +98,7 @@ export class AggregatorService {
 
     const bulkOps = results.map((r) => ({
       updateOne: {
-        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, accountId: r._id, ruleId: null, templateId: null, channel: null },
+        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, accountId: r._id, ruleId: null, templateId: null, channel: null, subjectIndex: null, bodyIndex: null },
         update: {
           $set: {
             date: dateKey,
@@ -106,6 +107,8 @@ export class AggregatorService {
             ruleId: null,
             templateId: null,
             channel: null,
+            subjectIndex: null,
+            bodyIndex: null,
             sent: r.sent, failed: r.failed, delivered: r.delivered,
             bounced: r.bounced, complained: r.complained, opened: r.opened,
             clicked: r.clicked, unsubscribed: r.unsubscribed,
@@ -138,7 +141,7 @@ export class AggregatorService {
 
     const bulkOps = results.map((r) => ({
       updateOne: {
-        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, ruleId: r._id, accountId: null, templateId: null, channel: null },
+        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, ruleId: r._id, accountId: null, templateId: null, channel: null, subjectIndex: null, bodyIndex: null },
         update: {
           $set: {
             date: dateKey,
@@ -147,6 +150,8 @@ export class AggregatorService {
             accountId: null,
             templateId: null,
             channel: null,
+            subjectIndex: null,
+            bodyIndex: null,
             sent: r.sent, failed: r.failed, delivered: r.delivered,
             bounced: r.bounced, complained: r.complained, opened: r.opened,
             clicked: r.clicked, unsubscribed: r.unsubscribed,
@@ -179,7 +184,7 @@ export class AggregatorService {
 
     const bulkOps = results.map((r) => ({
       updateOne: {
-        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, templateId: r._id, accountId: null, ruleId: null, channel: null },
+        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, templateId: r._id, accountId: null, ruleId: null, channel: null, subjectIndex: null, bodyIndex: null },
         update: {
           $set: {
             date: dateKey,
@@ -188,6 +193,8 @@ export class AggregatorService {
             accountId: null,
             ruleId: null,
             channel: null,
+            subjectIndex: null,
+            bodyIndex: null,
             sent: r.sent, failed: r.failed, delivered: r.delivered,
             bounced: r.bounced, complained: r.complained, opened: r.opened,
             clicked: r.clicked, unsubscribed: r.unsubscribed,
@@ -220,7 +227,7 @@ export class AggregatorService {
 
     const bulkOps = results.map((r) => ({
       updateOne: {
-        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, channel: r._id, accountId: null, ruleId: null, templateId: null },
+        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, channel: r._id, accountId: null, ruleId: null, templateId: null, subjectIndex: null, bodyIndex: null },
         update: {
           $set: {
             date: dateKey,
@@ -229,6 +236,51 @@ export class AggregatorService {
             accountId: null,
             ruleId: null,
             templateId: null,
+            subjectIndex: null,
+            bodyIndex: null,
+            sent: r.sent, failed: r.failed, delivered: r.delivered,
+            bounced: r.bounced, complained: r.complained, opened: r.opened,
+            clicked: r.clicked, unsubscribed: r.unsubscribed,
+            updatedAt: new Date(),
+          },
+        },
+        upsert: true,
+      },
+    }));
+
+    if (bulkOps.length > 0) {
+      await this.AnalyticsStats.bulkWrite(bulkOps as any);
+    }
+  }
+
+  private async aggregateByVariant(
+    dayStart: Date,
+    dayEnd: Date,
+    dateKey: string,
+  ): Promise<void> {
+    let results: any[];
+    try {
+      results = await this.EmailEvent.aggregate([
+        { $match: { timestamp: { $gte: dayStart, $lt: dayEnd }, subjectIndex: { $exists: true, $ne: null } } },
+        { $group: { _id: { subjectIndex: '$subjectIndex', bodyIndex: '$bodyIndex' }, ...buildSumGroup() } },
+      ]);
+    } catch (error) {
+      throw new AggregationError('byVariant', error instanceof Error ? error : new Error(String(error)));
+    }
+
+    const bulkOps = results.map((r) => ({
+      updateOne: {
+        filter: { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, subjectIndex: r._id.subjectIndex, bodyIndex: r._id.bodyIndex, accountId: null, ruleId: null, templateId: null, channel: null },
+        update: {
+          $set: {
+            date: dateKey,
+            interval: AGGREGATION_INTERVAL.Daily,
+            subjectIndex: r._id.subjectIndex,
+            bodyIndex: r._id.bodyIndex,
+            accountId: null,
+            ruleId: null,
+            templateId: null,
+            channel: null,
             sent: r.sent, failed: r.failed, delivered: r.delivered,
             bounced: r.bounced, complained: r.complained, opened: r.opened,
             clicked: r.clicked, unsubscribed: r.unsubscribed,
@@ -262,7 +314,7 @@ export class AggregatorService {
     if (results.length > 0) {
       const r = results[0];
       await this.AnalyticsStats.updateOne(
-        { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, accountId: null, ruleId: null, templateId: null, channel: null },
+        { date: dateKey, interval: AGGREGATION_INTERVAL.Daily, accountId: null, ruleId: null, templateId: null, channel: null, subjectIndex: null, bodyIndex: null },
         {
           $set: {
             date: dateKey,
@@ -271,6 +323,8 @@ export class AggregatorService {
             ruleId: null,
             templateId: null,
             channel: null,
+            subjectIndex: null,
+            bodyIndex: null,
             sent: r.sent, failed: r.failed, delivered: r.delivered,
             bounced: r.bounced, complained: r.complained, opened: r.opened,
             clicked: r.clicked, unsubscribed: r.unsubscribed,

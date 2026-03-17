@@ -13,7 +13,7 @@ const UPDATEABLE_FIELDS = new Set([
   'name', 'description', 'sortOrder', 'target', 'templateId',
   'sendOnce', 'resendAfterDays', 'cooldownDays', 'autoApprove',
   'maxPerRun', 'bypassThrottle', 'throttleOverride', 'emailType',
-  'validFrom', 'validTill'
+  'validFrom', 'validTill', 'schedule'
 ]);
 
 function validateRuleTemplateCompat(
@@ -170,7 +170,13 @@ export class RuleService {
     return rule;
   }
 
-  async dryRun(id: string): Promise<{ matchedCount: number; effectiveLimit: number; willProcess: number; ruleId: string }> {
+  async dryRun(id: string): Promise<{
+    matchedCount: number;
+    effectiveLimit: number;
+    willProcess: number;
+    ruleId: string;
+    sample: Array<{ email: string; name?: string; [key: string]: unknown }>;
+  }> {
     const rule = await this.EmailRule.findById(id);
     if (!rule) {
       throw new RuleNotFoundError(id);
@@ -184,13 +190,35 @@ export class RuleService {
       const identifiers = (target as any).identifiers || [];
       const matchedCount = identifiers.length;
       const willProcess = Math.min(matchedCount, effectiveLimit);
-      return { matchedCount, effectiveLimit, willProcess, ruleId: id };
+      const sample = identifiers.slice(0, 10).map((id: string) => ({ email: id }));
+      return { matchedCount, effectiveLimit, willProcess, ruleId: id, sample };
     }
 
     const users = await this.config.adapters.queryUsers(rule.target, 50000);
     const matchedCount = users.length;
     const willProcess = Math.min(matchedCount, effectiveLimit);
-    return { matchedCount, effectiveLimit, willProcess, ruleId: id };
+    const sample = users.slice(0, 10).map((u: any) => ({
+      email: u.email || '',
+      name: u.name || u.firstName || '',
+      ...(u._id ? { id: String(u._id) } : {}),
+    }));
+    return { matchedCount, effectiveLimit, willProcess, ruleId: id, sample };
+  }
+
+  async clone(sourceId: string, newName?: string): Promise<any> {
+    const source = await this.EmailRule.findById(sourceId);
+    if (!source) throw new Error('Rule not found');
+
+    const { _id, __v, createdAt, updatedAt, ...rest } = source.toObject() as any;
+
+    rest.name = newName || `${rest.name} (copy)`;
+    rest.isActive = false;
+    rest.totalSent = 0;
+    rest.totalSkipped = 0;
+    rest.lastRunAt = undefined;
+    rest.lastRunStats = undefined;
+
+    return this.EmailRule.create(rest);
   }
 
   async getRunHistory(limit = 20): Promise<unknown[]> {

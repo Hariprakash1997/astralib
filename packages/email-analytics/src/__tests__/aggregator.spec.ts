@@ -70,15 +70,16 @@ describe('AggregatorService', () => {
   });
 
   describe('aggregateDaily()', () => {
-    it('should run 5 aggregation pipelines', async () => {
+    it('should run 6 aggregation pipelines', async () => {
       await service.aggregateDaily(localDate(2024, 6, 15));
 
-      expect(mockEmailEvent.aggregate).toHaveBeenCalledTimes(5);
+      expect(mockEmailEvent.aggregate).toHaveBeenCalledTimes(6);
     });
 
     it('should call bulkWrite when byAccount returns results', async () => {
       mockEmailEvent.aggregate
         .mockResolvedValueOnce([makeAggResult('acc1')])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
@@ -101,6 +102,7 @@ describe('AggregatorService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
       await service.aggregateDaily(localDate(2024, 6, 15));
@@ -114,6 +116,7 @@ describe('AggregatorService', () => {
       mockEmailEvent.aggregate
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([makeAggResult('rule1')])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
@@ -131,6 +134,7 @@ describe('AggregatorService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([makeAggResult('tmpl1')])
         .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
       await service.aggregateDaily(localDate(2024, 6, 15));
@@ -143,6 +147,7 @@ describe('AggregatorService', () => {
     it('should call updateOne for overall aggregation with results', async () => {
       const overallResult = { ...makeAggResult(null as any), _id: null };
       mockEmailEvent.aggregate
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
@@ -201,6 +206,7 @@ describe('AggregatorService', () => {
     it('should set date key in bulk ops as YYYY-MM-DD', async () => {
       mockEmailEvent.aggregate
         .mockResolvedValueOnce([makeAggResult('acc1')])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])

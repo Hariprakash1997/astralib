@@ -4,3 +4,4 @@ export { AlxAnalyticsAccounts } from './alx-analytics-accounts.js';
 export { AlxAnalyticsRules } from './alx-analytics-rules.js';
 export { AlxAnalyticsEngagement } from './alx-analytics-engagement.js';
 export { AlxAnalyticsChannels } from './alx-analytics-channels.js';
+export { AlxAnalyticsVariants } from './alx-analytics-variants.js';

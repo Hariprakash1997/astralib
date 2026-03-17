@@ -7,6 +7,7 @@ import type {
   RuleStats,
   TemplateStats,
   ChannelBreakdown,
+  VariantStats,
 } from '../types/stats.types';
 import type { AggregationInterval } from '../constants';
 
@@ -300,6 +301,47 @@ export class QueryService {
       clicked: r.clicked,
       bounced: r.bounced,
       unsubscribed: r.unsubscribed,
+    }));
+  }
+
+  async getVariantBreakdown(dateFrom: Date, dateTo: Date, templateId?: string): Promise<VariantStats[]> {
+    const fromKey = this.toDateKey(dateFrom);
+    const toKey = this.toDateKey(dateTo);
+
+    const match: Record<string, unknown> = {
+      interval: 'daily',
+      date: { $gte: fromKey, $lte: toKey },
+      subjectIndex: { $ne: null },
+    };
+
+    if (templateId) {
+      const { Types } = await import('mongoose');
+      match.templateId = new Types.ObjectId(templateId);
+    }
+
+    const results = await this.AnalyticsStats.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { subjectIndex: '$subjectIndex', bodyIndex: '$bodyIndex' },
+          sent: { $sum: '$sent' },
+          opened: { $sum: '$opened' },
+          clicked: { $sum: '$clicked' },
+          bounced: { $sum: '$bounced' },
+        },
+      },
+      { $sort: { clicked: -1 as const } },
+    ]);
+
+    return results.map((r) => ({
+      subjectIndex: r._id.subjectIndex,
+      bodyIndex: r._id.bodyIndex,
+      sent: r.sent,
+      opened: r.opened,
+      clicked: r.clicked,
+      bounced: r.bounced,
+      openRate: r.sent > 0 ? Math.round((r.opened / r.sent) * 10000) / 100 : 0,
+      clickRate: r.sent > 0 ? Math.round((r.clicked / r.sent) * 10000) / 100 : 0,
     }));
   }
 
