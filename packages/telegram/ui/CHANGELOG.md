@@ -1,5 +1,11 @@
 # @astralibx/telegram-ui
 
+## 0.1.2
+
+### Patch Changes
+
+- 9924a76: Docs: updated READMEs and added detailed documentation for all packages
+
 ## 0.1.1
 
 ### Patch Changes

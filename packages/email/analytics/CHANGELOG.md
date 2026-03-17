@@ -1,5 +1,13 @@
 # @astralibx/email-analytics
 
+## 2.5.1
+
+### Patch Changes
+
+- 9924a76: Docs: updated READMEs and added detailed documentation for all packages
+- Updated dependencies [9924a76]
+  - @astralibx/core@1.2.1
+
 ## 2.5.0
 
 ### Minor Changes

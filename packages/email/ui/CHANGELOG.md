@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.6.1
+
+### Patch Changes
+
+- 9924a76: Docs: updated READMEs and added detailed documentation for all packages
+
 ## 2.6.0
 
 ### Minor Changes

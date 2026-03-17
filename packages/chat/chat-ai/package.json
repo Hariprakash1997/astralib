@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/chat-ai",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Optional AI layer for chat-engine: memory management, prompt templates, knowledge base, and AI call orchestration",
   "repository": {
     "type": "git",
@@ -46,8 +46,8 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@astralibx/chat-types": "^0.1.1",
-    "@astralibx/core": "^1.2.0",
+    "@astralibx/chat-types": "^0.1.2",
+    "@astralibx/core": "^1.2.1",
     "handlebars": "^4.7.0",
     "zod": "^3.23.0"
   },

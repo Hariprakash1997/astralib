@@ -1,5 +1,14 @@
 # @astralibx/telegram-inbox
 
+## 0.1.2
+
+### Patch Changes
+
+- 9924a76: Docs: updated READMEs and added detailed documentation for all packages
+- Updated dependencies [9924a76]
+  - @astralibx/core@1.2.1
+  - @astralibx/telegram-account-manager@0.1.2
+
 ## 0.1.1
 
 ### Patch Changes

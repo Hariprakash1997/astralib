@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/telegram-account-manager",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Telegram account lifecycle management with TDLib sessions, health tracking, warmup, quarantine, and daily stats",
   "repository": {
     "type": "git",
