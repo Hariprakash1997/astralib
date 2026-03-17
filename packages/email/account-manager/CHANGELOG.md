@@ -1,5 +1,16 @@
 # @astralibx/email-account-manager
 
+## 10.6.0
+
+### Minor Changes
+
+- 6810aa1: Features: email cloning, scheduling, A/B variants, dark mode. Telegram account, rule, bot, inbox management. Chat engine, AI, widget. Fixes: rule editor, form reset, operators, lazy tabs
+
+### Patch Changes
+
+- Updated dependencies [6810aa1]
+  - @astralibx/core@1.2.0
+
 ## 10.5.0
 
 ### Minor Changes

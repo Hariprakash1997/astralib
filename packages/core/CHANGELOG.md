@@ -1,5 +1,11 @@
 # @astralibx/core
 
+## 1.2.0
+
+### Minor Changes
+
+- 6810aa1: Features: email cloning, scheduling, A/B variants, dark mode. Telegram account, rule, bot, inbox management. Chat engine, AI, widget. Fixes: rule editor, form reset, operators, lazy tabs
+
 ## 1.1.3
 
 ### Patch Changes
