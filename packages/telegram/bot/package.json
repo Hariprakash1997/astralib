@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/telegram-bot",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Customizable Telegram bot factory with command registration, keyboard builder, webhook/polling, and user tracking",
   "repository": {
     "type": "git",
