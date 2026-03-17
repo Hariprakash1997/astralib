@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 12.6.0
+
+### Minor Changes
+
+- 46fb03b: Features: template/rule cloning, cron scheduling, A/B variant analytics, send log viewer, segmentation preview, real-data preview. Fixes: rule editor payload, toggle, form reset, operator enum, lazy tabs, templateId display.
+
 ## 12.5.2
 
 ### Patch Changes
