@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/chat-types",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Shared TypeScript type definitions, enums, and event contracts for the chat ecosystem",
   "repository": {
     "type": "git",
