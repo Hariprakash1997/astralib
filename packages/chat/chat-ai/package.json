@@ -1,0 +1,66 @@
+{
+  "name": "@astralibx/chat-ai",
+  "version": "0.1.0",
+  "description": "Optional AI layer for chat-engine: memory management, prompt templates, knowledge base, and AI call orchestration",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hariprakash1997/astralib.git",
+    "directory": "packages/chat/chat-ai"
+  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "chat",
+    "ai",
+    "memory",
+    "prompt",
+    "knowledge",
+    "orchestration",
+    "handlebars",
+    "template"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@astralibx/chat-types": "^0.1.0",
+    "@astralibx/core": "^1.1.3",
+    "handlebars": "^4.7.0",
+    "zod": "^3.23.0"
+  },
+  "peerDependencies": {
+    "express": "^4.18.0 || ^5.0.0",
+    "mongoose": "^7.0.0 || ^8.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "express": "^5.0.0",
+    "mongoose": "^8.12.1",
+    "typescript": "^5.8.2"
+  }
+}

@@ -22,7 +22,7 @@ jobs:
       - run: npm install
 
       - name: Build affected packages
-        run: npx turbo run build --filter=...[origin/main] --filter='!@astralibx/telegram-*'
+        run: npx turbo run build --filter=...[origin/main]
 
       - name: Test affected packages
-        run: npx turbo run test --filter=...[origin/main] --filter='!@astralibx/telegram-*'
+        run: npx turbo run test --filter=...[origin/main]

@@ -1,0 +1,128 @@
+import { Router } from 'express';
+import type { Request, Response, NextFunction, RequestHandler } from 'express';
+import { sendSuccess, sendError } from '@astralibx/core';
+import type { LogAdapter } from '@astralibx/core';
+import type { SessionService } from '../services/session.service';
+import type { MessageService } from '../services/message.service';
+import type { AgentService } from '../services/agent.service';
+import type { SettingsService } from '../services/settings.service';
+import type { FAQService } from '../services/faq.service';
+import type { GuidedQuestionService } from '../services/guided-question.service';
+import type { CannedResponseService } from '../services/canned-response.service';
+import type { WidgetConfigService } from '../services/widget-config.service';
+import { createSessionRoutes } from './session.routes';
+import { createAgentRoutes } from './agent.routes';
+import { createSettingsRoutes } from './settings.routes';
+import { createFAQRoutes } from './faq.routes';
+import { createGuidedQuestionRoutes } from './guided-question.routes';
+import { createCannedResponseRoutes } from './canned-response.routes';
+import { createWidgetConfigRoutes } from './widget-config.routes';
+import { createStatsRoutes } from './stats.routes';
+
+export interface RouteServices {
+  sessions: SessionService;
+  messages: MessageService;
+  agents: AgentService;
+  settings: SettingsService;
+  faq: FAQService;
+  guidedQuestions: GuidedQuestionService;
+  cannedResponses: CannedResponseService;
+  widgetConfig: WidgetConfigService;
+}
+
+export interface RouteOptions {
+  authenticateRequest?: (req: any) => Promise<{ userId: string; permissions?: string[] } | null>;
+  onOfflineMessage?: (data: { visitorId: string; formData: Record<string, unknown> }) => void;
+  logger: LogAdapter;
+}
+
+export function createRoutes(services: RouteServices, options: RouteOptions): Router {
+  const router = Router();
+  const { logger, authenticateRequest, onOfflineMessage } = options;
+
+  // Build auth middleware if adapter is provided
+  let authMiddleware: RequestHandler | undefined;
+  if (authenticateRequest) {
+    authMiddleware = async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+      try {
+        const result = await authenticateRequest(req);
+        if (!result) {
+          sendError(_res, 'Unauthorized', 401);
+          return;
+        }
+        (req as any).user = result;
+        next();
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Authentication failed';
+        sendError(_res, message, 401);
+      }
+    };
+  }
+
+  // Widget config — GET is public, PUT is protected
+  router.use('/widget-config', createWidgetConfigRoutes(services.widgetConfig, logger, authMiddleware));
+
+  // Offline message submission — public (visitor submits when offline)
+  router.post('/offline-messages', async (req: Request, res: Response) => {
+    try {
+      const { visitorId, formData } = req.body;
+      if (!visitorId || !formData) {
+        sendError(res, 'visitorId and formData are required', 400);
+        return;
+      }
+      onOfflineMessage?.({ visitorId, formData });
+      sendSuccess(res, undefined);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to process offline message', { error });
+      sendError(res, message, 500);
+    }
+  });
+
+  // All other routes are protected if authMiddleware exists
+  const protectedRouter = Router();
+
+  protectedRouter.use('/sessions', createSessionRoutes(services.sessions, services.messages, logger));
+  protectedRouter.use('/agents', createAgentRoutes(services.agents, logger));
+  protectedRouter.use('/settings', createSettingsRoutes(services.settings, logger));
+  protectedRouter.use('/faq', createFAQRoutes(services.faq, logger));
+  protectedRouter.use('/guided-questions', createGuidedQuestionRoutes(services.guidedQuestions, logger));
+  protectedRouter.use('/canned-responses', createCannedResponseRoutes(services.cannedResponses, logger));
+  protectedRouter.use('/stats', createStatsRoutes(services.sessions, services.agents, logger));
+
+  // GET /offline-messages — protected (admin lists offline messages)
+  protectedRouter.get('/offline-messages', async (req: Request, res: Response) => {
+    try {
+      const { dateFrom, dateTo, page, limit } = req.query;
+      const filter: Record<string, unknown> = {
+        status: 'abandoned',
+        messageCount: 0,
+      };
+
+      if (dateFrom || dateTo) {
+        const dateFilter: Record<string, unknown> = {};
+        if (dateFrom) dateFilter.$gte = new Date(dateFrom as string);
+        if (dateTo) dateFilter.$lte = new Date(dateTo as string);
+        filter.startedAt = dateFilter;
+      }
+
+      const pageNum = Number(page) || 1;
+      const limitNum = Number(limit) || 20;
+
+      const result = await services.sessions.findPaginated(filter, pageNum, limitNum);
+      sendSuccess(res, result);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to list offline messages', { error });
+      sendError(res, message, 500);
+    }
+  });
+
+  if (authMiddleware) {
+    router.use(authMiddleware, protectedRouter);
+  } else {
+    router.use(protectedRouter);
+  }
+
+  return router;
+}

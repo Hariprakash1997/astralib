@@ -64,6 +64,15 @@ validate({
 - `baseDbSchema` -- Validates `BaseDbConfig` (connection must be non-null).
 - `baseRedisSchema` -- Validates `BaseRedisConfig` (connection must be non-null).
 
+**Shared utilities**
+
+- `noopLogger` -- No-op `LogAdapter` for fallback when consumer doesn't provide a logger.
+- `RedisLock` -- Distributed lock using Redis `SET NX PX` with safe Lua release.
+- `getParam(req, name)` -- Extract route param from Express request.
+- `getQueryString(req, name)` -- Extract query string param from Express request.
+- `sendSuccess(res, data, status?)` -- Send `{ success: true, data }` JSON response.
+- `sendError(res, error, status?)` -- Send `{ success: false, error }` JSON response.
+
 **Helpers**
 
 - `createConfigValidator` -- Takes a Zod schema, returns a validate function that throws `ConfigValidationError` on failure.

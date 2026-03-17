@@ -1,0 +1,55 @@
+{
+  "name": "@astralibx/telegram-inbox",
+  "version": "0.1.0",
+  "description": "Real-time Telegram message listener, conversations, history sync, media processing, and session tracking",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hariprakash1997/astralib.git",
+    "directory": "packages/telegram/inbox"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "telegram",
+    "inbox",
+    "messages",
+    "conversations",
+    "history-sync",
+    "media",
+    "real-time"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@astralibx/core": "*",
+    "zod": "^3.23.0"
+  },
+  "peerDependencies": {
+    "express": "^4.18.0 || ^5.0.0",
+    "mongoose": "^7.0.0 || ^8.0.0",
+    "telegram": "^2.20.0",
+    "@astralibx/telegram-account-manager": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "express": "^5.0.0",
+    "mongodb-memory-server": "^10.0.0",
+    "mongoose": "^8.12.1",
+    "telegram": "^2.26.22",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.0"
+  }
+}

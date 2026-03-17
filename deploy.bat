@@ -2,38 +2,102 @@
 setlocal enabledelayedexpansion
 
 REM ============================================================
-REM  DEPLOY SCRIPT — @astralibx monorepo
-REM  Edit these 3 values before each run, then execute deploy.bat
+REM  DEPLOY SCRIPT - @astralibx monorepo
+REM
+REM  HOW TO USE:
+REM  1. Set COMMIT_MSG describing what changed
+REM  2. Add packages to the correct section below (EMAIL, TELEGRAM, CHAT)
+REM  3. Leave sections empty if no changes in that channel
+REM  4. Run deploy.bat from repo root
+REM  5. Merge the "Version Packages" PR on GitHub
+REM
+REM  RULES:
+REM  - No special characters in COMMIT_MSG: no (), no --, no |
+REM  - patch = bugfix/docs, minor = new features, major = breaking changes
+REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
-REM What changed? (used for commit message and changeset summary)
-set "COMMIT_MSG=Features: template/rule cloning, cron scheduling, A/B variant analytics, send log viewer, segmentation preview, real-data preview. Fixes: rule editor payload, toggle, form reset, operator enum, lazy tabs, templateId display."
+REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
+set "COMMIT_MSG=Features: email cloning, scheduling, A/B variants, dark mode. Telegram account, rule, bot, inbox management. Chat engine, AI, widget. Fixes: rule editor, form reset, operators, lazy tabs"
 
-REM Default bump type: used when package has no :type suffix
+REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
 
-REM Which packages? Comma-separated, with optional :bump suffix per package
-REM Format: name:bump  (bump = patch | minor | major)
-REM If no :bump suffix, DEFAULT_BUMP is used
-REM Examples:
-REM   email-rule-engine:major,email-account-manager:minor,email-analytics:patch
-REM   email-rule-engine,core              (both use DEFAULT_BUMP)
-REM   all                                 (all packages use DEFAULT_BUMP)
-REM   all:minor                           (all packages use minor)
-set "PACKAGES=email-rule-engine:minor,email-analytics:minor,email-ui:minor"
+REM ============================================================
+REM  CORE - shared utilities used by all packages
+REM  Only bump when core itself changes
+REM ============================================================
+set "CORE_PACKAGES=core:minor"
+
+REM ============================================================
+REM  EMAIL - packages/email/*
+REM  email-account-manager, email-analytics, email-rule-engine, email-ui
+REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
+REM ============================================================
+set "EMAIL_PACKAGES=email-account-manager:minor,email-analytics:minor,email-rule-engine:minor,email-ui:minor"
+
+REM ============================================================
+REM  TELEGRAM - packages/telegram/*
+REM  telegram-account-manager, telegram-rule-engine, telegram-inbox, telegram-bot, telegram-ui
+REM  Leave empty if no telegram changes: set "TELEGRAM_PACKAGES="
+REM ============================================================
+set "TELEGRAM_PACKAGES=telegram-account-manager:patch,telegram-rule-engine:patch,telegram-inbox:patch,telegram-bot:patch,telegram-ui:patch"
+
+REM ============================================================
+REM  CHAT - packages/chat/*
+REM  chat-types, chat-engine, chat-ai, chat-widget, chat-ui
+REM  Leave empty if no chat changes: set "CHAT_PACKAGES="
+REM ============================================================
+set "CHAT_PACKAGES=chat-types:patch,chat-engine:patch,chat-ai:patch,chat-widget:patch,chat-ui:patch"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE
 REM ============================================================
+
+REM --- Merge all non-empty sections ---
+set "PACKAGES="
+if defined CORE_PACKAGES (
+    if defined PACKAGES (
+        set "PACKAGES=!PACKAGES!,!CORE_PACKAGES!"
+    ) else (
+        set "PACKAGES=!CORE_PACKAGES!"
+    )
+)
+if defined EMAIL_PACKAGES (
+    if defined PACKAGES (
+        set "PACKAGES=!PACKAGES!,!EMAIL_PACKAGES!"
+    ) else (
+        set "PACKAGES=!EMAIL_PACKAGES!"
+    )
+)
+if defined TELEGRAM_PACKAGES (
+    if defined PACKAGES (
+        set "PACKAGES=!PACKAGES!,!TELEGRAM_PACKAGES!"
+    ) else (
+        set "PACKAGES=!TELEGRAM_PACKAGES!"
+    )
+)
+if defined CHAT_PACKAGES (
+    if defined PACKAGES (
+        set "PACKAGES=!PACKAGES!,!CHAT_PACKAGES!"
+    ) else (
+        set "PACKAGES=!CHAT_PACKAGES!"
+    )
+)
+
+if not defined PACKAGES (
+    echo [ERROR] No packages selected. Set at least one section above.
+    exit /b 1
+)
 
 REM --- Resolve "all" shorthand ---
 set "RAW_PACKAGES=%PACKAGES%"
 for /f "tokens=1,2 delims=:" %%a in ("%RAW_PACKAGES%") do (
     if /i "%%a"=="all" (
         if "%%b"=="" (
-            set "RAW_PACKAGES=core:%DEFAULT_BUMP%,email-rule-engine:%DEFAULT_BUMP%,email-account-manager:%DEFAULT_BUMP%,email-analytics:%DEFAULT_BUMP%,email-ui:%DEFAULT_BUMP%"
+            set "RAW_PACKAGES=core:%DEFAULT_BUMP%,email-account-manager:%DEFAULT_BUMP%,email-analytics:%DEFAULT_BUMP%,email-rule-engine:%DEFAULT_BUMP%,email-ui:%DEFAULT_BUMP%,telegram-account-manager:%DEFAULT_BUMP%,telegram-rule-engine:%DEFAULT_BUMP%,telegram-inbox:%DEFAULT_BUMP%,telegram-bot:%DEFAULT_BUMP%,telegram-ui:%DEFAULT_BUMP%,chat-types:%DEFAULT_BUMP%,chat-engine:%DEFAULT_BUMP%,chat-ai:%DEFAULT_BUMP%,chat-widget:%DEFAULT_BUMP%,chat-ui:%DEFAULT_BUMP%"
         ) else (
-            set "RAW_PACKAGES=core:%%b,email-rule-engine:%%b,email-account-manager:%%b,email-analytics:%%b,email-ui:%%b"
+            set "RAW_PACKAGES=core:%%b,email-account-manager:%%b,email-analytics:%%b,email-rule-engine:%%b,email-ui:%%b,telegram-account-manager:%%b,telegram-rule-engine:%%b,telegram-inbox:%%b,telegram-bot:%%b,telegram-ui:%%b,chat-types:%%b,chat-engine:%%b,chat-ai:%%b,chat-widget:%%b,chat-ui:%%b"
         )
     )
 )

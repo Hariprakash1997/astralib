@@ -1,0 +1,44 @@
+{
+  "name": "@astralibx/chat-widget",
+  "version": "0.1.0",
+  "description": "Embeddable visitor-facing chat widget built with Lit Web Components",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hariprakash1997/astralib.git",
+    "directory": "packages/chat/chat-widget"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "lit": "^3.0.0",
+    "@astralibx/chat-types": "^0.1.0"
+  },
+  "peerDependencies": {
+    "socket.io-client": "^4.0.0"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.0.0",
+    "vite": "^6.0.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.0.0"
+  },
+  "license": "MIT"
+}

@@ -3,7 +3,10 @@
   "private": true,
   "packageManager": "npm@11.4.2",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "packages/email/*",
+    "packages/telegram/*",
+    "packages/chat/*"
   ],
   "scripts": {
     "build": "turbo run build",
