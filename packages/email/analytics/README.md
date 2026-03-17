@@ -55,19 +55,19 @@ const overview = await analytics.query.getOverview(
 
 ## Features
 
-- **Event Recording** -- single and batch insert with automatic timestamps; supports `externalUserId` for external system user tracking and `channel` for CTA attribution (whatsapp, telegram, sms, web, etc.) ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/event-recording.md))
-- **Daily Aggregation** -- rolls up raw events into per-day stats by account, rule, template, and overall ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/aggregation.md))
-- **Range Aggregation** -- backfill or re-aggregate any date range ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/aggregation.md))
-- **Time-Series Queries** -- overview, timeline (daily/weekly/monthly), per-account, per-rule, per-template ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/querying.md))
-- **Variant Analytics** -- per-variant (subjectIndex/bodyIndex) performance stats via `GET /variants` endpoint for A/B test analysis ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/api-routes.md))
-- **REST API** -- endpoints with date-range query params, including `GET /channels` for channel breakdown, `GET /variants` for variant performance, and `POST /track` for public event ingestion with CORS ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/api-routes.md))
-- **TTL Cleanup** -- MongoDB TTL index auto-expires old events; manual purge also available ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/event-recording.md#ttl-and-cleanup))
-- **Programmatic API** -- use services directly without HTTP ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/programmatic-api.md))
-- **Error Handling** -- typed error classes for validation, date range, and aggregation failures ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/error-handling.md))
+- **Event Recording** -- single and batch insert with automatic timestamps; supports `externalUserId` for external system user tracking and `channel` for CTA attribution (whatsapp, telegram, sms, web, etc.) ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/event-recording.md))
+- **Daily Aggregation** -- rolls up raw events into per-day stats by account, rule, template, and overall ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/aggregation.md))
+- **Range Aggregation** -- backfill or re-aggregate any date range ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/aggregation.md))
+- **Time-Series Queries** -- overview, timeline (daily/weekly/monthly), per-account, per-rule, per-template ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/querying.md))
+- **Variant Analytics** -- per-variant (subjectIndex/bodyIndex) performance stats via `GET /variants` endpoint for A/B test analysis ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/api-routes.md))
+- **REST API** -- endpoints with date-range query params, including `GET /channels` for channel breakdown, `GET /variants` for variant performance, and `POST /track` for public event ingestion with CORS ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/api-routes.md))
+- **TTL Cleanup** -- MongoDB TTL index auto-expires old events; manual purge also available ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/event-recording.md#ttl-and-cleanup))
+- **Programmatic API** -- use services directly without HTTP ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/programmatic-api.md))
+- **Error Handling** -- typed error classes for validation, date range, and aggregation failures ([docs](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/error-handling.md))
 
 ## Integration with Other Packages
 
-Wire hooks from `@astralibx/email-account-manager` and `@astralibx/email-rule-engine` to automatically record analytics events. See the [integration guide](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/integration.md) for full examples.
+Wire hooks from `@astralibx/email-account-manager` and `@astralibx/email-rule-engine` to automatically record analytics events. See the [integration guide](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/integration.md) for full examples.
 
 ```typescript
 import { createEmailAccountManager } from '@astralibx/email-account-manager';
@@ -95,13 +95,13 @@ const ruleEngine = createEmailRuleEngine({
 
 ## Getting Started Guide
 
-1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/configuration.md) — Set up database and timezone
-2. [Event Recording](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/event-recording.md) — Record email events (sent, delivered, bounced, etc.)
-3. [Aggregation](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/aggregation.md) — Aggregate events into queryable stats (**must be scheduled via cron**)
-4. [Querying](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/querying.md) — Query aggregated stats by date range, account, rule, or template
-5. [Integration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/integration.md) — Wire analytics to email-rule-engine and email-account-manager hooks
+1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/configuration.md) — Set up database and timezone
+2. [Event Recording](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/event-recording.md) — Record email events (sent, delivered, bounced, etc.)
+3. [Aggregation](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/aggregation.md) — Aggregate events into queryable stats (**must be scheduled via cron**)
+4. [Querying](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/querying.md) — Query aggregated stats by date range, account, rule, or template
+5. [Integration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/integration.md) — Wire analytics to email-rule-engine and email-account-manager hooks
 
-Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/types.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-analytics/docs/error-handling.md)
+Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/types.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/docs/error-handling.md)
 
 > **Important:** Events must be aggregated before querying. Schedule `aggregateDaily()` via cron (hourly recommended). Without aggregation, query endpoints return empty results.
 

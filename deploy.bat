@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Features: email cloning, scheduling, A/B variants, dark mode. Telegram account, rule, bot, inbox management. Chat engine, AI, widget. Fixes: rule editor, form reset, operators, lazy tabs"
+set "COMMIT_MSG=Docs: updated READMEs and added detailed documentation for all packages"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -27,14 +27,14 @@ REM ============================================================
 REM  CORE - shared utilities used by all packages
 REM  Only bump when core itself changes
 REM ============================================================
-set "CORE_PACKAGES=core:minor"
+set "CORE_PACKAGES=core:patch"
 
 REM ============================================================
 REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES=email-account-manager:minor,email-analytics:minor,email-rule-engine:minor,email-ui:minor"
+set "EMAIL_PACKAGES=email-account-manager:patch,email-analytics:patch,email-rule-engine:patch,email-ui:patch"
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*

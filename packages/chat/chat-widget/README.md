@@ -1,16 +1,25 @@
 # @astralibx/chat-widget
 
-Embeddable visitor-facing chat widget built with [Lit](https://lit.dev/) Web Components. Framework-agnostic -- works in React, Vue, Angular, or vanilla HTML.
+[![npm version](https://img.shields.io/npm/v/@astralibx/chat-widget.svg)](https://www.npmjs.com/package/@astralibx/chat-widget)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**Repository**: [github.com/Hariprakash1997/astralib](https://github.com/Hariprakash1997/astralib/tree/main/packages/chat/chat-widget)
+Embeddable visitor-facing chat widget built with [Lit](https://lit.dev/) Web Components. Framework-agnostic -- works in React, Vue, Angular, or vanilla HTML. Includes a configurable pre-chat funnel (welcome, FAQ, guided questions, form, agent selector), offline handling, post-chat feedback, theming, and real-time events.
 
-## Installation
+## Install
 
 ```bash
 npm install @astralibx/chat-widget
 ```
 
-**Peer dependency**: `socket.io-client@^4.0.0`
+### Peer Dependencies
+
+| Package | Required |
+|---------|----------|
+| `socket.io-client` | Yes (`^4.0.0`) |
+
+```bash
+npm install socket.io-client
+```
 
 ## Quick Start
 
@@ -29,7 +38,7 @@ npm install @astralibx/chat-widget
 ></alx-chat-widget>
 ```
 
-### Programmatic Configuration
+### Programmatic
 
 ```ts
 import { AlxChatWidget } from '@astralibx/chat-widget';
@@ -41,24 +50,12 @@ widget.configure({
   theme: 'dark',
   position: 'bottom-right',
   user: { userId: '123', name: 'John', email: 'john@example.com' },
-  translations: { welcomeTitle: 'Chat With Us' },
-  branding: {
-    primaryColor: '#D4AF37',
-    companyName: 'Acme',
-    logoUrl: '/logo.png',
-  },
-  features: {
-    soundNotifications: true,
-    desktopNotifications: false,
-    typingIndicator: true,
-    readReceipts: true,
-  },
+  branding: { primaryColor: '#D4AF37', companyName: 'Acme', logoUrl: '/logo.png' },
+  features: { soundNotifications: true, typingIndicator: true, readReceipts: true },
 });
 ```
 
 ## Pre-Chat Flow
-
-The widget includes a configurable pre-chat funnel. Steps are optional and order is configurable.
 
 ```ts
 widget.configure({
@@ -69,61 +66,46 @@ widget.configure({
     skipToChat: true,
     completionAction: 'chat',
     steps: [
-      {
-        type: 'welcome',
-        title: 'Hi there!',
-        subtitle: 'How can we help you today?',
-        showOnlineStatus: true,
-      },
+      { type: 'welcome', title: 'Hi there!', subtitle: 'How can we help?', showOnlineStatus: true },
       {
         type: 'faq',
         searchEnabled: true,
-        feedbackEnabled: true,
-        categories: [
-          { key: 'billing', label: 'Billing', icon: '💳' },
-          { key: 'technical', label: 'Technical', icon: '🔧' },
-        ],
+        categories: [{ key: 'billing', label: 'Billing' }, { key: 'technical', label: 'Technical' }],
         items: [
-          { question: 'How do I reset my password?', answer: 'Go to Settings > Security...', category: 'technical' },
+          { question: 'How do I reset my password?', answer: 'Go to Settings > Security > Reset Password.', category: 'technical' },
+          { question: 'What payment methods do you accept?', answer: 'Visa, Mastercard, PayPal.', category: 'billing' },
         ],
+        showChatPrompt: true,
       },
       {
         type: 'guided',
         mode: 'sequential',
         questions: [
-          {
-            key: 'topic',
-            text: 'What do you need help with?',
-            options: [
-              { value: 'billing', label: 'Billing', nextQuestion: 'billing_type' },
-              { value: 'technical', label: 'Technical', skipToStep: 'chat' },
-            ],
-          },
+          { key: 'topic', text: 'What do you need help with?', options: [
+            { value: 'billing', label: 'Billing' },
+            { value: 'technical', label: 'Technical Issue' },
+            { value: 'other', label: 'Something Else', skipToStep: 'chat' },
+          ]},
         ],
       },
-      {
-        type: 'form',
-        title: 'Quick info before we connect you',
-        fields: [
-          { key: 'name', label: 'Your Name', type: 'text', required: true },
-          { key: 'email', label: 'Email', type: 'email', required: true },
-        ],
-      },
-      {
-        type: 'agent-selector',
-        title: 'Choose who to talk to',
-        showAvailability: true,
-        autoAssign: true,
-      },
+      { type: 'form', title: 'Quick info', fields: [
+        { key: 'name', label: 'Name', type: 'text', required: true },
+        { key: 'email', label: 'Email', type: 'email', required: true },
+      ]},
     ],
   },
 });
 ```
 
-### FAQ-Only Mode (no live chat)
+## FAQ-Only Mode
+
+Use the widget as a standalone help center without live chat:
 
 ```ts
 widget.configure({
+  socketUrl: 'https://chat.example.com',
+  channel: 'website',
+  features: { liveChatEnabled: false },
   preChatFlow: {
     enabled: true,
     completionAction: 'close',
@@ -136,74 +118,38 @@ widget.configure({
 });
 ```
 
-## Theming
-
-The widget uses CSS custom properties prefixed with `--alx-chat-*`. Override them on the host element or via the `branding.primaryColor` config.
-
-Built-in themes: `dark` (default), `light`. Set via the `theme` attribute or config.
-
-| Property | Description |
-|---|---|
-| `--alx-chat-primary` | Primary accent color |
-| `--alx-chat-primary-hover` | Primary hover color |
-| `--alx-chat-primary-text` | Text on primary background |
-| `--alx-chat-bg` | Widget background |
-| `--alx-chat-surface` | Surface/card background |
-| `--alx-chat-text` | Primary text color |
-| `--alx-chat-text-muted` | Secondary text color |
-| `--alx-chat-border` | Border color |
-| `--alx-chat-radius` | Border radius |
-| `--alx-chat-font` | Font family |
-| `--alx-chat-font-size` | Base font size |
-
 ## Events
 
-Listen for CustomEvents on the widget element:
+Track widget interactions with CustomEvents:
 
 ```ts
-widget.addEventListener('chat:widget-opened', () => {});
-widget.addEventListener('chat:widget-closed', () => {});
-widget.addEventListener('chat:session-started', (e) => { e.detail.sessionId; });
-widget.addEventListener('chat:message-sent', (e) => { e.detail.message; });
-widget.addEventListener('chat:message-received', (e) => { e.detail.message; });
-widget.addEventListener('chat:prechat-completed', (e) => { e.detail.preferences; });
-widget.addEventListener('chat:faq-viewed', (e) => { e.detail.question; });
-widget.addEventListener('chat:faq-feedback', (e) => { e.detail.question; e.detail.helpful; });
-widget.addEventListener('chat:escalated', (e) => { e.detail.reason; });
-widget.addEventListener('chat:session-ended', (e) => { e.detail.sessionId; });
-widget.addEventListener('chat:feedback-submitted', (e) => { e.detail; });
-widget.addEventListener('chat:offline-message', (e) => { e.detail; });
-```
-
-## Public Methods
-
-```ts
-widget.configure(config);     // Set configuration
-widget.escalate(reason?);     // Escalate to human agent
-widget.showOffline();          // Show offline view
-```
-
-## Offline & Post-Chat
-
-```ts
-widget.configure({
-  offline: {
-    mode: 'form',                // 'form' | 'message' | 'hide'
-    offlineTitle: 'We are offline',
-    offlineMessage: 'Leave us a message',
-    formFields: [
-      { key: 'email', label: 'Email', type: 'email', required: true },
-      { key: 'message', label: 'Message', type: 'textarea', required: true },
-    ],
-  },
-  postChat: {
-    enabled: true,
-    type: 'rating',              // 'rating' | 'survey'
-    ratingQuestion: 'How was your experience?',
-    thankYouMessage: 'Thank you for your feedback!',
-  },
+const widget = document.querySelector('alx-chat-widget');
+widget.addEventListener('chat:session-started', (e) => {
+  analytics.track('chat_started', e.detail);
+});
+widget.addEventListener('chat:faq-viewed', (e) => {
+  analytics.track('faq_viewed', { question: e.detail.question });
 });
 ```
+
+## Features
+
+- **Configurable pre-chat flow** -- Welcome screen, FAQ, guided questions, contact form, and agent selector steps in any order. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/pre-chat-flow.md)
+- **FAQ-only mode** -- Use the widget as a standalone help center without live chat. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/pre-chat-flow.md#faq-only-mode-no-live-chat)
+- **Theming** -- Dark and light themes with full CSS custom property override support. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/theming.md)
+- **Offline handling** -- Configurable offline form, message, or auto-hide behavior. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/configuration.md#offline-configuration)
+- **Post-chat feedback** -- Rating or survey collection after chat ends. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/configuration.md#post-chat-configuration)
+- **Real-time events** -- CustomEvents for widget open/close, messages, sessions, FAQ interactions, escalation, and feedback. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/events.md)
+- **Public API** -- Programmatic methods for configuration, escalation, and offline control. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/api-methods.md)
+- **Branding** -- Custom primary color, company name, and logo via config. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/theming.md#branding-shortcut)
+
+## Documentation
+
+1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/configuration.md) -- All config options: socket, theme, user, branding, features, offline, post-chat
+2. [Pre-Chat Flow](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/pre-chat-flow.md) -- Step types, routing logic, FAQ-only mode
+3. [Theming](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/theming.md) -- CSS custom properties reference and built-in themes
+4. [Events](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/events.md) -- CustomEvent reference with detail payloads
+5. [API Methods](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/api-methods.md) -- Public methods: `configure()`, `escalate()`, `showOffline()`
 
 ## License
 

@@ -103,18 +103,18 @@ The `createEmailRuleEngine(config)` factory accepts an `EmailRuleEngineConfig` o
 | `hooks` | No | Callbacks at key execution points |
 | `logger` | No | Logger with `info`, `warn`, `error` methods |
 
-See [docs/configuration.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/configuration.md) for the full reference with examples.
+See [docs/configuration.md](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/configuration.md) for the full reference with examples.
 
 ## Getting Started Guide
 
-1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/configuration.md) — Set up database, Redis, and options
-2. [Adapters](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/adapters.md) — Implement the 6 required adapter functions
-3. [Templates](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/templates.md) — Create email templates with MJML + Handlebars
-4. [Rules](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/rules.md) — Define targeting rules with conditions or explicit lists
-5. [Execution Flow](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/execution-flow.md) — Understand how the runner processes rules
-6. [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/throttling.md) — Configure per-user send limits
+1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/configuration.md) — Set up database, Redis, and options
+2. [Adapters](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/adapters.md) — Implement the 6 required adapter functions
+3. [Templates](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/templates.md) — Create email templates with MJML + Handlebars
+4. [Rules](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/rules.md) — Define targeting rules with conditions or explicit lists
+5. [Execution Flow](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/execution-flow.md) — Understand how the runner processes rules
+6. [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/throttling.md) — Configure per-user send limits
 
-Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/types.md) | [Constants](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/constants.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/error-handling.md)
+Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/types.md) | [Constants](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/constants.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/error-handling.md)
 
 ### Redis Key Prefix (Required for Multi-Project Deployments)
 
@@ -136,7 +136,7 @@ const engine = createEmailRuleEngine({
 
 **Always set a unique prefix** like `projectname:` when sharing Redis.
 
-> **Important:** Configure throttle settings before running rules. Default limits (1/day, 2/week) may be too restrictive. See [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-rule-engine/docs/throttling.md).
+> **Important:** Configure throttle settings before running rules. Default limits (1/day, 2/week) may be too restrictive. See [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/throttling.md).
 
 ## License
 

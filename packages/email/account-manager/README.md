@@ -75,17 +75,17 @@ app.listen(3000);
 
 ## Features
 
-- **Multi-account management** -- Gmail and AWS SES providers with credential storage, status tracking, and freeform metadata. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/account-management.md)
-- **Health tracking** -- Automatic scoring (+1/-5/-10) with auto-disable on threshold breach. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/health-tracking.md)
-- **Account warmup** -- Phased volume ramp-up with configurable schedules stored per-account. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/warmup-system.md)
-- **Capacity-based rotation** -- Health-weighted account selection with daily limit enforcement. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/capacity-selection.md)
-- **Reliable sending** -- BullMQ queues with retries, dev mode redirect, and per-account SMTP. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/email-sending.md)
-- **Draft approval workflow** -- Create, review, approve/reject, bulk operations, send window spread. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/draft-approval.md)
-- **Unsubscribe handling** -- HMAC tokens, styled confirmation page, RFC 8058 one-click support. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/unsubscribe.md)
-- **SES webhooks** -- SNS signature verification, bounce/complaint/delivery/open/click processing. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/ses-webhooks.md)
-- **IMAP bounce detection** -- Gmail IMAP polling with bounce classification. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/imap-bounce-checking.md)
-- **Global settings** -- Runtime-adjustable config stored in MongoDB with in-memory caching. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/global-settings.md)
-- **Error classes** -- Typed errors with codes for every failure scenario. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/error-handling.md)
+- **Multi-account management** -- Gmail and AWS SES providers with credential storage, status tracking, and freeform metadata. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/account-management.md)
+- **Health tracking** -- Automatic scoring (+1/-5/-10) with auto-disable on threshold breach. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/health-tracking.md)
+- **Account warmup** -- Phased volume ramp-up with configurable schedules stored per-account. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/warmup-system.md)
+- **Capacity-based rotation** -- Health-weighted account selection with daily limit enforcement. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/capacity-selection.md)
+- **Reliable sending** -- BullMQ queues with retries, dev mode redirect, and per-account SMTP. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/email-sending.md)
+- **Draft approval workflow** -- Create, review, approve/reject, bulk operations, send window spread. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/draft-approval.md)
+- **Unsubscribe handling** -- HMAC tokens, styled confirmation page, RFC 8058 one-click support. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/unsubscribe.md)
+- **SES webhooks** -- SNS signature verification, bounce/complaint/delivery/open/click processing. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/ses-webhooks.md)
+- **IMAP bounce detection** -- Gmail IMAP polling with bounce classification. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/imap-bounce-checking.md)
+- **Global settings** -- Runtime-adjustable config stored in MongoDB with in-memory caching. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/global-settings.md)
+- **Error classes** -- Typed errors with codes for every failure scenario. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/error-handling.md)
 
 ## Architecture
 
@@ -97,20 +97,20 @@ The library exposes three Express routers from a single factory call:
 | `eam.webhookRoutes.ses` | SES/SNS event receiver | Public (SNS signature verified) |
 | `eam.unsubscribeRoutes` | Unsubscribe confirmation pages | Public |
 
-All services are also available programmatically via the returned `eam` object. See [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/programmatic-api.md).
+All services are also available programmatically via the returned `eam` object. See [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/programmatic-api.md).
 
 ## Getting Started Guide
 
-1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/configuration.md) — Set up database, Redis, queues, and hooks
-2. [Account Management](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/account-management.md) — Create and manage email accounts (see [default values](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/account-management.md#default-values))
-3. [Warmup System](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/warmup-system.md) — Gradually increase sending volume (**requires daily `advanceDay()` cron**)
-4. [Health Tracking](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/health-tracking.md) — Monitor account health and auto-disable unhealthy accounts
-5. [Email Sending](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/email-sending.md) — Send emails via SMTP with queue-based processing
-6. [Global Settings](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/global-settings.md) — Configure timezone, dev mode, approval workflow
+1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/configuration.md) — Set up database, Redis, queues, and hooks
+2. [Account Management](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/account-management.md) — Create and manage email accounts (see [default values](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/account-management.md#default-values))
+3. [Warmup System](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/warmup-system.md) — Gradually increase sending volume (**requires daily `advanceDay()` cron**)
+4. [Health Tracking](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/health-tracking.md) — Monitor account health and auto-disable unhealthy accounts
+5. [Email Sending](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/email-sending.md) — Send emails via SMTP with queue-based processing
+6. [Global Settings](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/global-settings.md) — Configure timezone, dev mode, approval workflow
 
-Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/types.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/error-handling.md)
+Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/types.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/error-handling.md)
 
-Advanced: [Capacity Selection](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/capacity-selection.md) | [Draft Approval](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/draft-approval.md) | [IMAP Bounce Checking](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/imap-bounce-checking.md) | [SES Webhooks](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/ses-webhooks.md) | [Unsubscribe](https://github.com/Hariprakash1997/astralib/blob/main/packages/email-account-manager/docs/unsubscribe.md)
+Advanced: [Capacity Selection](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/capacity-selection.md) | [Draft Approval](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/draft-approval.md) | [IMAP Bounce Checking](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/imap-bounce-checking.md) | [SES Webhooks](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/ses-webhooks.md) | [Unsubscribe](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/docs/unsubscribe.md)
 
 > **Important:** The warmup system requires calling `advanceDay()` daily via cron job. Without this, accounts stay in warmup indefinitely.
 

@@ -6,11 +6,11 @@ Production-grade Telegram messaging infrastructure for Node.js — multi-account
 
 | Package | Description | Peer Dependencies |
 |---------|-------------|-------------------|
-| [account-manager](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager) | TDLib client account lifecycle — connect/disconnect, health tracking, warmup phases, quarantine, daily capacity | express, mongoose, telegram |
-| [rule-engine](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/rule-engine) | Campaign orchestration — templates with Handlebars, rule-based targeting (query/list modes), throttling, Redis-based progress tracking | express, mongoose, ioredis |
-| [inbox](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox) | Real-time message listener, conversation management, history sync, media processing, typing indicators | express, mongoose, telegram |
-| [bot](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/bot) | Customizable bot factory — command registration, keyboard builder, inline queries, user tracking | express, mongoose, node-telegram-bot-api |
-| [ui](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/ui) | 12 Lit Web Components — accounts, templates, rules, inbox, bot stats, analytics dashboard | lit |
+| [account-manager](https://github.com/Hariprakash1997/astralib/tree/main/packages/telegram/account-manager) | TDLib client account lifecycle — connect/disconnect, health tracking, warmup phases, quarantine, daily capacity | express, mongoose, telegram |
+| [rule-engine](https://github.com/Hariprakash1997/astralib/tree/main/packages/telegram/rule-engine) | Campaign orchestration — templates with Handlebars, rule-based targeting (query/list modes), throttling, Redis-based progress tracking | express, mongoose, ioredis |
+| [inbox](https://github.com/Hariprakash1997/astralib/tree/main/packages/telegram/inbox) | Real-time message listener, conversation management, history sync, media processing, typing indicators | express, mongoose, telegram |
+| [bot](https://github.com/Hariprakash1997/astralib/tree/main/packages/telegram/bot) | Customizable bot factory — command registration, keyboard builder, inline queries, user tracking | express, mongoose, node-telegram-bot-api |
+| [ui](https://github.com/Hariprakash1997/astralib/tree/main/packages/telegram/ui) | 12 Lit Web Components — accounts, templates, rules, inbox, bot stats, analytics dashboard | lit |
 
 ## Architecture
 
