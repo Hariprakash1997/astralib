@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 12.5.2
+
+### Patch Changes
+
+- 5169baa: fix rule editor data mapping, toggle, form reset, operators, emailType, lazy tab loading, populated templateId display
+
 ## 12.5.1
 
 ### Patch Changes
