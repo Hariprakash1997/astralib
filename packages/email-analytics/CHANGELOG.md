@@ -1,5 +1,11 @@
 # @astralibx/email-analytics
 
+## 2.4.0
+
+### Minor Changes
+
+- 46fb03b: Features: template/rule cloning, cron scheduling, A/B variant analytics, send log viewer, segmentation preview, real-data preview. Fixes: rule editor payload, toggle, form reset, operator enum, lazy tabs, templateId display.
+
 ## 2.3.0
 
 ### Minor Changes
