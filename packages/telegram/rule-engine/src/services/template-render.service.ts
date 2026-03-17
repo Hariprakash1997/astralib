@@ -59,8 +59,15 @@ export class TemplateRenderService {
   }
 
   renderPreview(message: string, data: Record<string, unknown>): string {
+    const variables = this.extractVariables([message]);
+    const sampleData = { ...data };
+    for (const v of variables) {
+      if (!(v in sampleData)) {
+        sampleData[v] = `[${v}]`;
+      }
+    }
     const fn = Handlebars.compile(message, { strict: false });
-    return fn(data);
+    return fn(sampleData);
   }
 
   extractVariables(templates: string[]): string[] {

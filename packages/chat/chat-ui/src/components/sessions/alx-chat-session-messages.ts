@@ -109,6 +109,7 @@ export class AlxChatSessionMessages extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @property({ type: String }) sessionId = '';
 
   @state() private messages: ChatMessage[] = [];

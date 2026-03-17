@@ -99,6 +99,7 @@ export class AlxChatSessionDetail extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @property({ type: String }) sessionId = '';
 
   @state() private session: SessionDetail | null = null;

@@ -567,6 +567,80 @@ export const alxChatDrawerStyles = css`
   }
 `;
 
+export const alxChatTooltipStyles = css`
+  label[title] {
+    border-bottom: 1px dotted var(--alx-text-muted);
+    cursor: help;
+  }
+
+  .help-toggle {
+    background: none;
+    border: 1px solid var(--alx-border);
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--alx-text-muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    line-height: 1;
+    padding: 0;
+    font-family: inherit;
+  }
+
+  .help-toggle:hover, .help-toggle.open {
+    background: color-mix(in srgb, var(--alx-primary) 10%, transparent);
+    border-color: var(--alx-primary);
+    color: var(--alx-primary);
+  }
+
+  .help-panel {
+    font-size: 0.7rem;
+    color: var(--alx-text-muted);
+    line-height: 1.6;
+    padding: 0.5rem 0.625rem;
+    background: color-mix(in srgb, var(--alx-info) 5%, transparent);
+    border: 1px solid color-mix(in srgb, var(--alx-info) 15%, transparent);
+    border-radius: var(--alx-radius);
+    margin-bottom: 0.625rem;
+  }
+
+  .help-panel strong {
+    color: var(--alx-text);
+    font-weight: 600;
+  }
+
+  .help-panel ul {
+    margin: 0.25rem 0;
+    padding-left: 1.1rem;
+  }
+
+  .help-panel li {
+    margin-bottom: 0.15rem;
+  }
+
+  .info-line {
+    font-size: 0.7rem;
+    color: var(--alx-text-muted);
+    margin-top: 0.1rem;
+    line-height: 1.4;
+    font-weight: 400;
+  }
+
+  .warn-line {
+    font-size: 0.7rem;
+    color: var(--alx-warning);
+    margin-top: 0.15rem;
+    line-height: 1.4;
+    font-weight: 400;
+  }
+`;
+
 export const alxChatTabStyles = css`
   .tabs {
     display: flex;

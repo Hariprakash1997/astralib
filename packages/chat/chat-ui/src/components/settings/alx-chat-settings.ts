@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit';
-import { state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { SessionMode } from '@astralibx/chat-types';
 import { safeRegister } from '../../utils/safe-register.js';
 import { HttpClient } from '../../api/http-client.js';
@@ -82,6 +82,7 @@ export class AlxChatSettings extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @state() private settings: ChatSettings = {
     defaultSessionMode: SessionMode.AI,
     autoAssignEnabled: true,

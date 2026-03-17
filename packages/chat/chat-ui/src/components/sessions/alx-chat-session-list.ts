@@ -37,6 +37,7 @@ export class AlxChatSessionList extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @property({ type: String }) status = '';
   @property({ type: String }) channel = '';
   @property({ type: String }) mode = '';

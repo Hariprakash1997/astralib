@@ -298,6 +298,7 @@ export class AlxChatAgentDashboard extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @property({ type: String }) agentToken = '';
 
   @state() private socket: unknown = null;

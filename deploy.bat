@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Docs: updated READMEs and added detailed documentation for all packages"
+set "COMMIT_MSG=Features: chat dashboard overhaul, drawer component, shared styles, prompt editor. Telegram rule list, template list, throttle settings, dashboard updates. Fixes: template render service"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -27,28 +27,28 @@ REM ============================================================
 REM  CORE - shared utilities used by all packages
 REM  Only bump when core itself changes
 REM ============================================================
-set "CORE_PACKAGES=core:patch"
+set "CORE_PACKAGES="
 
 REM ============================================================
 REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES=email-account-manager:patch,email-analytics:patch,email-rule-engine:patch,email-ui:patch"
+set "EMAIL_PACKAGES="
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*
 REM  telegram-account-manager, telegram-rule-engine, telegram-inbox, telegram-bot, telegram-ui
 REM  Leave empty if no telegram changes: set "TELEGRAM_PACKAGES="
 REM ============================================================
-set "TELEGRAM_PACKAGES=telegram-account-manager:patch,telegram-rule-engine:patch,telegram-inbox:patch,telegram-bot:patch,telegram-ui:patch"
+set "TELEGRAM_PACKAGES=telegram-ui:minor,telegram-rule-engine:patch"
 
 REM ============================================================
 REM  CHAT - packages/chat/*
 REM  chat-types, chat-engine, chat-ai, chat-widget, chat-ui
 REM  Leave empty if no chat changes: set "CHAT_PACKAGES="
 REM ============================================================
-set "CHAT_PACKAGES=chat-types:patch,chat-engine:patch,chat-ai:patch,chat-widget:patch,chat-ui:patch"
+set "CHAT_PACKAGES=chat-ui:minor"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

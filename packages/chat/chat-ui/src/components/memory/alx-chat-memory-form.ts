@@ -69,6 +69,7 @@ export class AlxChatMemoryForm extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @property({ type: Boolean }) open = false;
   @property({ type: String }) memoryId = '';
 

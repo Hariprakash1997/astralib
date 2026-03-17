@@ -12,7 +12,7 @@ import '../bot/index.js';
 import '../analytics/index.js';
 import './alx-drawer.js';
 
-type TabId = 'accounts' | 'templates' | 'rules' | 'runs' | 'inbox' | 'bot-stats' | 'analytics';
+type TabId = 'accounts' | 'templates' | 'rules' | 'runs' | 'inbox' | 'bot-stats' | 'analytics' | 'settings';
 
 interface TabDef {
   id: TabId;
@@ -27,6 +27,7 @@ const TABS: TabDef[] = [
   { id: 'inbox', label: 'Inbox' },
   { id: 'bot-stats', label: 'Bot Stats' },
   { id: 'analytics', label: 'Analytics' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 export class AlxTelegramDashboard extends LitElement {
@@ -285,6 +286,20 @@ export class AlxTelegramDashboard extends LitElement {
     this._openDrawer('rule', 'Create Rule');
   };
 
+  private _onTemplateCloned = (e: Event): void => {
+    const name = (e as CustomEvent).detail?.name;
+    this._showToast(`Template cloned${name ? `: ${name}` : ''}`);
+  };
+
+  private _onRuleCloned = (e: Event): void => {
+    const name = (e as CustomEvent).detail?.name;
+    this._showToast(`Rule cloned${name ? `: ${name}` : ''}`);
+  };
+
+  private _onThrottleSaved = (): void => {
+    this._showToast('Throttle settings saved');
+  };
+
   private _onSaved = (): void => {
     this._closeDrawer();
     this._refreshCurrentList();
@@ -425,6 +440,7 @@ export class AlxTelegramDashboard extends LitElement {
             .density=${this.density}
             @alx-template-selected=${this._onTemplateSelected}
             @alx-template-create=${this._onTemplateCreate}
+            @alx-template-cloned=${this._onTemplateCloned}
           ></alx-tg-template-list>
         </div>
       ` : nothing}
@@ -435,6 +451,7 @@ export class AlxTelegramDashboard extends LitElement {
             .density=${this.density}
             @alx-rule-selected=${this._onRuleSelected}
             @alx-rule-create=${this._onRuleCreate}
+            @alx-rule-cloned=${this._onRuleCloned}
           ></alx-tg-rule-list>
         </div>
       ` : nothing}
@@ -460,6 +477,15 @@ export class AlxTelegramDashboard extends LitElement {
       ${this._loadedTabs.has('analytics') ? html`
         <div class="panel ${this._activeTab === 'analytics' ? 'active' : ''}">
           <alx-tg-analytics .density=${this.density}></alx-tg-analytics>
+        </div>
+      ` : nothing}
+
+      ${this._loadedTabs.has('settings') ? html`
+        <div class="panel ${this._activeTab === 'settings' ? 'active' : ''}">
+          <alx-tg-throttle-settings
+            .density=${this.density}
+            @alx-throttle-saved=${this._onThrottleSaved}
+          ></alx-tg-throttle-settings>
         </div>
       ` : nothing}
 

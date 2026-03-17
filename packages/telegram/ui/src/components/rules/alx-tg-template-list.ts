@@ -122,6 +122,26 @@ export class AlxTgTemplateList extends LitElement {
     );
   }
 
+  private async onClone(e: Event, template: TgTemplate): Promise<void> {
+    e.stopPropagation();
+    try {
+      const full = await this.api.getTemplate(template._id);
+      const { _id, createdAt, updatedAt, __v, ...data } = full;
+      data.name = `Copy of ${data.name || template.name}`;
+      await this.api.createTemplate(data);
+      this.dispatchEvent(
+        new CustomEvent('alx-template-cloned', {
+          detail: { name: data.name },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+      this.load();
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : 'Failed to clone template';
+    }
+  }
+
   private async onDelete(e: Event, template: TgTemplate): Promise<void> {
     e.stopPropagation();
     if (!confirm(`Delete template "${template.name}"?`)) return;
@@ -186,6 +206,7 @@ export class AlxTgTemplateList extends LitElement {
                         <td>${t.category ?? '--'}</td>
                         <td>
                           <div class="action-group">
+                            <button class="alx-btn-icon" title="Clone" @click=${(e: Event) => this.onClone(e, t)}>&#x2398;</button>
                             <button class="alx-btn-icon" title="Edit" @click=${() => this.onEdit(t)}>&#9998;</button>
                             <button class="alx-btn-icon danger" title="Delete" @click=${(e: Event) => this.onDelete(e, t)}>&times;</button>
                           </div>

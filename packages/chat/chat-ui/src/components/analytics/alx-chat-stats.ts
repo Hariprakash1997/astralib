@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit';
-import { state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import type { DashboardStats } from '@astralibx/chat-types';
 import { safeRegister } from '../../utils/safe-register.js';
 import { HttpClient } from '../../api/http-client.js';
@@ -62,6 +62,7 @@ export class AlxChatStats extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @state() private stats: DashboardStats | null = null;
   @state() private loading = false;
   @state() private error = '';

@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit';
-import { state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import type { FAQItem } from '@astralibx/chat-types';
 import { safeRegister } from '../../utils/safe-register.js';
 import { HttpClient } from '../../api/http-client.js';
@@ -112,6 +112,7 @@ export class AlxChatFaqEditor extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @state() private items: FAQItemData[] = [];
   @state() private categories: string[] = [];
   @state() private loading = false;

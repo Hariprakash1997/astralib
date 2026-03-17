@@ -41,6 +41,7 @@ export {
   AlxTgRuleList,
   AlxTgRuleEditor,
   AlxTgRunHistory,
+  AlxTgThrottleSettings,
 } from './components/rules/index.js';
 
 export { AlxTgInbox } from './components/inbox/index.js';

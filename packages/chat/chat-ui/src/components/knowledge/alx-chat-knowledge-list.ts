@@ -1,5 +1,5 @@
 import { LitElement, html, css } from 'lit';
-import { state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
 import { HttpClient } from '../../api/http-client.js';
 import { AlxChatConfig } from '../../config.js';
@@ -60,6 +60,7 @@ export class AlxChatKnowledgeList extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @state() private entries: KnowledgeEntry[] = [];
   @state() private loading = false;
   @state() private error = '';

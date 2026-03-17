@@ -53,15 +53,16 @@ AlxTelegramConfig.setup({
 | `<alx-tg-account-list>` | Paginated table with status, health score, capacity usage |
 | `<alx-tg-account-form>` | Create/edit form with phone, session string, send limits |
 
-### Rule Engine (5)
+### Rule Engine (6)
 
 | Tag | Description |
 |-----|-------------|
-| `<alx-tg-template-list>` | Template table with message count, variables, category |
+| `<alx-tg-template-list>` | Template table with message count, variables, category, and clone support |
 | `<alx-tg-template-editor>` | Multi-variant message editor with preview and custom fields |
-| `<alx-tg-rule-list>` | Rules with active toggle, mode badge, last run date |
+| `<alx-tg-rule-list>` | Rules with active toggle, mode badge, last run date, and clone support |
 | `<alx-tg-rule-editor>` | Condition builder, identifier list, template selection |
 | `<alx-tg-run-history>` | Execution logs with sent/failed/skipped stats and duration |
+| `<alx-tg-throttle-settings>` | Per-recipient throttle config: daily/weekly limits, gap days, window mode |
 
 ### Inbox (1)
 
@@ -115,7 +116,7 @@ Built-in themes: `alxDarkTheme` and `alxLightTheme` are available as Lit CSS exp
 
 - [Quick Start](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/ui/docs/quick-start.md) -- Pipeline overview, dashboard setup
 - [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/ui/docs/configuration.md) -- AlxTelegramConfig setup, auth tokens, all options
-- [Components](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/ui/docs/components.md) -- All 12 components with properties and events
+- [Components](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/ui/docs/components.md) -- All 13 components with properties and events
 - [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/ui/docs/types.md) -- Exported types, APIs, styles, utilities
 
 ## License

@@ -18,7 +18,7 @@ All-in-one dashboard with tabs for every domain, drawer-based editing, density t
 | `theme` | `theme` | `'light' \| 'dark'` | `'light'` | Color theme with built-in dark mode |
 | `defaultTab` | `default-tab` | `TabId` | `'accounts'` | Tab shown on initial load |
 
-**Tabs:** `accounts`, `templates`, `rules`, `runs`, `inbox`, `bot-stats`, `analytics`
+**Tabs:** `accounts`, `templates`, `rules`, `runs`, `inbox`, `bot-stats`, `analytics`, `settings`
 
 **Features:**
 - Hash-based routing (`#accounts`, `#templates`, etc.)
@@ -106,7 +106,7 @@ Create/edit form for Telegram accounts. Fields: phone number, name, session stri
 
 ### `<alx-tg-template-list>`
 
-Paginated table of message templates showing name, message count, variables, and category.
+Paginated table of message templates showing name, message count, variables, and category. Supports cloning templates via a one-click duplicate action.
 
 **Properties:**
 
@@ -122,6 +122,7 @@ Paginated table of message templates showing name, message count, variables, and
 |-------|--------|-------------|
 | `alx-template-selected` | `TgTemplate` | User clicked edit on a template |
 | `alx-template-create` | -- | User clicked "Create" |
+| `alx-template-cloned` | `{ name }` | Template was cloned; `name` is the new template name |
 
 **Public Methods:**
 
@@ -155,7 +156,7 @@ Editor for message templates with multi-variant message editing, custom fields, 
 
 ### `<alx-tg-rule-list>`
 
-Paginated table of campaign rules with active toggle, mode badge (query/list), template reference, and last run date.
+Paginated table of campaign rules with active toggle, mode badge (query/list), template reference, and last run date. Supports cloning rules via a one-click duplicate action (cloned rules default to inactive).
 
 **Properties:**
 
@@ -171,6 +172,7 @@ Paginated table of campaign rules with active toggle, mode badge (query/list), t
 |-------|--------|-------------|
 | `alx-rule-selected` | `TgRule` | User clicked edit on a rule |
 | `alx-rule-create` | -- | User clicked "Create" |
+| `alx-rule-cloned` | `{ name }` | Rule was cloned; `name` is the new rule name |
 
 **Public Methods:**
 
@@ -201,6 +203,33 @@ Rule editor with condition builder (query mode) or identifier list (list mode), 
 | `alx-rule-cancelled` | -- | User clicked cancel |
 
 **Condition Operators:** `eq`, `neq`, `contains`, `gt`, `lt`, `in`, `exists`
+
+---
+
+### `<alx-tg-throttle-settings>`
+
+Per-recipient throttle configuration panel. Controls how many messages a single user can receive to prevent spam and protect account health.
+
+**Properties:**
+
+| Property | Attribute | Type | Default | Description |
+|----------|-----------|------|---------|-------------|
+| `density` | `density` | `'default' \| 'compact'` | `'default'` | Display density |
+
+**Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `maxPerUserPerDay` | `number` | `1` | Maximum messages sent to one user in a single day |
+| `maxPerUserPerWeek` | `number` | `3` | Maximum messages sent to one user in a 7-day window |
+| `minGapDays` | `number` | `1` | Minimum days between consecutive messages to the same user |
+| `throttleWindow` | `'rolling' \| 'fixed'` | `'rolling'` | Rolling = sliding window from last send; Fixed = calendar-based reset |
+
+**Events:**
+
+| Event | Detail | Description |
+|-------|--------|-------------|
+| `alx-throttle-saved` | `ThrottleData` | Settings were saved successfully |
 
 ---
 

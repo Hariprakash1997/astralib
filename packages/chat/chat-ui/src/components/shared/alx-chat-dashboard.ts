@@ -7,6 +7,7 @@ import {
   alxChatDensityStyles,
   alxChatTabStyles,
   alxChatDrawerStyles,
+  alxChatButtonStyles,
 } from '../../styles/shared.js';
 
 // Import all components to ensure registration
@@ -50,6 +51,7 @@ export class AlxChatDashboard extends LitElement {
     alxChatDensityStyles,
     alxChatTabStyles,
     alxChatDrawerStyles,
+    alxChatButtonStyles,
     css`
       :host {
         display: block;
@@ -69,6 +71,51 @@ export class AlxChatDashboard extends LitElement {
         font-size: 1.25rem;
         font-weight: 700;
         color: var(--alx-text);
+      }
+
+      .controls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+
+      .control-group {
+        display: flex;
+        gap: 0.2rem;
+        align-items: center;
+      }
+
+      .control-label {
+        font-size: 0.6rem;
+        color: var(--alx-text-muted);
+        margin-right: 0.15rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        font-weight: 500;
+      }
+
+      .ctrl-btn {
+        padding: 0.2rem 0.45rem;
+        font-size: 0.65rem;
+        background: var(--alx-surface);
+        color: var(--alx-text-muted);
+        border: 1px solid var(--alx-border);
+        border-radius: var(--alx-radius);
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: 500;
+        transition: all 0.15s;
+      }
+
+      .ctrl-btn:hover {
+        border-color: var(--alx-primary);
+        color: var(--alx-primary);
+      }
+
+      .ctrl-btn.active {
+        background: var(--alx-primary);
+        color: #fff;
+        border-color: var(--alx-primary);
       }
 
       .tab-content {
@@ -122,6 +169,8 @@ export class AlxChatDashboard extends LitElement {
   ];
 
   @property({ type: String }) defaultTab: TabKey = 'overview';
+  @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
+  @property({ type: String, reflect: true }) theme: 'light' | 'dark' = 'dark';
 
   @state() private activeTab: TabKey = 'overview';
   @state() private selectedSessionId = '';
@@ -229,26 +278,86 @@ export class AlxChatDashboard extends LitElement {
     if (list) (list as any).loadEntries();
   }
 
+  private static readonly LIGHT_VARS: Record<string, string> = {
+    '--alx-bg': '#f8fafc',
+    '--alx-surface': '#ffffff',
+    '--alx-surface-alt': '#f1f5f9',
+    '--alx-border': '#e2e8f0',
+    '--alx-text': '#0f172a',
+    '--alx-text-muted': '#64748b',
+    '--alx-shadow-sm': '0 1px 2px rgba(0,0,0,0.05)',
+    '--alx-shadow-md': '0 4px 12px rgba(0,0,0,0.08)',
+  };
+
+  private static readonly DARK_VARS: Record<string, string> = {
+    '--alx-bg': '#0f1117',
+    '--alx-surface': '#181a20',
+    '--alx-surface-alt': '#1e2028',
+    '--alx-border': '#2a2d37',
+    '--alx-text': '#e1e4ea',
+    '--alx-text-muted': '#8b8fa3',
+    '--alx-shadow-sm': '0 1px 3px rgba(0,0,0,0.3)',
+    '--alx-shadow-md': '0 4px 12px rgba(0,0,0,0.4)',
+  };
+
+  private _applyTheme(): void {
+    const vars = this.theme === 'light' ? AlxChatDashboard.LIGHT_VARS : AlxChatDashboard.DARK_VARS;
+    for (const [prop, val] of Object.entries(vars)) {
+      this.style.setProperty(prop, val);
+    }
+  }
+
+  willUpdate(changed: Map<PropertyKey, unknown>): void {
+    if (changed.has('theme')) {
+      this._applyTheme();
+    }
+  }
+
+  private _toggleDensity(): void {
+    this.density = this.density === 'default' ? 'compact' : 'default';
+  }
+
+  private _setTheme(mode: 'light' | 'dark'): void {
+    this.theme = mode;
+  }
+
+  private _renderControls() {
+    return html`
+      <div class="controls">
+        <div class="control-group">
+          <span class="control-label">Density</span>
+          <button class="ctrl-btn ${this.density === 'default' ? 'active' : ''}" @click=${() => this.density = 'default'}>Default</button>
+          <button class="ctrl-btn ${this.density === 'compact' ? 'active' : ''}" @click=${() => this.density = 'compact'}>Compact</button>
+        </div>
+        <div class="control-group">
+          <span class="control-label">Theme</span>
+          <button class="ctrl-btn ${this.theme === 'light' ? 'active' : ''}" @click=${() => this._setTheme('light')}>Light</button>
+          <button class="ctrl-btn ${this.theme === 'dark' ? 'active' : ''}" @click=${() => this._setTheme('dark')}>Dark</button>
+        </div>
+      </div>
+    `;
+  }
+
   private renderTabContent() {
     switch (this.activeTab) {
       case 'overview':
         return html`
           <div class="overview-grid">
-            <alx-chat-stats></alx-chat-stats>
+            <alx-chat-stats .density=${this.density}></alx-chat-stats>
             <div class="overview-row">
-              <alx-chat-feedback-stats></alx-chat-feedback-stats>
-              <alx-chat-offline-messages></alx-chat-offline-messages>
+              <alx-chat-feedback-stats .density=${this.density}></alx-chat-feedback-stats>
+              <alx-chat-offline-messages .density=${this.density}></alx-chat-offline-messages>
             </div>
           </div>
         `;
 
       case 'sessions':
         return html`
-          <alx-chat-session-list @session-select=${this.onSessionSelect}></alx-chat-session-list>
+          <alx-chat-session-list .density=${this.density} @session-select=${this.onSessionSelect}></alx-chat-session-list>
           ${this.selectedSessionId ? html`
             <div class="sessions-layout">
-              <alx-chat-session-messages .sessionId=${this.selectedSessionId}></alx-chat-session-messages>
-              <alx-chat-session-detail .sessionId=${this.selectedSessionId}></alx-chat-session-detail>
+              <alx-chat-session-messages .density=${this.density} .sessionId=${this.selectedSessionId}></alx-chat-session-messages>
+              <alx-chat-session-detail .density=${this.density} .sessionId=${this.selectedSessionId}></alx-chat-session-detail>
             </div>
           ` : nothing}
         `;
@@ -256,13 +365,15 @@ export class AlxChatDashboard extends LitElement {
       case 'agents':
         return html`
           <alx-chat-agent-list
+            .density=${this.density}
             @agent-add=${this.onAgentAdd}
             @agent-edit=${this.onAgentEdit}
           ></alx-chat-agent-list>
           <div style="margin-top:1rem;">
-            <alx-chat-agent-dashboard></alx-chat-agent-dashboard>
+            <alx-chat-agent-dashboard .density=${this.density}></alx-chat-agent-dashboard>
           </div>
           <alx-chat-agent-form
+            .density=${this.density}
             .open=${this.agentFormOpen}
             .agentId=${this.agentFormId}
             @agent-saved=${this.onAgentSaved}
@@ -273,10 +384,12 @@ export class AlxChatDashboard extends LitElement {
       case 'memory':
         return html`
           <alx-chat-memory-list
+            .density=${this.density}
             @memory-add=${this.onMemoryAdd}
             @memory-edit=${this.onMemoryEdit}
           ></alx-chat-memory-list>
           <alx-chat-memory-form
+            .density=${this.density}
             .open=${this.memoryFormOpen}
             .memoryId=${this.memoryFormId}
             @memory-saved=${this.onMemorySaved}
@@ -287,10 +400,12 @@ export class AlxChatDashboard extends LitElement {
       case 'prompts':
         return html`
           <alx-chat-prompt-list
+            .density=${this.density}
             @prompt-add=${this.onPromptAdd}
             @prompt-edit=${this.onPromptEdit}
           ></alx-chat-prompt-list>
           <alx-chat-prompt-editor
+            .density=${this.density}
             .open=${this.promptEditorOpen}
             .promptId=${this.promptEditorId}
             @prompt-saved=${this.onPromptSaved}
@@ -301,10 +416,12 @@ export class AlxChatDashboard extends LitElement {
       case 'knowledge':
         return html`
           <alx-chat-knowledge-list
+            .density=${this.density}
             @knowledge-add=${this.onKnowledgeAdd}
             @knowledge-edit=${this.onKnowledgeEdit}
           ></alx-chat-knowledge-list>
           <alx-chat-knowledge-form
+            .density=${this.density}
             .open=${this.knowledgeFormOpen}
             .knowledgeId=${this.knowledgeFormId}
             @knowledge-saved=${this.onKnowledgeSaved}
@@ -322,13 +439,13 @@ export class AlxChatDashboard extends LitElement {
             <button class="content-tab ${this.contentSubTab === 'canned' ? 'active' : ''}"
               @click=${() => this.contentSubTab = 'canned'}>Canned Responses</button>
           </div>
-          ${this.contentSubTab === 'faq' ? html`<alx-chat-faq-editor></alx-chat-faq-editor>` : nothing}
-          ${this.contentSubTab === 'flow' ? html`<alx-chat-flow-editor></alx-chat-flow-editor>` : nothing}
-          ${this.contentSubTab === 'canned' ? html`<alx-chat-canned-response-list></alx-chat-canned-response-list>` : nothing}
+          ${this.contentSubTab === 'faq' ? html`<alx-chat-faq-editor .density=${this.density}></alx-chat-faq-editor>` : nothing}
+          ${this.contentSubTab === 'flow' ? html`<alx-chat-flow-editor .density=${this.density}></alx-chat-flow-editor>` : nothing}
+          ${this.contentSubTab === 'canned' ? html`<alx-chat-canned-response-list .density=${this.density}></alx-chat-canned-response-list>` : nothing}
         `;
 
       case 'settings':
-        return html`<alx-chat-settings></alx-chat-settings>`;
+        return html`<alx-chat-settings .density=${this.density}></alx-chat-settings>`;
 
       default:
         return nothing;
@@ -339,6 +456,7 @@ export class AlxChatDashboard extends LitElement {
     return html`
       <div class="dashboard-header">
         <span class="dashboard-title">Chat Dashboard</span>
+        ${this._renderControls()}
       </div>
 
       <div class="tabs">

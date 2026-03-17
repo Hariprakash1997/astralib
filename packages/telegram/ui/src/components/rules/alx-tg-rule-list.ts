@@ -124,6 +124,27 @@ export class AlxTgRuleList extends LitElement {
     }
   }
 
+  private async onClone(e: Event, rule: TgRule): Promise<void> {
+    e.stopPropagation();
+    try {
+      const full = await this.api.getRule(rule._id);
+      const { _id, createdAt, updatedAt, __v, lastRun, ...data } = full;
+      data.name = `Copy of ${data.name || rule.name}`;
+      data.active = false;
+      await this.api.createRule(data);
+      this.dispatchEvent(
+        new CustomEvent('alx-rule-cloned', {
+          detail: { name: data.name },
+          bubbles: true,
+          composed: true,
+        }),
+      );
+      this.load();
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : 'Failed to clone rule';
+    }
+  }
+
   private async onDelete(e: Event, rule: TgRule): Promise<void> {
     e.stopPropagation();
     if (!confirm(`Delete rule "${rule.name}"?`)) return;
@@ -206,6 +227,7 @@ export class AlxTgRuleList extends LitElement {
                         <td>${this.formatDate(r.lastRun)}</td>
                         <td>
                           <div class="action-group">
+                            <button class="alx-btn-icon" title="Clone" @click=${(e: Event) => this.onClone(e, r)}>&#x2398;</button>
                             <button class="alx-btn-icon" title="Edit" @click=${() => this.onEdit(r)}>&#9998;</button>
                             <button class="alx-btn-icon danger" title="Delete" @click=${(e: Event) => this.onDelete(e, r)}>&times;</button>
                           </div>

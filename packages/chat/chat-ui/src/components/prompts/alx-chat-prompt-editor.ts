@@ -130,6 +130,7 @@ export class AlxChatPromptEditor extends LitElement {
     `,
   ];
 
+  @property({ type: String }) density: 'default' | 'compact' = 'default';
   @property({ type: Boolean }) open = false;
   @property({ type: String }) promptId = '';
 
@@ -222,11 +223,28 @@ export class AlxChatPromptEditor extends LitElement {
     this.expandedIndex = target;
   }
 
+  private _extractVariables(): Record<string, string> {
+    const variables: Record<string, string> = {};
+    const pattern = /\{\{(\w+)\}\}/g;
+    for (const section of this.sections) {
+      let match: RegExpExecArray | null;
+      while ((match = pattern.exec(section.content)) !== null) {
+        const varName = match[1];
+        if (!variables[varName]) {
+          variables[varName] = `[${varName}]`;
+        }
+      }
+    }
+    return variables;
+  }
+
   private async onPreview() {
+    const variables = this._extractVariables();
     try {
       const result = await this.http.post<{ preview: string }>(`/prompts/preview`, {
         name: this.name,
         sections: this.sections,
+        variables,
       });
       this.previewText = result.preview || this.sections
         .filter(s => s.enabled)

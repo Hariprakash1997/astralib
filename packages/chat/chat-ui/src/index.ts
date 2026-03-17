@@ -16,6 +16,7 @@ export {
   alxChatToggleStyles,
   alxChatDrawerStyles,
   alxChatTabStyles,
+  alxChatTooltipStyles,
 } from './styles/shared.js';
 
 export {
@@ -51,4 +52,5 @@ export { AlxChatOfflineMessages } from './components/analytics/alx-chat-offline-
 
 export { AlxChatSettings } from './components/settings/alx-chat-settings.js';
 
+export { AlxChatDrawer } from './components/shared/alx-chat-drawer.js';
 export { AlxChatDashboard } from './components/shared/alx-chat-dashboard.js';
