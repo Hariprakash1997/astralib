@@ -110,6 +110,7 @@ export class AlxAccountForm extends LitElement {
   @state() private _showHelp = false;
   @state() private loading = false;
   @state() private saving = false;
+  @state() private _deleting = false;
   @state() private error = '';
 
   private _api?: AccountAPI;
@@ -270,7 +271,7 @@ export class AlxAccountForm extends LitElement {
   private async onDelete(): Promise<void> {
     if (!this.accountId) return;
     if (!confirm('Delete this account?')) return;
-    this.saving = true;
+    this._deleting = true;
     this.error = '';
     try {
       await this.api.remove(this.accountId);
@@ -284,7 +285,7 @@ export class AlxAccountForm extends LitElement {
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to delete account';
     } finally {
-      this.saving = false;
+      this._deleting = false;
     }
   }
 
@@ -488,9 +489,9 @@ export class AlxAccountForm extends LitElement {
                 ? html`<button
                     type="button"
                     class="alx-btn-danger"
-                    ?disabled=${this.saving}
+                    ?disabled=${this._deleting}
                     @click=${this.onDelete}
-                  >Delete Account</button>`
+                  >${this._deleting ? 'Deleting...' : 'Delete Account'}</button>`
                 : ''}
             </div>
             <div class="form-actions-end">

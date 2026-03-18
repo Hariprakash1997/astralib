@@ -113,6 +113,7 @@ export class AlxAccountList extends LitElement {
   @state() private error = '';
   @state() private statusFilter = '';
   @state() private providerFilter = '';
+  @state() private _deletingId = '';
 
   private _api?: AccountAPI;
   private get api(): AccountAPI {
@@ -209,6 +210,7 @@ export class AlxAccountList extends LitElement {
   private async onDelete(e: Event, account: Account): Promise<void> {
     e.stopPropagation();
     if (!confirm(`Delete account "${account.email}"?`)) return;
+    this._deletingId = account._id;
     try {
       await this.api.remove(account._id);
       this.dispatchEvent(
@@ -221,6 +223,8 @@ export class AlxAccountList extends LitElement {
       this.load();
     } catch (err) {
       this.error = err instanceof Error ? err.message : 'Failed to delete account';
+    } finally {
+      this._deletingId = '';
     }
   }
 
@@ -431,8 +435,9 @@ export class AlxAccountList extends LitElement {
                               <button
                                 class="alx-btn-icon danger"
                                 title="Delete"
+                                ?disabled=${this._deletingId === a._id}
                                 @click=${(e: Event) => this.onDelete(e, a)}
-                              >&times;</button>
+                              >${this._deletingId === a._id ? '...' : '\u00d7'}</button>
                             </div>
                           </td>
                         </tr>

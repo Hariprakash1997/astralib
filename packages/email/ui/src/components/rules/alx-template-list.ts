@@ -56,6 +56,7 @@ export class AlxTemplateList extends LitElement {
   @state() private _loading = false;
   @state() private _error = '';
   @state() private _togglingId = '';
+  @state() private _deletingId = '';
   @state() private _page = 1;
   @state() private _totalPages = 1;
   @state() private _total = 0;
@@ -154,6 +155,7 @@ export class AlxTemplateList extends LitElement {
   private async _onDelete(template: TemplateRow, e: Event): Promise<void> {
     e.stopPropagation();
     if (!confirm(`Delete template "${template.name}"? This cannot be undone.`)) return;
+    this._deletingId = template._id;
     try {
       await this._api.deleteTemplate(template._id);
       this.dispatchEvent(
@@ -166,6 +168,8 @@ export class AlxTemplateList extends LitElement {
       await this._loadTemplates();
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to delete template';
+    } finally {
+      this._deletingId = '';
     }
   }
 
@@ -292,7 +296,7 @@ export class AlxTemplateList extends LitElement {
                             </label>
                           </td>
                           <td>
-                            <button class="alx-btn-icon danger" title="Delete" @click=${(e: Event) => this._onDelete(t, e)}>&times;</button>
+                            <button class="alx-btn-icon danger" title="Delete" ?disabled=${this._deletingId === t._id} @click=${(e: Event) => this._onDelete(t, e)}>${this._deletingId === t._id ? '...' : '\u00d7'}</button>
                           </td>
                         </tr>
                       `,

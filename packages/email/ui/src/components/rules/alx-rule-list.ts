@@ -51,6 +51,18 @@ export class AlxRuleList extends LitElement {
       .action-group {
         display: flex;
         gap: 0.35rem;
+        align-items: center;
+      }
+
+      .dry-run-result {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--alx-success, #16a34a);
+        white-space: nowrap;
+      }
+
+      .dry-run-result.has-errors {
+        color: var(--alx-warning, #d97706);
       }
     `,
   ];
@@ -62,6 +74,9 @@ export class AlxRuleList extends LitElement {
   @state() private _loading = false;
   @state() private _error = '';
   @state() private _togglingId = '';
+  @state() private _dryRunResult: { ruleId: string; matched: number; errors: string[] } | null = null;
+  @state() private _dryRunLoading = '';
+  @state() private _deletingId = '';
   @state() private _page = 1;
   @state() private _totalPages = 1;
   @state() private _total = 0;
@@ -148,8 +163,16 @@ export class AlxRuleList extends LitElement {
 
   private async _onDryRun(rule: RuleRow, e: Event): Promise<void> {
     e.stopPropagation();
+    this._dryRunLoading = rule._id;
+    this._dryRunResult = null;
     try {
       const result = await this._api.dryRun(rule._id);
+      const data = result?.data ?? result;
+      this._dryRunResult = {
+        ruleId: rule._id,
+        matched: data.matchedCount ?? data.matched ?? 0,
+        errors: data.errors ?? [],
+      };
       this.dispatchEvent(
         new CustomEvent('alx-rule-dry-run', {
           detail: { ruleId: rule._id, result },
@@ -159,18 +182,23 @@ export class AlxRuleList extends LitElement {
       );
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Dry run failed';
+    } finally {
+      this._dryRunLoading = '';
     }
   }
 
   private async _onDeleteRule(rule: RuleRow, e: Event): Promise<void> {
     e.stopPropagation();
     if (!confirm(`Delete rule "${rule.name}"? This cannot be undone.`)) return;
+    this._deletingId = rule._id;
     try {
       await this._api.deleteRule(rule._id);
       this.dispatchEvent(new CustomEvent('alx-rule-deleted', { detail: { _id: rule._id }, bubbles: true, composed: true }));
       await this._loadRules();
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to delete rule';
+    } finally {
+      this._deletingId = '';
     }
   }
 
@@ -256,14 +284,21 @@ export class AlxRuleList extends LitElement {
                               <button
                                 class="alx-btn-sm"
                                 @click=${(e: Event) => this._onDryRun(r, e)}
+                                ?disabled=${this._dryRunLoading === r._id}
                               >
-                                Dry Run
+                                ${this._dryRunLoading === r._id ? 'Running...' : 'Dry Run'}
                               </button>
+                              ${this._dryRunResult?.ruleId === r._id ? html`
+                                <span class="dry-run-result ${this._dryRunResult.errors.length ? 'has-errors' : ''}">
+                                  ${this._dryRunResult.matched} matched${this._dryRunResult.errors.length ? `, ${this._dryRunResult.errors.length} error(s)` : ''}
+                                </span>
+                              ` : nothing}
                               <button
                                 class="alx-btn-sm alx-btn-danger"
+                                ?disabled=${this._deletingId === r._id}
                                 @click=${(e: Event) => this._onDeleteRule(r, e)}
                               >
-                                Delete
+                                ${this._deletingId === r._id ? '...' : 'Delete'}
                               </button>
                             </div>
                           </td>

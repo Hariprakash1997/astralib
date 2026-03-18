@@ -89,6 +89,45 @@ export class AlxRunHistory extends LitElement {
         font-size: 0.8rem;
       }
 
+      .run-progress {
+        padding: 0.5rem 0.625rem;
+        background: color-mix(in srgb, var(--alx-primary) 6%, transparent);
+        border: 1px solid color-mix(in srgb, var(--alx-primary) 20%, transparent);
+        border-radius: var(--alx-radius);
+        margin-bottom: 0.5rem;
+      }
+
+      .run-progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.3rem;
+        font-size: 0.75rem;
+      }
+
+      .run-progress-status {
+        font-weight: 600;
+        color: var(--alx-primary);
+      }
+
+      .run-progress-stats {
+        color: var(--alx-text-muted);
+      }
+
+      .run-progress-bar {
+        height: 4px;
+        background: color-mix(in srgb, var(--alx-primary) 15%, transparent);
+        border-radius: 2px;
+        overflow: hidden;
+      }
+
+      .run-progress-fill {
+        height: 100%;
+        background: var(--alx-primary);
+        border-radius: 2px;
+        transition: width 0.3s ease;
+      }
+
     `,
   ];
 
@@ -106,6 +145,9 @@ export class AlxRunHistory extends LitElement {
   @state() private _dateTo = '';
   @state() private _triggering = false;
   @state() private _cancelling = '';
+  @state() private _activeRunId = '';
+  @state() private _activeRunProgress: { matched?: number; sent?: number; skipped?: number; errors?: number; status?: string } | null = null;
+  private _pollTimer?: ReturnType<typeof setTimeout>;
 
   private __api?: RuleAPI;
   private get _api(): RuleAPI {
@@ -119,6 +161,43 @@ export class AlxRunHistory extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     this._loadLogs();
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    if (this._pollTimer) clearTimeout(this._pollTimer);
+    if (this._reloadTimer) clearTimeout(this._reloadTimer);
+  }
+
+  private _startPolling(runId: string): void {
+    this._activeRunId = runId;
+    this._activeRunProgress = { status: 'starting' };
+    this._pollRunStatus();
+  }
+
+  private async _pollRunStatus(): Promise<void> {
+    if (!this._activeRunId) return;
+    try {
+      const res = await this._api.getRunStatus(this._activeRunId);
+      const data = res?.data ?? res;
+      const progress = data.progress ?? data;
+      this._activeRunProgress = {
+        matched: progress.matched ?? progress.rulesTotal ?? 0,
+        sent: progress.sent ?? 0,
+        skipped: progress.skipped ?? 0,
+        errors: progress.errors ?? 0,
+        status: data.status ?? 'running',
+      };
+      if (data.status === 'completed' || data.status === 'failed' || data.status === 'cancelled') {
+        this._activeRunId = '';
+        this._loadLogs();
+        return;
+      }
+      this._pollTimer = setTimeout(() => this._pollRunStatus(), 2000);
+    } catch {
+      this._activeRunId = '';
+      this._activeRunProgress = null;
+    }
   }
 
   private async _loadLogs(): Promise<void> {
@@ -176,16 +255,26 @@ export class AlxRunHistory extends LitElement {
     this._error = '';
     try {
       const res = (await this._api.triggerRun()) as Record<string, unknown>;
-      const runId = res['runId'] ?? res['_id'] ?? 'ok';
-      this._successMsg = `Run triggered (${runId})`;
-      // Auto-reload history after a short delay to let the run register
-      if (this._reloadTimer) clearTimeout(this._reloadTimer);
-      this._reloadTimer = setTimeout(() => this._loadLogs(), 1500);
+      const data = (res as any)?.data ?? res;
+      const runId = String(data['runId'] ?? data['_id'] ?? '');
+      if (runId && runId !== 'undefined') {
+        this._successMsg = '';
+        this._startPolling(runId);
+      } else {
+        this._showSuccess('Run triggered');
+        setTimeout(() => this._loadLogs(), 2000);
+      }
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to trigger run';
     } finally {
       this._triggering = false;
     }
+  }
+
+  private _showSuccess(msg: string): void {
+    this._successMsg = msg;
+    if (this._reloadTimer) clearTimeout(this._reloadTimer);
+    this._reloadTimer = setTimeout(() => { this._successMsg = ''; }, 3000);
   }
 
   private async _onCancelRun(log: RunLog, e: Event): Promise<void> {
@@ -196,6 +285,7 @@ export class AlxRunHistory extends LitElement {
     this._error = '';
     try {
       await this._api.cancelRun(runId);
+      this._showSuccess('Run cancelled');
       await this._loadLogs();
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to cancel run';
@@ -262,6 +352,27 @@ export class AlxRunHistory extends LitElement {
         ${this._successMsg
           ? html`<div class="alx-success-msg">${this._successMsg}</div>`
           : nothing}
+
+        ${this._activeRunProgress ? html`
+          <div class="run-progress">
+            <div class="run-progress-header">
+              <span class="run-progress-status">${this._activeRunProgress.status === 'starting' ? 'Starting...' : 'Running...'}</span>
+              ${this._activeRunProgress.status !== 'starting' ? html`
+                <span class="run-progress-stats">
+                  ${this._activeRunProgress.sent ?? 0} sent,
+                  ${this._activeRunProgress.skipped ?? 0} skipped,
+                  ${this._activeRunProgress.errors ?? 0} errors
+                  ${this._activeRunProgress.matched ? html` / ${this._activeRunProgress.matched} matched` : nothing}
+                </span>
+              ` : nothing}
+            </div>
+            ${this._activeRunProgress.matched && this._activeRunProgress.matched > 0 ? html`
+              <div class="run-progress-bar">
+                <div class="run-progress-fill" style="width:${Math.min(100, Math.round(((this._activeRunProgress.sent ?? 0) + (this._activeRunProgress.skipped ?? 0) + (this._activeRunProgress.errors ?? 0)) / this._activeRunProgress.matched * 100))}%"></div>
+              </div>
+            ` : nothing}
+          </div>
+        ` : nothing}
 
         ${this._loading
           ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`

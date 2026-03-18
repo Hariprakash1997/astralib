@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { state, property } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
@@ -57,6 +57,8 @@ export class AlxApprovalQueue extends LitElement {
   @state() private error = '';
   @state() private selectedIds = new Set<string>();
   @state() private actionLoading = false;
+  @state() private _actionMsg = '';
+  private _actionMsgTimer?: ReturnType<typeof setTimeout>;
 
   private _api?: AccountAPI;
   private get api(): AccountAPI {
@@ -67,6 +69,11 @@ export class AlxApprovalQueue extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     this.load();
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    if (this._actionMsgTimer) clearTimeout(this._actionMsgTimer);
   }
 
   async load(): Promise<void> {
@@ -101,6 +108,12 @@ export class AlxApprovalQueue extends LitElement {
     }
   }
 
+  private _showActionMsg(msg: string): void {
+    this._actionMsg = msg;
+    if (this._actionMsgTimer) clearTimeout(this._actionMsgTimer);
+    this._actionMsgTimer = setTimeout(() => { this._actionMsg = ''; }, 3000);
+  }
+
   private async onApprove(id: string): Promise<void> {
     this.actionLoading = true;
     try {
@@ -112,6 +125,7 @@ export class AlxApprovalQueue extends LitElement {
           composed: true,
         }),
       );
+      this._showActionMsg('Draft approved');
       await this.load();
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Approve failed';
@@ -141,6 +155,7 @@ export class AlxApprovalQueue extends LitElement {
 
   private async onBulkApprove(): Promise<void> {
     if (this.selectedIds.size === 0) return;
+    const count = this.selectedIds.size;
     this.actionLoading = true;
     try {
       await this.api.bulkApprove([...this.selectedIds]);
@@ -151,6 +166,7 @@ export class AlxApprovalQueue extends LitElement {
           composed: true,
         }),
       );
+      this._showActionMsg(`${count} draft${count > 1 ? 's' : ''} approved`);
       await this.load();
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Bulk approve failed';
@@ -166,8 +182,11 @@ export class AlxApprovalQueue extends LitElement {
       const ids = [...this.selectedIds];
       const results = await Promise.allSettled(ids.map(id => this.api.rejectDraft(id)));
       const failures = results.filter(r => r.status === 'rejected');
+      const succeeded = ids.length - failures.length;
       if (failures.length > 0) {
-        this.error = `${failures.length} of ${ids.length} rejections failed`;
+        this.error = `${succeeded} rejected, ${failures.length} failed`;
+      } else {
+        this._showActionMsg(`${ids.length} draft${ids.length > 1 ? 's' : ''} rejected`);
       }
       this.dispatchEvent(
         new CustomEvent('alx-draft-rejected', {
@@ -215,14 +234,14 @@ export class AlxApprovalQueue extends LitElement {
                     ?disabled=${this.actionLoading}
                     @click=${this.onBulkApprove}
                   >
-                    Approve Selected
+                    ${this.actionLoading ? 'Processing...' : 'Approve Selected'}
                   </button>
                   <button
                     class="alx-btn-sm alx-btn-danger"
                     ?disabled=${this.actionLoading}
                     @click=${this.onBulkReject}
                   >
-                    Reject Selected
+                    ${this.actionLoading ? 'Processing...' : 'Reject Selected'}
                   </button>
                 </div>
               `
@@ -231,7 +250,8 @@ export class AlxApprovalQueue extends LitElement {
           <button @click=${() => this.load()}>Refresh</button>
         </div>
 
-        ${this.error ? html`<div class="alx-error">${this.error}</div>` : ''}
+        ${this.error ? html`<div class="alx-error">${this.error}</div>` : nothing}
+        ${this._actionMsg ? html`<div style="color:var(--alx-success);font-size:0.8rem;padding:0.25rem 0.625rem">${this._actionMsg}</div>` : nothing}
         ${this.loading
           ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
           : this.drafts.length === 0

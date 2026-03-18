@@ -1,4 +1,4 @@
-import { LitElement, html } from 'lit';
+import { LitElement, html, nothing } from 'lit';
 import { state, property } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
@@ -32,7 +32,9 @@ export class AlxGlobalSettings extends LitElement {
   @state() private loading = false;
   @state() private error = '';
   @state() private saving: Record<string, boolean> = {};
+  @state() private _savedSection = '';
   @state() private openSections = new Set<string>(['timezone']);
+  private _savedTimer?: ReturnType<typeof setTimeout>;
 
   private _api?: AccountAPI;
   private get api(): AccountAPI {
@@ -43,6 +45,11 @@ export class AlxGlobalSettings extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     this.load();
+  }
+
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    if (this._savedTimer) clearTimeout(this._savedTimer);
   }
 
   async load(): Promise<void> {
@@ -66,6 +73,7 @@ export class AlxGlobalSettings extends LitElement {
 
   private async saveSection(section: string, data: Record<string, unknown>): Promise<void> {
     this.saving = { ...this.saving, [section]: true };
+    this._savedSection = '';
     try {
       await this.api.updateSettings(data);
       this.dispatchEvent(
@@ -75,6 +83,9 @@ export class AlxGlobalSettings extends LitElement {
           composed: true,
         }),
       );
+      this._savedSection = section;
+      if (this._savedTimer) clearTimeout(this._savedTimer);
+      this._savedTimer = setTimeout(() => { this._savedSection = ''; }, 3000);
       await this.load();
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to save settings';
@@ -152,6 +163,7 @@ export class AlxGlobalSettings extends LitElement {
               >
                 ${this.saving['timezone'] ? 'Saving...' : 'Save'}
               </button>
+              ${this._savedSection === 'timezone' ? html`<span style="color:var(--alx-success);font-size:0.875rem">Saved</span>` : nothing}
             </div>
           `,
         )}
@@ -201,6 +213,7 @@ export class AlxGlobalSettings extends LitElement {
               >
                 ${this.saving['imap'] ? 'Saving...' : 'Save'}
               </button>
+              ${this._savedSection === 'imap' ? html`<span style="color:var(--alx-success);font-size:0.875rem">Saved</span>` : nothing}
             </div>
           `,
         )}
@@ -253,6 +266,7 @@ export class AlxGlobalSettings extends LitElement {
               >
                 ${this.saving['approval'] ? 'Saving...' : 'Save'}
               </button>
+              ${this._savedSection === 'approval' ? html`<span style="color:var(--alx-success);font-size:0.875rem">Saved</span>` : nothing}
             </div>
           `,
         )}
@@ -317,6 +331,7 @@ export class AlxGlobalSettings extends LitElement {
               >
                 ${this.saving['queue'] ? 'Saving...' : 'Save'}
               </button>
+              ${this._savedSection === 'queue' ? html`<span style="color:var(--alx-success);font-size:0.875rem">Saved</span>` : nothing}
             </div>
           `,
         )}

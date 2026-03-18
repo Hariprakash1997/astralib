@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Fixes: core CJS build missing noopLogger export"
+set "COMMIT_MSG=Features: dry-run results display, run progress polling, onboarding banner. Fixes: UI feedback for delete, toggle, approve, cancel operations"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -27,14 +27,14 @@ REM ============================================================
 REM  CORE - shared utilities used by all packages
 REM  Only bump when core itself changes
 REM ============================================================
-set "CORE_PACKAGES=core:patch"
+set "CORE_PACKAGES="
 
 REM ============================================================
 REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES="
+set "EMAIL_PACKAGES=email-ui:patch"
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*
