@@ -1,5 +1,6 @@
 import { Schema, Model, Types, HydratedDocument } from 'mongoose';
 import { RUN_TRIGGER, RUN_LOG_STATUS } from '../constants';
+import { createRunStatsSchema } from './shared-schemas';
 
 export interface IEmailRuleRunLog {
   runId?: string;
@@ -36,23 +37,15 @@ export interface EmailRuleRunLogStatics {
 export type EmailRuleRunLogModel = Model<IEmailRuleRunLog> & EmailRuleRunLogStatics;
 
 export function createEmailRuleRunLogSchema(collectionPrefix?: string) {
+  const baseStatsSchema = createRunStatsSchema();
+
   const PerRuleStatsSchema = new Schema({
     ruleId: { type: Schema.Types.ObjectId, ref: 'EmailRule', required: true },
     ruleName: { type: String, required: true },
-    matched: { type: Number, default: 0 },
-    sent: { type: Number, default: 0 },
-    skipped: { type: Number, default: 0 },
-    skippedByThrottle: { type: Number, default: 0 },
-    errorCount: { type: Number, default: 0 }
+    ...baseStatsSchema.obj,
   }, { _id: false });
 
-  const TotalStatsSchema = new Schema({
-    matched: { type: Number, default: 0 },
-    sent: { type: Number, default: 0 },
-    skipped: { type: Number, default: 0 },
-    skippedByThrottle: { type: Number, default: 0 },
-    errorCount: { type: Number, default: 0 }
-  }, { _id: false });
+  const TotalStatsSchema = createRunStatsSchema();
 
   const schema = new Schema<IEmailRuleRunLog>(
     {

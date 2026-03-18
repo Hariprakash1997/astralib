@@ -1,35 +1,26 @@
 import type { Request, Response } from 'express';
 import type { Model } from 'mongoose';
+import { buildDateRangeFilter, calculatePagination } from '../utils';
+import { asyncHandler } from '../utils/controller';
 
 export function createSendLogController(EmailRuleSend: Model<any>) {
-  async function list(req: Request, res: Response) {
-    try {
-      const { ruleId, status, email, from, to, page, limit } = req.query;
-      const filter: Record<string, any> = {};
-      if (ruleId) filter.ruleId = ruleId;
-      if (status) filter.status = status;
-      if (email) filter.userId = { $regex: email, $options: 'i' };
-      if (from || to) {
-        filter.sentAt = {};
-        if (from) filter.sentAt.$gte = new Date(from as string);
-        if (to) filter.sentAt.$lte = new Date(to as string);
-      }
+  const list = asyncHandler(async (req: Request, res: Response) => {
+    const { ruleId, status, email, from, to, page, limit } = req.query;
+    const filter: Record<string, any> = {};
+    if (ruleId) filter.ruleId = ruleId;
+    if (status) filter.status = status;
+    if (email) filter.userId = { $regex: email, $options: 'i' };
+    Object.assign(filter, buildDateRangeFilter('sentAt', from as string | undefined, to as string | undefined));
 
-      const pageNum = Number(page) || 1;
-      const limitNum = Math.min(Number(limit) || 50, 200);
-      const skip = (pageNum - 1) * limitNum;
+    const pagination = calculatePagination(Number(page) || undefined, Number(limit) || 50, 200);
 
-      const [sends, total] = await Promise.all([
-        EmailRuleSend.find(filter).sort({ sentAt: -1 }).skip(skip).limit(limitNum).lean(),
-        EmailRuleSend.countDocuments(filter),
-      ]);
+    const [sends, total] = await Promise.all([
+      EmailRuleSend.find(filter).sort({ sentAt: -1 }).skip(pagination.skip).limit(pagination.limit).lean(),
+      EmailRuleSend.countDocuments(filter),
+    ]);
 
-      res.json({ success: true, data: { sends, total } });
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Failed to query send logs';
-      res.status(500).json({ success: false, error: message });
-    }
-  }
+    res.json({ success: true, data: { sends, total } });
+  });
 
   return { list };
 }

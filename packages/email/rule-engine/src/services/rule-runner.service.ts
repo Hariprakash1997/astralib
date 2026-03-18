@@ -281,6 +281,226 @@ export class RuleRunnerService {
     return this.executeQueryMode(rule, template, throttleMap, throttleConfig, stats, runId);
   }
 
+  private emitSendEvent(
+    rule: any, email: string, status: string, templateId: string, runId: string,
+    opts?: { accountId?: string; subjectIndex?: number; bodyIndex?: number; preheaderIndex?: number; failureReason?: string }
+  ): void {
+    this.config.hooks?.onSend?.({
+      ruleId: rule._id.toString(), ruleName: rule.name, email, status: status as any,
+      accountId: opts?.accountId ?? '', templateId, runId: runId || '',
+      subjectIndex: opts?.subjectIndex ?? -1, bodyIndex: opts?.bodyIndex ?? -1,
+      preheaderIndex: opts?.preheaderIndex, failureReason: opts?.failureReason,
+    });
+  }
+
+  private async processSingleUser(params: {
+    rule: any;
+    email: string;
+    userKey: string;
+    identifier: { id: string; contactId: string };
+    user: Record<string, unknown>;
+    sendMap: Map<string, any>;
+    throttleMap: Map<string, UserThrottle>;
+    throttleConfig: any;
+    template: any;
+    compiledVariants: any;
+    templateId: string;
+    ruleId: string;
+    runId?: string;
+    stats: RuleRunStats;
+  }): Promise<'sent' | 'skipped' | 'error'> {
+    const { rule, email, userKey, identifier, user, sendMap, throttleMap, throttleConfig, template, compiledVariants, templateId, ruleId, runId, stats } = params;
+
+    const lastSend = sendMap.get(userKey);
+    if (lastSend) {
+      if (rule.sendOnce && rule.resendAfterDays == null) {
+        stats.skipped++;
+        this.emitSendEvent(rule, email, 'skipped', templateId, runId || '', { failureReason: 'send once' });
+        return 'skipped';
+      }
+      if (rule.resendAfterDays != null) {
+        const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
+        if (daysSince < rule.resendAfterDays) {
+          stats.skipped++;
+          this.emitSendEvent(rule, email, 'skipped', templateId, runId || '', { failureReason: 'resend too soon' });
+          return 'skipped';
+        }
+      } else {
+        stats.skipped++;
+        this.emitSendEvent(rule, email, 'skipped', templateId, runId || '', { failureReason: 'send once' });
+        return 'skipped';
+      }
+      if (rule.cooldownDays) {
+        const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
+        if (daysSince < rule.cooldownDays) {
+          stats.skipped++;
+          this.emitSendEvent(rule, email, 'skipped', templateId, runId || '', { failureReason: 'cooldown period' });
+          return 'skipped';
+        }
+      }
+    }
+
+    if (!this.checkThrottle(rule, userKey, email, throttleMap, throttleConfig, stats, templateId, runId)) return 'skipped';
+
+    const agentSelection = await this.config.adapters.selectAgent(identifier.id, { ruleId, templateId });
+    if (!agentSelection) {
+      stats.skipped++;
+      this.emitSendEvent(rule, email, 'skipped', templateId, runId || '', { failureReason: 'no account available' });
+      return 'skipped';
+    }
+
+    const resolvedData = this.config.adapters.resolveData(user);
+    const templateData = { ...(template.fields || {}), ...resolvedData };
+
+    const si = Math.floor(Math.random() * compiledVariants.subjectFns.length);
+    const bi = Math.floor(Math.random() * compiledVariants.bodyFns.length);
+
+    const renderedSubject = compiledVariants.subjectFns[si](templateData);
+    const renderedHtml = compiledVariants.bodyFns[bi](templateData);
+    const renderedText = compiledVariants.textBodyFn
+      ? compiledVariants.textBodyFn(templateData)
+      : this.templateRenderer.htmlToText(renderedHtml);
+
+    let finalHtml = renderedHtml;
+    let finalText = renderedText;
+    let finalSubject = renderedSubject;
+
+    let pi: number | undefined;
+    if (compiledVariants.preheaderFns && compiledVariants.preheaderFns.length > 0) {
+      pi = Math.floor(Math.random() * compiledVariants.preheaderFns.length);
+      const renderedPreheader = compiledVariants.preheaderFns[pi](templateData);
+      if (renderedPreheader) {
+        const preheaderHtml = `<div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${renderedPreheader}</div>`;
+        finalHtml = finalHtml.replace(/(<body[^>]*>)/i, `$1${preheaderHtml}`);
+      }
+    }
+
+    if (this.config.hooks?.beforeSend) {
+      try {
+        const modified = await this.config.hooks.beforeSend({
+          htmlBody: finalHtml,
+          textBody: finalText,
+          subject: finalSubject,
+          account: {
+            id: agentSelection.accountId,
+            email: agentSelection.email,
+            metadata: agentSelection.metadata,
+          },
+          user: {
+            id: String(userKey),
+            email,
+            name: String((user as any).name || (user as any).firstName || ''),
+          },
+          context: {
+            ruleId,
+            templateId,
+            runId: runId || '',
+          },
+        });
+        finalHtml = modified.htmlBody;
+        finalText = modified.textBody;
+        finalSubject = modified.subject;
+      } catch (hookErr: any) {
+        this.logger.error(`beforeSend hook failed for email ${email}: ${hookErr.message}`);
+        stats.errorCount++;
+        this.emitSendEvent(rule, email, 'error', templateId, runId || '', { accountId: agentSelection.accountId, subjectIndex: si, bodyIndex: bi, failureReason: (hookErr as Error).message });
+        return 'error';
+      }
+    }
+
+    await this.config.adapters.sendEmail({
+      identifierId: identifier.id,
+      contactId: identifier.contactId,
+      accountId: agentSelection.accountId,
+      subject: finalSubject,
+      htmlBody: finalHtml,
+      textBody: finalText,
+      ruleId,
+      autoApprove: rule.autoApprove ?? true,
+      attachments: template.attachments || [],
+    });
+
+    await this.EmailRuleSend.logSend(
+      ruleId,
+      userKey,
+      identifier.id,
+      undefined,
+      { status: 'sent', accountId: agentSelection.accountId, subject: finalSubject, subjectIndex: si, bodyIndex: bi, preheaderIndex: pi }
+    );
+
+    const current = throttleMap.get(userKey) || { today: 0, thisWeek: 0, lastSentDate: null };
+    throttleMap.set(userKey, {
+      today: current.today + 1,
+      thisWeek: current.thisWeek + 1,
+      lastSentDate: new Date()
+    });
+
+    stats.sent++;
+    this.emitSendEvent(rule, email, 'sent', templateId, runId || '', { accountId: agentSelection.accountId, subjectIndex: si, bodyIndex: bi, preheaderIndex: pi });
+
+    return 'sent';
+  }
+
+  private async resolveIdentifiers(emails: string[]): Promise<Map<string, { id: string; contactId: string }>> {
+    const identifierResults = await processInChunks(
+      emails,
+      async email => {
+        const result = await this.config.adapters.findIdentifier(email);
+        return result ? { email, ...result } : null;
+      },
+      IDENTIFIER_CHUNK_SIZE
+    );
+    const map = new Map<string, { id: string; contactId: string }>();
+    for (const result of identifierResults) {
+      if (result) {
+        map.set(result.email, { id: result.id, contactId: result.contactId });
+      }
+    }
+    return map;
+  }
+
+  private buildSendMap(sends: any[]): Map<string, any> {
+    const map = new Map<string, any>();
+    for (const send of sends) {
+      const uid = send.userId.toString();
+      if (!map.has(uid)) {
+        map.set(uid, send);
+      }
+    }
+    return map;
+  }
+
+  private compileTemplateVariants(template: any) {
+    const preheaders: string[] = template.preheaders || [];
+    return this.templateRenderer.compileBatchVariants(
+      template.subjects, template.bodies, template.textBody, preheaders
+    );
+  }
+
+  private async checkCancelled(runId: string | undefined, index: number): Promise<boolean> {
+    if (!runId || index % 10 !== 0) return false;
+    const cancelKey = `${this.keyPrefix}run:${runId}:cancel`;
+    return !!(await this.redis.exists(cancelKey));
+  }
+
+  private async applySendDelay(isLast: boolean): Promise<void> {
+    if (isLast) return;
+    const delayMs = this.config.options?.delayBetweenSendsMs || 0;
+    const jitterMs = this.config.options?.jitterMs || 0;
+    if (delayMs > 0 || jitterMs > 0) {
+      const totalDelay = delayMs + Math.floor(Math.random() * (jitterMs + 1));
+      if (totalDelay > 0) await new Promise(resolve => setTimeout(resolve, totalDelay));
+    }
+  }
+
+  private async finalizeRuleStats(rule: any, stats: RuleRunStats, ruleId: string, templateId: string, runId?: string): Promise<void> {
+    await this.EmailRule.findByIdAndUpdate(rule._id, {
+      $set: { lastRunAt: new Date(), lastRunStats: stats },
+      $inc: { totalSent: stats.sent, totalSkipped: stats.skipped }
+    });
+    this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats, templateId, runId: runId || '' });
+  }
+
   private async executeListMode(
     rule: any,
     template: any,
@@ -305,21 +525,7 @@ export class RuleRunnerService {
     this.config.hooks?.onRuleStart?.({ ruleId, ruleName: rule.name, matchedCount: emailsToProcess.length, templateId, runId: runId || '' });
     if (emailsToProcess.length === 0) return stats;
 
-    const identifierResults = await processInChunks(
-      emailsToProcess,
-      async email => {
-        const result = await this.config.adapters.findIdentifier(email);
-        return result ? { email, ...result } : null;
-      },
-      IDENTIFIER_CHUNK_SIZE
-    );
-
-    const identifierMap = new Map<string, { id: string; contactId: string }>();
-    for (const result of identifierResults) {
-      if (result) {
-        identifierMap.set(result.email, { id: result.id, contactId: result.contactId });
-      }
-    }
+    const identifierMap = await this.resolveIdentifiers(emailsToProcess);
 
     const validEmails = emailsToProcess.filter(e => identifierMap.has(e));
     const identifierIds = validEmails.map(e => identifierMap.get(e)!.id);
@@ -328,195 +534,42 @@ export class RuleRunnerService {
       .sort({ sentAt: -1 })
       .lean();
 
-    const sendMap = new Map<string, any>();
-    for (const send of allRuleSends) {
-      const uid = send.userId.toString();
-      if (!sendMap.has(uid)) {
-        sendMap.set(uid, send);
-      }
-    }
-
-    const preheaders: string[] = template.preheaders || [];
-    const compiledVariants = this.templateRenderer.compileBatchVariants(
-      template.subjects,
-      template.bodies,
-      template.textBody,
-      preheaders
-    );
+    const sendMap = this.buildSendMap(allRuleSends);
+    const compiledVariants = this.compileTemplateVariants(template);
 
     let totalProcessed = 0;
 
     for (let i = 0; i < emailsToProcess.length; i++) {
       const email = emailsToProcess[i];
 
-      if (runId && i % 10 === 0) {
-        const cancelKey = `${this.keyPrefix}run:${runId}:cancel`;
-        const cancelled = await this.redis.exists(cancelKey);
-        if (cancelled) break;
-      }
+      if (await this.checkCancelled(runId, i)) break;
 
       try {
         const identifier = identifierMap.get(email);
         if (!identifier) {
           stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'invalid', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'invalid email' });
+          this.emitSendEvent(rule, email, 'invalid', templateId, runId || '', { failureReason: 'invalid email' });
           continue;
         }
 
-        const dedupKey = identifier.id;
-
-        const lastSend = sendMap.get(dedupKey);
-        if (lastSend) {
-          if (rule.sendOnce && rule.resendAfterDays == null) {
-            stats.skipped++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
-            continue;
-          }
-          if (rule.resendAfterDays != null) {
-            const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
-            if (daysSince < rule.resendAfterDays) {
-              stats.skipped++;
-              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'resend too soon' });
-              continue;
-            }
-          } else {
-            stats.skipped++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
-            continue;
-          }
-          if (rule.cooldownDays) {
-            const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
-            if (daysSince < rule.cooldownDays) {
-              stats.skipped++;
-              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'cooldown period' });
-              continue;
-            }
-          }
-        }
-
-        if (!this.checkThrottle(rule, dedupKey, email, throttleMap, throttleConfig, stats, templateId, runId)) continue;
-
-        const agentSelection = await this.config.adapters.selectAgent(identifier.id, { ruleId, templateId });
-        if (!agentSelection) {
-          stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'no account available' });
-          continue;
-        }
-
-        const user = { _id: identifier.id, email };
-        const resolvedData = this.config.adapters.resolveData(user);
-        const templateData = { ...(template.fields || {}), ...resolvedData };
-
-        const si = Math.floor(Math.random() * compiledVariants.subjectFns.length);
-        const bi = Math.floor(Math.random() * compiledVariants.bodyFns.length);
-
-        const renderedSubject = compiledVariants.subjectFns[si](templateData);
-        const renderedHtml = compiledVariants.bodyFns[bi](templateData);
-        const renderedText = compiledVariants.textBodyFn
-          ? compiledVariants.textBodyFn(templateData)
-          : this.templateRenderer.htmlToText(renderedHtml);
-
-        let finalHtml = renderedHtml;
-        let finalText = renderedText;
-        let finalSubject = renderedSubject;
-
-        let pi: number | undefined;
-        if (compiledVariants.preheaderFns && compiledVariants.preheaderFns.length > 0) {
-          pi = Math.floor(Math.random() * compiledVariants.preheaderFns.length);
-          const renderedPreheader = compiledVariants.preheaderFns[pi](templateData);
-          if (renderedPreheader) {
-            const preheaderHtml = `<div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${renderedPreheader}</div>`;
-            finalHtml = finalHtml.replace(/(<body[^>]*>)/i, `$1${preheaderHtml}`);
-          }
-        }
-
-        if (this.config.hooks?.beforeSend) {
-          try {
-            const modified = await this.config.hooks.beforeSend({
-              htmlBody: finalHtml,
-              textBody: finalText,
-              subject: finalSubject,
-              account: {
-                id: agentSelection.accountId,
-                email: agentSelection.email,
-                metadata: agentSelection.metadata,
-              },
-              user: {
-                id: dedupKey,
-                email,
-                name: '',
-              },
-              context: {
-                ruleId,
-                templateId,
-                runId: runId || '',
-              },
-            });
-            finalHtml = modified.htmlBody;
-            finalText = modified.textBody;
-            finalSubject = modified.subject;
-          } catch (hookErr: any) {
-            this.logger.error(`beforeSend hook failed for email ${email}: ${hookErr.message}`);
-            stats.errorCount++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi, failureReason: (hookErr as Error).message });
-            continue;
-          }
-        }
-
-        await this.config.adapters.sendEmail({
-          identifierId: identifier.id,
-          contactId: identifier.contactId,
-          accountId: agentSelection.accountId,
-          subject: finalSubject,
-          htmlBody: finalHtml,
-          textBody: finalText,
-          ruleId,
-          autoApprove: rule.autoApprove ?? true,
-          attachments: template.attachments || [],
+        const result = await this.processSingleUser({
+          rule, email, userKey: identifier.id, identifier, user: { _id: identifier.id, email }, sendMap, throttleMap,
+          throttleConfig, template, compiledVariants, templateId, ruleId, runId, stats
         });
 
-        await this.EmailRuleSend.logSend(
-          ruleId,
-          dedupKey,
-          identifier.id,
-          undefined,
-          { status: 'sent', accountId: agentSelection.accountId, subject: finalSubject, subjectIndex: si, bodyIndex: bi, preheaderIndex: pi }
-        );
-
-        const current = throttleMap.get(dedupKey) || { today: 0, thisWeek: 0, lastSentDate: null };
-        throttleMap.set(dedupKey, {
-          today: current.today + 1,
-          thisWeek: current.thisWeek + 1,
-          lastSentDate: new Date()
-        });
-
-        stats.sent++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi, preheaderIndex: pi });
-
-        totalProcessed++;
-        if (runId && totalProcessed % 10 === 0) {
-          await this.updateRunSendProgress(runId, stats);
-        }
-
-        if (i < emailsToProcess.length - 1) {
-          const delayMs = this.config.options?.delayBetweenSendsMs || 0;
-          const jitterMs = this.config.options?.jitterMs || 0;
-          if (delayMs > 0 || jitterMs > 0) {
-            const totalDelay = delayMs + Math.floor(Math.random() * (jitterMs + 1));
-            if (totalDelay > 0) await new Promise(resolve => setTimeout(resolve, totalDelay));
-          }
+        if (result === 'sent') {
+          totalProcessed++;
+          if (runId && totalProcessed % 10 === 0) await this.updateRunSendProgress(runId, stats);
+          await this.applySendDelay(i >= emailsToProcess.length - 1);
         }
       } catch (err) {
         stats.errorCount++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: (err as Error).message || 'unknown error' });
+        this.emitSendEvent(rule, email, 'error', templateId, runId || '', { failureReason: (err as Error).message || 'unknown error' });
         this.logger.error(`Rule "${rule.name}" failed for identifier ${email}`, { error: err });
       }
     }
 
-    await this.EmailRule.findByIdAndUpdate(rule._id, {
-      $set: { lastRunAt: new Date(), lastRunStats: stats },
-      $inc: { totalSent: stats.sent, totalSkipped: stats.skipped }
-    });
+    await this.finalizeRuleStats(rule, stats, ruleId, templateId, runId);
 
     // Auto-disable only applies to sendOnce rules — rules without sendOnce are meant to keep running
     if (rule.sendOnce) {
@@ -539,8 +592,6 @@ export class RuleRunnerService {
         this.logger.info(`Rule '${rule.name}' auto-disabled — all identifiers processed`);
       }
     }
-
-    this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats, templateId, runId: runId || '' });
 
     return stats;
   }
@@ -582,38 +633,11 @@ export class RuleRunnerService {
       .sort({ sentAt: -1 })
       .lean();
 
-    const sendMap = new Map<string, any>();
-    for (const send of allRuleSends) {
-      const uid = send.userId.toString();
-      if (!sendMap.has(uid)) {
-        sendMap.set(uid, send);
-      }
-    }
+    const sendMap = this.buildSendMap(allRuleSends);
 
     const uniqueEmails = [...new Set(emails.map(e => e.toLowerCase().trim()))];
-    const identifierResults = await processInChunks(
-      uniqueEmails,
-      async email => {
-        const result = await this.config.adapters.findIdentifier(email);
-        return result ? { email, ...result } : null;
-      },
-      IDENTIFIER_CHUNK_SIZE
-    );
-
-    const identifierMap = new Map<string, { id: string; contactId: string }>();
-    for (const result of identifierResults) {
-      if (result) {
-        identifierMap.set(result.email, { id: result.id, contactId: result.contactId });
-      }
-    }
-
-    const preheadersQ: string[] = template.preheaders || [];
-    const compiledVariants = this.templateRenderer.compileBatchVariants(
-      template.subjects,
-      template.bodies,
-      template.textBody,
-      preheadersQ
-    );
+    const identifierMap = await this.resolveIdentifiers(uniqueEmails);
+    const compiledVariants = this.compileTemplateVariants(template);
 
     const ruleId = rule._id.toString();
     const templateId = rule.templateId.toString();
@@ -623,181 +647,42 @@ export class RuleRunnerService {
     for (let i = 0; i < users.length; i++) {
       const user = users[i];
 
-      if (runId && i % 10 === 0) {
-        const cancelKey = `${this.keyPrefix}run:${runId}:cancel`;
-        const cancelled = await this.redis.exists(cancelKey);
-        if (cancelled) break;
-      }
+      if (await this.checkCancelled(runId, i)) break;
 
       try {
         const userId = (user._id as any)?.toString();
         const email = user.email as string;
         if (!userId || !email) {
           stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email: email || 'unknown', status: 'invalid', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'invalid email' });
+          this.emitSendEvent(rule, email || 'unknown', 'invalid', templateId, runId || '', { failureReason: 'invalid email' });
           continue;
-        }
-
-        const lastSend = sendMap.get(userId);
-        if (lastSend) {
-          if (rule.sendOnce && rule.resendAfterDays == null) {
-            stats.skipped++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
-            continue;
-          }
-          if (rule.resendAfterDays != null) {
-            const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
-            if (daysSince < rule.resendAfterDays) {
-              stats.skipped++;
-              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'resend too soon' });
-              continue;
-            }
-          } else {
-            stats.skipped++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
-            continue;
-          }
-          if (rule.cooldownDays) {
-            const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
-            if (daysSince < rule.cooldownDays) {
-              stats.skipped++;
-              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'cooldown period' });
-              continue;
-            }
-          }
         }
 
         const identifier = identifierMap.get(email.toLowerCase().trim());
         if (!identifier) {
           stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'invalid', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'invalid email' });
+          this.emitSendEvent(rule, email, 'invalid', templateId, runId || '', { failureReason: 'invalid email' });
           continue;
         }
 
-        if (!this.checkThrottle(rule, userId, email, throttleMap, throttleConfig, stats, templateId, runId)) continue;
-
-        const agentSelection = await this.config.adapters.selectAgent(identifier.id, { ruleId, templateId });
-        if (!agentSelection) {
-          stats.skipped++;
-          this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'no account available' });
-          continue;
-        }
-
-        const resolvedData = this.config.adapters.resolveData(user);
-        const templateData = { ...(template.fields || {}), ...resolvedData };
-
-        const si = Math.floor(Math.random() * compiledVariants.subjectFns.length);
-        const bi = Math.floor(Math.random() * compiledVariants.bodyFns.length);
-
-        const renderedSubject = compiledVariants.subjectFns[si](templateData);
-        const renderedHtml = compiledVariants.bodyFns[bi](templateData);
-        const renderedText = compiledVariants.textBodyFn
-          ? compiledVariants.textBodyFn(templateData)
-          : this.templateRenderer.htmlToText(renderedHtml);
-
-        let finalHtml = renderedHtml;
-        let finalText = renderedText;
-        let finalSubject = renderedSubject;
-
-        let pi: number | undefined;
-        if (compiledVariants.preheaderFns && compiledVariants.preheaderFns.length > 0) {
-          pi = Math.floor(Math.random() * compiledVariants.preheaderFns.length);
-          const renderedPreheader = compiledVariants.preheaderFns[pi](templateData);
-          if (renderedPreheader) {
-            const preheaderHtml = `<div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0px;max-width:0px;opacity:0;overflow:hidden;">${renderedPreheader}</div>`;
-            finalHtml = finalHtml.replace(/(<body[^>]*>)/i, `$1${preheaderHtml}`);
-          }
-        }
-
-        if (this.config.hooks?.beforeSend) {
-          try {
-            const modified = await this.config.hooks.beforeSend({
-              htmlBody: finalHtml,
-              textBody: finalText,
-              subject: finalSubject,
-              account: {
-                id: agentSelection.accountId,
-                email: agentSelection.email,
-                metadata: agentSelection.metadata,
-              },
-              user: {
-                id: String(userId),
-                email,
-                name: String(user.name || user.firstName || ''),
-              },
-              context: {
-                ruleId,
-                templateId,
-                runId: runId || '',
-              },
-            });
-            finalHtml = modified.htmlBody;
-            finalText = modified.textBody;
-            finalSubject = modified.subject;
-          } catch (hookErr: any) {
-            this.logger.error(`beforeSend hook failed for email ${email}: ${hookErr.message}`);
-            stats.errorCount++;
-            this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'error', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi, failureReason: (hookErr as Error).message });
-            continue;
-          }
-        }
-
-        await this.config.adapters.sendEmail({
-          identifierId: identifier.id,
-          contactId: identifier.contactId,
-          accountId: agentSelection.accountId,
-          subject: finalSubject,
-          htmlBody: finalHtml,
-          textBody: finalText,
-          ruleId,
-          autoApprove: rule.autoApprove ?? true,
-          attachments: template.attachments || [],
+        const result = await this.processSingleUser({
+          rule, email, userKey: userId, identifier, user, sendMap, throttleMap,
+          throttleConfig, template, compiledVariants, templateId, ruleId, runId, stats
         });
 
-        await this.EmailRuleSend.logSend(
-          ruleId,
-          userId,
-          identifier.id,
-          undefined,
-          { status: 'sent', accountId: agentSelection.accountId, subject: finalSubject, subjectIndex: si, bodyIndex: bi, preheaderIndex: pi }
-        );
-
-        const current = throttleMap.get(userId) || { today: 0, thisWeek: 0, lastSentDate: null };
-        throttleMap.set(userId, {
-          today: current.today + 1,
-          thisWeek: current.thisWeek + 1,
-          lastSentDate: new Date()
-        });
-
-        stats.sent++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi, preheaderIndex: pi });
-
-        totalProcessed++;
-        if (runId && totalProcessed % 10 === 0) {
-          await this.updateRunSendProgress(runId, stats);
-        }
-
-        if (i < users.length - 1) {
-          const delayMs = this.config.options?.delayBetweenSendsMs || 0;
-          const jitterMs = this.config.options?.jitterMs || 0;
-          if (delayMs > 0 || jitterMs > 0) {
-            const totalDelay = delayMs + Math.floor(Math.random() * (jitterMs + 1));
-            if (totalDelay > 0) await new Promise(resolve => setTimeout(resolve, totalDelay));
-          }
+        if (result === 'sent') {
+          totalProcessed++;
+          if (runId && totalProcessed % 10 === 0) await this.updateRunSendProgress(runId, stats);
+          await this.applySendDelay(i >= users.length - 1);
         }
       } catch (err) {
         stats.errorCount++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email: (user.email as string) || 'unknown', status: 'error', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: (err as Error).message || 'unknown error' });
+        this.emitSendEvent(rule, (user.email as string) || 'unknown', 'error', templateId, runId || '', { failureReason: (err as Error).message || 'unknown error' });
         this.logger.error(`Rule "${rule.name}" failed for user ${(user._id as any)?.toString()}`, { error: err });
       }
     }
 
-    await this.EmailRule.findByIdAndUpdate(rule._id, {
-      $set: { lastRunAt: new Date(), lastRunStats: stats },
-      $inc: { totalSent: stats.sent, totalSkipped: stats.skipped }
-    });
-
-    this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats, templateId, runId: runId || '' });
+    await this.finalizeRuleStats(rule, stats, ruleId, templateId, runId);
 
     return stats;
   }
@@ -823,19 +708,19 @@ export class RuleRunnerService {
 
     if (userThrottle.today >= dailyLimit) {
       stats.skippedByThrottle++;
-      this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled', accountId: '', templateId: templateId || '', runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'daily throttle limit' });
+      this.emitSendEvent(rule, email, 'throttled', templateId || '', runId || '', { failureReason: 'daily throttle limit' });
       return false;
     }
     if (userThrottle.thisWeek >= weeklyLimit) {
       stats.skippedByThrottle++;
-      this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled', accountId: '', templateId: templateId || '', runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'weekly throttle limit' });
+      this.emitSendEvent(rule, email, 'throttled', templateId || '', runId || '', { failureReason: 'weekly throttle limit' });
       return false;
     }
     if (userThrottle.lastSentDate) {
       const daysSinceLastSend = (Date.now() - userThrottle.lastSentDate.getTime()) / MS_PER_DAY;
       if (daysSinceLastSend < minGap) {
         stats.skippedByThrottle++;
-        this.config.hooks?.onSend?.({ ruleId: rule._id.toString(), ruleName: rule.name, email, status: 'throttled', accountId: '', templateId: templateId || '', runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'min gap days' });
+        this.emitSendEvent(rule, email, 'throttled', templateId || '', runId || '', { failureReason: 'min gap days' });
         return false;
       }
     }

@@ -4,6 +4,7 @@ import type { EmailRuleModel } from '../schemas/rule.schema';
 import type { CreateEmailTemplateInput, UpdateEmailTemplateInput } from '../types/template.types';
 import type { EmailRuleEngineConfig } from '../types/config.types';
 import { DuplicateSlugError, TemplateSyntaxError, TemplateNotFoundError } from '../errors';
+import { filterUpdateableFields } from '../utils';
 
 function stripScriptTags(text: string): string {
   return text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
@@ -135,12 +136,7 @@ export class TemplateService {
       input.variables = this.renderService.extractVariables(allContent);
     }
 
-    const setFields: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(input)) {
-      if (value !== undefined && UPDATEABLE_FIELDS.has(key)) {
-        setFields[key] = value;
-      }
-    }
+    const setFields = filterUpdateableFields(input as Record<string, unknown>, UPDATEABLE_FIELDS);
 
     const update: Record<string, unknown> = { $set: setFields };
     if (input.textBody || input.subjects || input.bodies || input.preheaders) {

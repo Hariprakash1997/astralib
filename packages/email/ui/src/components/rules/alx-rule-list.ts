@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { state, property } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
+import { formatDate } from '../../utils/index.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -207,10 +208,6 @@ export class AlxRuleList extends LitElement {
     this._loadRules();
   }
 
-  private _formatDate(dateStr: string | null): string {
-    if (!dateStr) return '--';
-    return new Date(dateStr).toLocaleString();
-  }
 
   override render() {
     return html`
@@ -276,7 +273,7 @@ export class AlxRuleList extends LitElement {
                               <span class="toggle-slider"></span>
                             </label>
                           </td>
-                          <td class="text-muted text-small">${this._formatDate(r.lastRunAt)}</td>
+                          <td class="text-muted text-small">${r.lastRunAt ? formatDate(r.lastRunAt) : '--'}</td>
                           <td class="stat">${r.totalSent}</td>
                           <td class="stat">${r.totalSkipped}</td>
                           <td>

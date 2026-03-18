@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Feature: collection schema registration for field dropdowns, type-aware operators, template variable picker. Fixes: userId accepts string identifiers, run history field mapping, pagination for rules and templates lists, template deletion checks rule refs, lock failure status, cooldownDays implementation, resendAfterDays 0 edge case, send log email filter, default date filters, strict Handlebars in production, preheaderIndex in onSend hook, timer cleanup, redundant index, scheduler idempotent stop"
+set "COMMIT_MSG=Feature: collection schema registration for field dropdowns, type-aware operators, template variable picker. Fixes: 14 bugs including userId string identifiers, run history field mapping, pagination, template deletion guard, cooldownDays, resendAfterDays 0, strict Handlebars, preheaderIndex. Refactor: DRY extraction of processSingleUser, asyncHandler, shared utilities, UI formatters. 236 tests."
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"

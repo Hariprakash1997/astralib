@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { state, property } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
+import { formatDate, defaultDateFrom, defaultDateTo, renderStatusBadge } from '../../utils/index.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -70,19 +71,9 @@ export class AlxSendLog extends LitElement {
   @state() private _totalPages = 1;
   @state() private _total = 0;
   @state() private _statusFilter = '';
-  @state() private _dateFrom = AlxSendLog._defaultFrom();
-  @state() private _dateTo = AlxSendLog._defaultTo();
+  @state() private _dateFrom = defaultDateFrom();
+  @state() private _dateTo = defaultDateTo();
   @state() private _emailSearch = '';
-
-  private static _defaultFrom(): string {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString().slice(0, 10);
-  }
-
-  private static _defaultTo(): string {
-    return new Date().toISOString().slice(0, 10);
-  }
 
   private __api?: RuleAPI;
   private get _api(): RuleAPI {
@@ -137,22 +128,6 @@ export class AlxSendLog extends LitElement {
     this._loadSends();
   }
 
-  private _formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleString();
-  }
-
-  private _renderStatusBadge(status?: string): unknown {
-    if (!status) return nothing;
-    const classMap: Record<string, string> = {
-      sent: 'alx-badge alx-badge-success',
-      error: 'alx-badge alx-badge-danger',
-      skipped: 'alx-badge alx-badge-warning',
-      invalid: 'alx-badge alx-badge-muted',
-      throttled: 'alx-badge alx-badge-info',
-    };
-    const cls = classMap[status] ?? 'alx-badge';
-    return html`<span class="${cls}">${status}</span>`;
-  }
 
   private _renderVariant(send: SendLog): unknown {
     if (send.subjectIndex == null && send.bodyIndex == null) return nothing;
@@ -247,10 +222,10 @@ export class AlxSendLog extends LitElement {
                       (send) => html`
                         <tr>
                           <td>${send.email ?? send.userId}</td>
-                          <td>${this._renderStatusBadge(send.status)}</td>
+                          <td>${renderStatusBadge(send.status)}</td>
                           <td>${send.subject ?? ''}</td>
                           <td>${this._renderVariant(send)}</td>
-                          <td>${this._formatDate(send.sentAt)}</td>
+                          <td>${formatDate(send.sentAt)}</td>
                           <td>
                             ${send.failureReason
                               ? html`<span class="reason" title="${send.failureReason}">${send.failureReason}</span>`

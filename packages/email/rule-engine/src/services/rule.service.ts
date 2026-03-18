@@ -5,6 +5,7 @@ import type { CreateEmailRuleInput, UpdateEmailRuleInput, RuleTarget, QueryTarge
 import type { EmailRuleEngineConfig } from '../types/config.types';
 import { TemplateNotFoundError, RuleNotFoundError, RuleTemplateIncompatibleError } from '../errors';
 import { validateConditions } from '../validation/condition.validator';
+import { filterUpdateableFields, buildDateRangeFilter, calculatePagination } from '../utils';
 
 function isQueryTarget(target: RuleTarget): target is QueryTarget {
   return !target.mode || target.mode === 'query';
@@ -154,12 +155,7 @@ export class RuleService {
       }
     }
 
-    const setFields: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(input)) {
-      if (value !== undefined && UPDATEABLE_FIELDS.has(key)) {
-        setFields[key] = value;
-      }
-    }
+    const setFields = filterUpdateableFields(input as Record<string, unknown>, UPDATEABLE_FIELDS);
 
     return this.EmailRule.findByIdAndUpdate(
       id,
@@ -258,24 +254,13 @@ export class RuleService {
   }
 
   async getRunHistory(limit = 20, opts?: { page?: number; from?: string; to?: string }): Promise<unknown[]> {
-    const filter: Record<string, unknown> = {};
-    if (opts?.from || opts?.to) {
-      filter.runAt = {};
-      if (opts.from) (filter.runAt as Record<string, unknown>)['$gte'] = new Date(opts.from);
-      if (opts.to) (filter.runAt as Record<string, unknown>)['$lte'] = new Date(opts.to + 'T23:59:59.999Z');
-    }
-    const page = opts?.page ?? 1;
-    const skip = (page - 1) * limit;
-    return this.EmailRuleRunLog.find(filter).sort({ runAt: -1 }).skip(skip).limit(limit);
+    const filter = buildDateRangeFilter('runAt', opts?.from, opts?.to);
+    const pagination = calculatePagination(opts?.page, limit);
+    return this.EmailRuleRunLog.find(filter).sort({ runAt: -1 }).skip(pagination.skip).limit(pagination.limit);
   }
 
   async getRunHistoryCount(opts?: { from?: string; to?: string }): Promise<number> {
-    const filter: Record<string, unknown> = {};
-    if (opts?.from || opts?.to) {
-      filter.runAt = {};
-      if (opts.from) (filter.runAt as Record<string, unknown>)['$gte'] = new Date(opts.from);
-      if (opts.to) (filter.runAt as Record<string, unknown>)['$lte'] = new Date(opts.to + 'T23:59:59.999Z');
-    }
+    const filter = buildDateRangeFilter('runAt', opts?.from, opts?.to);
     return this.EmailRuleRunLog.countDocuments(filter);
   }
 }

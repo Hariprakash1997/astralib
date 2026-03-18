@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { state, property } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
+import { formatDate, formatDuration, defaultDateFrom, defaultDateTo, renderStatusBadge } from '../../utils/index.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import {
   alxDensityStyles,
@@ -141,18 +142,8 @@ export class AlxRunHistory extends LitElement {
   @state() private _totalPages = 1;
   @state() private _total = 0;
   @state() private _expandedIds = new Set<string>();
-  @state() private _dateFrom = AlxRunHistory._defaultFrom();
-  @state() private _dateTo = AlxRunHistory._defaultTo();
-
-  private static _defaultFrom(): string {
-    const d = new Date();
-    d.setDate(d.getDate() - 30);
-    return d.toISOString().slice(0, 10);
-  }
-
-  private static _defaultTo(): string {
-    return new Date().toISOString().slice(0, 10);
-  }
+  @state() private _dateFrom = defaultDateFrom();
+  @state() private _dateTo = defaultDateTo();
   @state() private _triggering = false;
   @state() private _cancelling = '';
   @state() private _activeRunId = '';
@@ -322,27 +313,6 @@ export class AlxRunHistory extends LitElement {
     }
   }
 
-  private _formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleString();
-  }
-
-  private _formatDuration(ms: number): string {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(1)}s`;
-  }
-
-  private _renderStatusBadge(status?: string): unknown {
-    if (!status) return nothing;
-    const cls =
-      status === 'running'
-        ? 'alx-badge alx-badge-warning'
-        : status === 'failed'
-          ? 'alx-badge alx-badge-danger'
-          : status === 'cancelled'
-            ? 'alx-badge alx-badge-muted'
-            : 'alx-badge alx-badge-success';
-    return html`<span class="${cls}">${status}</span>`;
-  }
 
   override render() {
     return html`
@@ -433,10 +403,10 @@ export class AlxRunHistory extends LitElement {
                           <td>
                             <span class="expand-icon ${expanded ? 'open' : ''}">&#9654;</span>
                           </td>
-                          <td>${this._formatDate(log.runAt)}</td>
-                          <td>${this._renderStatusBadge(log.status)}</td>
+                          <td>${formatDate(log.runAt)}</td>
+                          <td>${renderStatusBadge(log.status)}</td>
                           <td>${log.triggeredBy}</td>
-                          <td class="duration">${this._formatDuration(log.duration)}</td>
+                          <td class="duration">${formatDuration(log.duration)}</td>
                           <td class="stat">${log.rulesProcessed}</td>
                           <td class="stat">${log.totalSent}</td>
                           <td class="stat">${log.totalSkipped}</td>

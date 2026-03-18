@@ -1,5 +1,6 @@
 import { Schema, Model, Types, HydratedDocument } from 'mongoose';
 import { RULE_OPERATOR, EMAIL_TYPE, TEMPLATE_AUDIENCE, TARGET_MODE } from '../constants';
+import { createRunStatsSchema } from './shared-schemas';
 import type { EmailRule, CreateEmailRuleInput } from '../types/rule.types';
 
 export interface IEmailRule extends Omit<EmailRule, '_id' | 'templateId'> {
@@ -35,13 +36,7 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
     collection: { type: String }
   }, { _id: false });
 
-  const RuleRunStatsSchema = new Schema({
-    matched: { type: Number, default: 0 },
-    sent: { type: Number, default: 0 },
-    skipped: { type: Number, default: 0 },
-    skippedByThrottle: { type: Number, default: 0 },
-    errorCount: { type: Number, default: 0 }
-  }, { _id: false });
+  const RuleRunStatsSchema = createRunStatsSchema();
 
   const schema = new Schema<IEmailRule>(
     {
