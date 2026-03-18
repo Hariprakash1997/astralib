@@ -11,7 +11,7 @@ export type {
   EmailRule, CreateEmailRuleInput, UpdateEmailRuleInput,
   EmailRuleSend, PerRuleStats, EmailRuleRunLog
 } from './rule.types';
-export type { EmailThrottleConfig, UpdateEmailThrottleConfigInput } from './throttle.types';
+export type { EmailThrottleConfig, UpdateEmailThrottleConfigInput, SendWindowConfig } from './throttle.types';
 export type {
   EmailRuleEngineConfig, SendEmailParams, AgentSelection,
   RecipientIdentifier, LogAdapter, BeforeSendParams, BeforeSendResult

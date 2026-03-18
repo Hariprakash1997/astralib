@@ -214,5 +214,6 @@ These endpoints are read-only — collections are defined in the engine config, 
 | `maxPerUserPerDay` | integer | >= 1 |
 | `maxPerUserPerWeek` | integer | >= 1, must be >= `maxPerUserPerDay` |
 | `minGapDays` | integer | >= 0 |
+| `sendWindow` | object or null | `{ startHour: 0-23, endHour: 0-23, timezone: string }`. Set to `null` to clear (reverts to code config). |
 
-Validation: `maxPerUserPerWeek` must be >= `maxPerUserPerDay`. Both must be positive integers. `minGapDays` must be a non-negative integer.
+Validation: `maxPerUserPerWeek` must be >= `maxPerUserPerDay`. Both must be positive integers. `minGapDays` must be a non-negative integer. `sendWindow` hours must be integers 0-23, timezone must be a non-empty IANA timezone string.

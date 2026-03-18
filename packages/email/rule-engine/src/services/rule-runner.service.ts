@@ -81,17 +81,6 @@ export class RuleRunnerService {
     if (!runId) runId = crypto.randomUUID();
     const startedAt = new Date().toISOString();
 
-    if (this.config.options?.sendWindow) {
-      const { startHour, endHour, timezone } = this.config.options.sendWindow;
-      const now = new Date();
-      const formatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: timezone });
-      const currentHour = parseInt(formatter.format(now), 10);
-      if (currentHour < startHour || currentHour >= endHour) {
-        this.logger.info('Outside send window, skipping run', { currentHour, startHour, endHour, timezone });
-        return { runId };
-      }
-    }
-
     const lockAcquired = await this.lock.acquire();
     if (!lockAcquired) {
       this.logger.warn('Rule runner already executing, skipping');
@@ -114,10 +103,24 @@ export class RuleRunnerService {
 
     try {
       const throttleConfig = await this.EmailThrottleConfig.getConfig();
+
+      // Send window: DB setting takes priority, falls back to code-level config
+      const sendWindow = throttleConfig.sendWindow ?? this.config.options?.sendWindow;
+      if (sendWindow) {
+        const { startHour, endHour, timezone } = sendWindow;
+        const now2 = new Date();
+        const formatter = new Intl.DateTimeFormat('en-US', { hour: 'numeric', hour12: false, timeZone: timezone });
+        const currentHour = parseInt(formatter.format(now2), 10);
+        if (currentHour < startHour || currentHour >= endHour) {
+          this.logger.info('Outside send window, skipping run', { currentHour, startHour, endHour, timezone });
+          return { runId };
+        }
+      }
+
       const allActiveRules = await this.EmailRule.findActive();
 
       const now = new Date();
-      const tz = this.config.options?.sendWindow?.timezone;
+      const tz = sendWindow?.timezone ?? this.config.options?.sendWindow?.timezone;
       const activeRules = allActiveRules.filter(rule => {
         if (rule.validFrom) {
           const localNow = getLocalDate(now, tz);

@@ -112,7 +112,7 @@ If omitted, the Mongoose schema accepts any string for these fields.
 |-------|------|---------|-------------|
 | `lockTTLMs` | `number` | `1800000` (30 min) | Redis lock TTL in milliseconds. Must exceed your longest expected run. |
 | `defaultMaxPerRun` | `number` | `500` | Default max users per rule when `rule.maxPerRun` is not set. |
-| `sendWindow` | `object` | -- | Time-based execution window. Runs outside the window are skipped entirely. |
+| `sendWindow` | `object` | -- | Time-based execution window. Runs outside the window are skipped entirely. Also configurable at runtime via `PUT /throttle` — DB setting takes priority over code config. |
 | `sendWindow.startHour` | `number` | -- | Start hour (0--23, inclusive). |
 | `sendWindow.endHour` | `number` | -- | End hour (0--23, exclusive). |
 | `sendWindow.timezone` | `string` | -- | IANA timezone (e.g., `'Asia/Kolkata'`). |

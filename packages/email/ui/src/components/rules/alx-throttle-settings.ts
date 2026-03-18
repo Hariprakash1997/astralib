@@ -14,16 +14,24 @@ import {
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
 
+interface SendWindowData {
+  startHour: number;
+  endHour: number;
+  timezone: string;
+}
+
 interface ThrottleData {
   maxPerUserPerDay: number;
   maxPerUserPerWeek: number;
   minGapDays: number;
+  sendWindow?: SendWindowData | null;
 }
 
 const DEFAULT_THROTTLE: ThrottleData = {
   maxPerUserPerDay: 1,
   maxPerUserPerWeek: 3,
   minGapDays: 1,
+  sendWindow: null,
 };
 
 export class AlxThrottleSettings extends LitElement {
@@ -104,6 +112,7 @@ export class AlxThrottleSettings extends LitElement {
         maxPerUserPerDay: res.maxPerUserPerDay ?? DEFAULT_THROTTLE.maxPerUserPerDay,
         maxPerUserPerWeek: res.maxPerUserPerWeek ?? DEFAULT_THROTTLE.maxPerUserPerWeek,
         minGapDays: res.minGapDays ?? DEFAULT_THROTTLE.minGapDays,
+        sendWindow: (res as any).sendWindow ?? null,
       };
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to load throttle settings';
@@ -197,6 +206,96 @@ export class AlxThrottleSettings extends LitElement {
             />
             <span class="hint">Minimum days between consecutive emails to the same user</span>
           </div>
+        </div>
+
+        <div class="alx-card-header" style="margin-top:1rem"><h3>Send Window</h3></div>
+        <div class="info-banner">Emails are only sent within this time window. Leave empty to allow sending anytime.</div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Start Hour</label>
+            <input
+              type="number"
+              .value=${this._form.sendWindow?.startHour != null ? String(this._form.sendWindow.startHour) : ''}
+              @input=${(e: Event) => {
+                const val = (e.target as HTMLInputElement).value;
+                if (val === '') {
+                  this._form = { ...this._form, sendWindow: null };
+                } else {
+                  this._form = {
+                    ...this._form,
+                    sendWindow: {
+                      startHour: Number(val),
+                      endHour: this._form.sendWindow?.endHour ?? 22,
+                      timezone: this._form.sendWindow?.timezone ?? 'UTC',
+                    },
+                  };
+                }
+              }}
+              min="0"
+              max="23"
+              placeholder="e.g. 8"
+            />
+            <span class="hint">Hour (0-23) when sending starts</span>
+          </div>
+
+          <div class="form-group">
+            <label>End Hour</label>
+            <input
+              type="number"
+              .value=${this._form.sendWindow?.endHour != null ? String(this._form.sendWindow.endHour) : ''}
+              @input=${(e: Event) => {
+                const val = (e.target as HTMLInputElement).value;
+                if (val === '') {
+                  this._form = { ...this._form, sendWindow: null };
+                } else {
+                  this._form = {
+                    ...this._form,
+                    sendWindow: {
+                      startHour: this._form.sendWindow?.startHour ?? 8,
+                      endHour: Number(val),
+                      timezone: this._form.sendWindow?.timezone ?? 'UTC',
+                    },
+                  };
+                }
+              }}
+              min="0"
+              max="23"
+              placeholder="e.g. 22"
+            />
+            <span class="hint">Hour (0-23) when sending stops</span>
+          </div>
+
+          <div class="form-group">
+            <label>Timezone</label>
+            <input
+              type="text"
+              .value=${this._form.sendWindow?.timezone ?? ''}
+              @input=${(e: Event) => {
+                const val = (e.target as HTMLInputElement).value;
+                if (!val && this._form.sendWindow?.startHour == null) {
+                  this._form = { ...this._form, sendWindow: null };
+                } else {
+                  this._form = {
+                    ...this._form,
+                    sendWindow: {
+                      startHour: this._form.sendWindow?.startHour ?? 8,
+                      endHour: this._form.sendWindow?.endHour ?? 22,
+                      timezone: val,
+                    },
+                  };
+                }
+              }}
+              placeholder="e.g. Asia/Kolkata"
+            />
+            <span class="hint">IANA timezone for the send window</span>
+          </div>
+
+          ${this._form.sendWindow ? html`
+            <div class="form-group" style="justify-content:flex-end">
+              <button class="alx-btn-sm" @click=${() => { this._form = { ...this._form, sendWindow: null }; }}>Clear Window</button>
+            </div>
+          ` : nothing}
         </div>
 
         <div class="actions">

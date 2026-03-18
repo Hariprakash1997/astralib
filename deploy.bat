@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Fixes: renamed collection to collectionName to avoid Mongoose reserved key warning, added core as peer dependency, suppressed BullMQ repeated eviction warnings"
+set "COMMIT_MSG=Feature: send window runtime configuration via Settings UI and PUT /throttle API"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -34,7 +34,7 @@ REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES=email-account-manager:patch,email-rule-engine:patch,email-ui:patch"
+set "EMAIL_PACKAGES=email-rule-engine:minor,email-ui:minor"
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*

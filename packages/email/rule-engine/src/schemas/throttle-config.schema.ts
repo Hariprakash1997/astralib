@@ -18,7 +18,16 @@ export function createEmailThrottleConfigSchema(collectionPrefix?: string) {
       maxPerUserPerDay: { type: Number, default: 1 },
       maxPerUserPerWeek: { type: Number, default: 2 },
       minGapDays: { type: Number, default: 3 },
-      throttleWindow: { type: String, enum: Object.values(THROTTLE_WINDOW), default: THROTTLE_WINDOW.Rolling }
+      throttleWindow: { type: String, enum: Object.values(THROTTLE_WINDOW), default: THROTTLE_WINDOW.Rolling },
+      sendWindow: {
+        type: {
+          startHour: { type: Number, min: 0, max: 23 },
+          endHour: { type: Number, min: 0, max: 23 },
+          timezone: { type: String },
+        },
+        _id: false,
+        default: undefined,
+      }
     },
     {
       timestamps: true,

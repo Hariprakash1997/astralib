@@ -8,7 +8,7 @@ import type {
   EmailRule, CreateEmailRuleInput, UpdateEmailRuleInput,
   RuleCondition, RuleTarget, QueryTarget, ListTarget, RuleRunStats,
   EmailRuleSend, PerRuleStats, EmailRuleRunLog,
-  EmailThrottleConfig, UpdateEmailThrottleConfigInput,
+  EmailThrottleConfig, UpdateEmailThrottleConfigInput, SendWindowConfig,
   EmailRuleEngineConfig, SendEmailParams, AgentSelection,
   RecipientIdentifier, BeforeSendParams, BeforeSendResult,
   LogAdapter, RenderResult, CompiledTemplate,
@@ -132,8 +132,9 @@ hooks?: {
 
 | Type | Description |
 |------|-------------|
-| `EmailThrottleConfig` | Throttle config document. Fields: `maxPerUserPerDay`, `maxPerUserPerWeek`, `minGapDays` (all `number`), `throttleWindow: ThrottleWindow`. |
-| `UpdateEmailThrottleConfigInput` | Partial update input. Optional fields: `maxPerUserPerDay`, `maxPerUserPerWeek`, `minGapDays`. |
+| `EmailThrottleConfig` | Throttle config document. Fields: `maxPerUserPerDay`, `maxPerUserPerWeek`, `minGapDays` (all `number`), `throttleWindow: ThrottleWindow`, `sendWindow?: SendWindowConfig`. |
+| `UpdateEmailThrottleConfigInput` | Partial update input. Optional fields: `maxPerUserPerDay`, `maxPerUserPerWeek`, `minGapDays`, `sendWindow` (set to `null` to clear). |
+| `SendWindowConfig` | Send window configuration. Fields: `startHour: number` (0-23), `endHour: number` (0-23), `timezone: string`. |
 
 ## Render Types
 
