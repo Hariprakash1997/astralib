@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 12.10.0
+
+### Minor Changes
+
+- 58ac84f: Feature: collection schema registration for field dropdowns, type-aware operators, template variable picker. Fixes: 14 bugs including userId string identifiers, run history field mapping, pagination, template deletion guard, cooldownDays, resendAfterDays 0, strict Handlebars, preheaderIndex. Refactor: DRY extraction of processSingleUser, asyncHandler, shared utilities, UI formatters. 236 tests.
+
 ## 12.9.0
 
 ### Minor Changes
