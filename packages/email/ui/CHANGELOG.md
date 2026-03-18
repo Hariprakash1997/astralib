@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.10.0
+
+### Minor Changes
+
+- 9eaba73: Feature: collection schema registration for field dropdowns, type-aware operators, template variable picker. Fixes: userId accepts string identifiers, run history field mapping, pagination for rules and templates lists, template deletion checks rule refs, lock failure status, cooldownDays implementation, resendAfterDays 0 edge case, send log email filter, default date filters, strict Handlebars in production, preheaderIndex in onSend hook, timer cleanup, redundant index, scheduler idempotent stop
+
 ## 2.9.0
 
 ### Minor Changes
