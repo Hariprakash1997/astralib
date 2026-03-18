@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 12.8.0
+
+### Minor Changes
+
+- 90aa64e: Feature: collection schema registration for field dropdowns, type-aware operators, template variable picker. Fix: EmailRuleSend userId accepts string identifiers
+
 ## 12.7.3
 
 ### Patch Changes

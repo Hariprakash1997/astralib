@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.9.0
+
+### Minor Changes
+
+- 90aa64e: Feature: collection schema registration for field dropdowns, type-aware operators, template variable picker. Fix: EmailRuleSend userId accepts string identifiers
+
 ## 2.8.1
 
 ### Patch Changes
