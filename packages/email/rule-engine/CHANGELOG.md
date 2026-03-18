@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 12.7.2
+
+### Patch Changes
+
+- 8e558d9: Features: chat widget overhaul, engine routes and services, agent dashboard. Telegram batch connect, account rotation, rule runner, inbox sync. Email template editor, draft schema, SMTP updates
+
 ## 12.7.1
 
 ### Patch Changes
