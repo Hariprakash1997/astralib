@@ -507,4 +507,442 @@ describe('Email Rule Engine — Integration', () => {
       expect(sendEmail).toHaveBeenCalledTimes(0);
     });
   });
+
+  // ─── 7. Attachments ──────────────────────────────────────────────
+
+  describe('Attachments', () => {
+    it('should pass template attachments through to sendEmail adapter', async () => {
+      await deactivateAllRules();
+      await clearRunData();
+
+      const template = await engine.templateService.create({
+        name: 'Attachment Test',
+        slug: 'attachment-test',
+        category: 'engagement',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Test {{name}}'],
+        bodies: ['<mj-section><mj-column><mj-text>Hi</mj-text></mj-column></mj-section>'],
+        attachments: [
+          { filename: 'guide.pdf', url: 'https://cdn.example.com/guide.pdf', contentType: 'application/pdf' },
+          { filename: 'logo.png', url: 'https://cdn.example.com/logo.png', contentType: 'image/png' },
+        ],
+      });
+
+      expect(template.attachments).toHaveLength(2);
+      expect(template.attachments![0].filename).toBe('guide.pdf');
+
+      const rule = await engine.ruleService.create({
+        name: 'Attachment Rule',
+        templateId: template._id.toString(),
+        target: { mode: 'list', identifiers: ['att-test@example.com'] },
+        sendOnce: false,
+      });
+
+      await engine.ruleService.toggleActive(rule._id.toString());
+
+      findIdentifier.mockImplementation(async (email: string) => ({
+        id: new mongoose.Types.ObjectId().toString(),
+        contactId: new mongoose.Types.ObjectId().toString(),
+      }));
+      resolveData.mockReturnValue({ name: 'Test' });
+      sendEmail.mockResolvedValue(undefined);
+      selectAgent.mockResolvedValue({ accountId: 'acc1', email: 'sender@test.com', metadata: {} });
+
+      sendEmail.mockClear();
+      await engine.runner.runAllRules('manual');
+
+      expect(sendEmail).toHaveBeenCalled();
+      const callArgs = sendEmail.mock.calls[0][0];
+      expect(callArgs.attachments).toHaveLength(2);
+      expect(callArgs.attachments[0]).toEqual({
+        filename: 'guide.pdf',
+        url: 'https://cdn.example.com/guide.pdf',
+        contentType: 'application/pdf',
+      });
+      expect(callArgs.attachments[1].filename).toBe('logo.png');
+    });
+
+    it('should pass empty attachments array when template has none', async () => {
+      await deactivateAllRules();
+      await clearRunData();
+
+      const template = await engine.templateService.create({
+        name: 'No Attachment Test',
+        slug: 'no-attachment-test',
+        category: 'engagement',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Test'],
+        bodies: ['<mj-section><mj-column><mj-text>Hi</mj-text></mj-column></mj-section>'],
+      });
+
+      const rule = await engine.ruleService.create({
+        name: 'No Attachment Rule',
+        templateId: template._id.toString(),
+        target: { mode: 'list', identifiers: ['no-att@example.com'] },
+        sendOnce: false,
+      });
+
+      await engine.ruleService.toggleActive(rule._id.toString());
+
+      findIdentifier.mockImplementation(async (email: string) => ({
+        id: new mongoose.Types.ObjectId().toString(),
+        contactId: new mongoose.Types.ObjectId().toString(),
+      }));
+      resolveData.mockReturnValue({});
+      sendEmail.mockResolvedValue(undefined);
+      selectAgent.mockResolvedValue({ accountId: 'acc1', email: 'sender@test.com', metadata: {} });
+
+      sendEmail.mockClear();
+      await engine.runner.runAllRules('manual');
+
+      expect(sendEmail).toHaveBeenCalled();
+      const callArgs = sendEmail.mock.calls[0][0];
+      expect(callArgs.attachments).toEqual([]);
+    });
+
+    it('should update template attachments via update', async () => {
+      const template = await engine.templateService.create({
+        name: 'Update Att Test',
+        slug: 'update-att-test',
+        category: 'engagement',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Test'],
+        bodies: ['<mj-section><mj-column><mj-text>Hi</mj-text></mj-column></mj-section>'],
+        attachments: [{ filename: 'old.pdf', url: 'https://cdn.example.com/old.pdf', contentType: 'application/pdf' }],
+      });
+
+      expect(template.attachments).toHaveLength(1);
+
+      const updated = await engine.templateService.update(template._id.toString(), {
+        attachments: [
+          { filename: 'new.pdf', url: 'https://cdn.example.com/new.pdf', contentType: 'application/pdf' },
+          { filename: 'extra.csv', url: 'https://cdn.example.com/extra.csv', contentType: 'text/csv' },
+        ],
+      });
+
+      expect(updated.attachments).toHaveLength(2);
+      expect(updated.attachments![0].filename).toBe('new.pdf');
+      expect(updated.attachments![1].filename).toBe('extra.csv');
+    });
+  });
+
+  // ─── 8. Throttle enforcement ─────────────────────────────────────
+
+  describe('Throttle enforcement', () => {
+    it('should skip user on second run when throttle maxPerUserPerDay is 1', async () => {
+      await deactivateAllRules();
+      await clearRunData();
+
+      // Set throttle config: allow only 1 per user per day, no min gap
+      await engine.models.EmailThrottleConfig.findOneAndUpdate(
+        {},
+        { maxPerUserPerDay: 1, maxPerUserPerWeek: 7, minGapDays: 0 },
+        { upsert: true },
+      );
+
+      const template = await engine.templateService.create({
+        name: 'Throttle Test',
+        slug: 'throttle-test',
+        category: 'engagement',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Throttle'],
+        bodies: ['<mj-section><mj-column><mj-text>Hi</mj-text></mj-column></mj-section>'],
+      });
+
+      const rule = await engine.ruleService.create({
+        name: 'Throttle Rule',
+        templateId: template._id.toString(),
+        target: { mode: 'list', identifiers: ['throttle@example.com'] },
+        emailType: 'automated',
+        sendOnce: false,
+      });
+
+      await engine.ruleService.toggleActive(rule._id.toString());
+
+      const stableId = new mongoose.Types.ObjectId().toString();
+      findIdentifier.mockImplementation(async () => ({
+        id: stableId,
+        contactId: new mongoose.Types.ObjectId().toString(),
+      }));
+      resolveData.mockReturnValue({});
+      sendEmail.mockResolvedValue(undefined);
+      selectAgent.mockResolvedValue({ accountId: 'acc1', email: 'sender@test.com', metadata: {} });
+
+      sendEmail.mockClear();
+
+      // First run should send
+      await engine.runner.runAllRules('manual');
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+
+      sendEmail.mockClear();
+
+      // Second run should be throttled (maxPerUserPerDay = 1, already sent once today)
+      await engine.runner.runAllRules('manual');
+      expect(sendEmail).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── 9. Query mode with conditions ───────────────────────────────
+
+  describe('Query mode with conditions', () => {
+    it('should pass conditions to queryUsers adapter', async () => {
+      await deactivateAllRules();
+      await clearRunData();
+
+      const template = await engine.templateService.create({
+        name: 'Query Conditions Test',
+        slug: 'query-conditions-test',
+        category: 'engagement',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Hi {{name}}'],
+        bodies: ['<mj-section><mj-column><mj-text>Hi</mj-text></mj-column></mj-section>'],
+      });
+
+      const rule = await engine.ruleService.create({
+        name: 'Query Rule With Conditions',
+        templateId: template._id.toString(),
+        target: {
+          mode: 'query',
+          role: 'customer',
+          platform: 'test',
+          conditions: [
+            { field: 'city', operator: 'eq', value: 'Mumbai' },
+            { field: 'age', operator: 'gte', value: 18 },
+          ],
+        },
+        sendOnce: false,
+      });
+
+      await engine.ruleService.toggleActive(rule._id.toString());
+
+      queryUsers.mockResolvedValue([]);
+      queryUsers.mockClear();
+
+      await engine.runner.runAllRules('manual');
+
+      expect(queryUsers).toHaveBeenCalled();
+      const target = queryUsers.mock.calls[0][0];
+      expect(target.role).toBe('customer');
+      expect(target.platform).toBe('test');
+      expect(target.conditions).toHaveLength(2);
+      expect(target.conditions[0].field).toBe('city');
+      expect(target.conditions[0].operator).toBe('eq');
+      expect(target.conditions[0].value).toBe('Mumbai');
+      expect(target.conditions[1].field).toBe('age');
+      expect(target.conditions[1].operator).toBe('gte');
+      expect(target.conditions[1].value).toBe(18);
+    });
+  });
+
+  // ─── 10. Negative scenarios ─────────────────────────────────────
+
+  describe('Negative scenarios', () => {
+    it('should throw TemplateNotFoundError when creating rule with non-existent templateId', async () => {
+      const fakeId = new mongoose.Types.ObjectId().toString();
+      await expect(
+        engine.ruleService.create({
+          name: 'Bad Template Rule',
+          target: {
+            mode: 'query',
+            role: 'customer',
+            platform: 'test',
+            conditions: [],
+          },
+          templateId: fakeId,
+        }),
+      ).rejects.toThrow('Template not found');
+    });
+
+    it('should throw TemplateSyntaxError when creating template with empty subjects array', async () => {
+      await expect(
+        engine.templateService.create({
+          name: 'Empty Subjects',
+          slug: 'empty-subjects',
+          category: 'onboarding',
+          audience: 'customer',
+          platform: 'test',
+          subjects: [],
+          bodies: ['Body'],
+        }),
+      ).rejects.toThrow('At least one subject is required');
+    });
+
+    it('should throw TemplateSyntaxError when creating template with empty bodies array', async () => {
+      await expect(
+        engine.templateService.create({
+          name: 'Empty Bodies',
+          slug: 'empty-bodies',
+          category: 'onboarding',
+          audience: 'customer',
+          platform: 'test',
+          subjects: ['Subject'],
+          bodies: [],
+        }),
+      ).rejects.toThrow('At least one body is required');
+    });
+
+    it('should throw RuleTemplateIncompatibleError when creating list-mode rule with empty identifiers', async () => {
+      const template = await engine.templateService.create({
+        name: 'Empty List Template',
+        slug: 'empty-list-template',
+        category: 'onboarding',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Hi'],
+        bodies: ['Body'],
+      });
+
+      await expect(
+        engine.ruleService.create({
+          name: 'Empty List Rule',
+          target: {
+            mode: 'list',
+            identifiers: [],
+          },
+          templateId: template._id.toString(),
+        }),
+      ).rejects.toThrow('target.identifiers must be a non-empty array');
+    });
+
+    it('should complete without error when no active rules exist', async () => {
+      await deactivateAllRules();
+      await clearRunData();
+
+      // Should not throw
+      await engine.runner.runAllRules();
+
+      // Should still create a run log with 0 rules processed
+      const runLogs = await engine.models.EmailRuleRunLog.find({}).sort({ runAt: -1 });
+      expect(runLogs.length).toBeGreaterThanOrEqual(1);
+      const latest = runLogs[0];
+      expect(latest.rulesProcessed).toBe(0);
+      expect(latest.totalStats.sent).toBe(0);
+    });
+
+    it('should skip rule when template is deactivated during run', async () => {
+      await deactivateAllRules();
+      await clearRunData();
+
+      const template = await engine.templateService.create({
+        name: 'Deactivated Template',
+        slug: 'deactivated-template',
+        category: 'onboarding',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Hi'],
+        bodies: ['Body'],
+      });
+
+      const rule = await engine.ruleService.create({
+        name: 'Rule for Deactivated Template',
+        target: {
+          mode: 'list',
+          identifiers: ['skip@test.com'],
+        },
+        templateId: template._id.toString(),
+      });
+
+      // Activate rule first, then deactivate template
+      await engine.ruleService.toggleActive(rule._id.toString());
+      await engine.templateService.toggleActive(template._id.toString());
+
+      // Delete template from DB to simulate missing template during run
+      await engine.models.EmailTemplate.findByIdAndDelete(template._id);
+
+      sendEmail.mockClear();
+      await engine.runner.runAllRules();
+
+      // sendEmail should not have been called — runner logs error for missing template
+      expect(sendEmail).not.toHaveBeenCalled();
+    });
+
+    it('should strip script tags from XSS content in subjects', async () => {
+      const xssSubject = '<script>alert(1)</script>';
+      const template = await engine.templateService.create({
+        name: 'XSS Test',
+        slug: 'xss-test',
+        category: 'onboarding',
+        audience: 'customer',
+        platform: 'test',
+        subjects: [xssSubject],
+        bodies: ['Safe body'],
+      });
+
+      // Script tags are stripped during creation
+      expect(template.subjects[0]).toBe('');
+
+      const fetched = await engine.templateService.getById(template._id.toString());
+      expect(fetched!.subjects[0]).toBe('');
+    });
+
+    it('should reject rule condition with invalid operator via Mongoose enum validation', async () => {
+      const template = await engine.templateService.create({
+        name: 'Invalid Op Template',
+        slug: 'invalid-op-template',
+        category: 'onboarding',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Hi'],
+        bodies: ['Body'],
+      });
+
+      await expect(
+        engine.ruleService.create({
+          name: 'Invalid Operator Rule',
+          target: {
+            mode: 'query',
+            role: 'customer',
+            platform: 'test',
+            conditions: [{ field: 'x', operator: 'INVALID' as any, value: 1 }],
+          },
+          templateId: template._id.toString(),
+        }),
+      ).rejects.toThrow(); // Mongoose enum validation error
+    });
+
+    it('should reject template with extremely long slug', async () => {
+      const longSlug = 'a'.repeat(1000);
+      await expect(
+        engine.templateService.create({
+          name: 'Long Slug Template',
+          slug: longSlug,
+          category: 'onboarding',
+          audience: 'customer',
+          platform: 'test',
+          subjects: ['Hi'],
+          bodies: ['Body'],
+        }),
+      ).rejects.toThrow(/maximum allowed length/);
+    });
+
+    it('should throw DuplicateSlugError when creating two templates with same slug', async () => {
+      const slug = `dup-slug-${Date.now()}`;
+      await engine.templateService.create({
+        name: 'First Template',
+        slug,
+        category: 'onboarding',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Hi'],
+        bodies: ['Body'],
+      });
+
+      await expect(
+        engine.templateService.create({
+          name: 'Second Template',
+          slug,
+          category: 'onboarding',
+          audience: 'customer',
+          platform: 'test',
+          subjects: ['Hi'],
+          bodies: ['Body'],
+        }),
+      ).rejects.toThrow(`Template with slug "${slug}" already exists`);
+    });
+  });
 });

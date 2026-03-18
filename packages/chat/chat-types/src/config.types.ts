@@ -4,9 +4,10 @@ import { ChatUserInfo } from './session.types';
 export interface ChatWidgetConfig {
   socketUrl: string;
   channel: string;
-  theme?: 'light' | 'dark';
+  theme?: 'light' | 'dark' | 'auto';
   position?: 'bottom-right' | 'bottom-left';
   locale?: string;
+  dir?: 'ltr' | 'rtl' | 'auto';
   translations?: Partial<ChatTranslations>;
   preChatFlow?: PreChatFlowConfig;
   features?: ChatWidgetFeatures;
@@ -16,6 +17,7 @@ export interface ChatWidgetConfig {
   postChat?: PostChatConfig;
   configEndpoint?: string;
   metadata?: Record<string, unknown>;
+  styles?: Record<string, string>;
 }
 
 export interface ChatWidgetFeatures {
@@ -26,6 +28,7 @@ export interface ChatWidgetFeatures {
   autoOpen?: boolean;
   autoOpenDelayMs?: number;
   liveChatEnabled?: boolean;
+  maxReconnectAttempts?: number;
 }
 
 export interface ChatBranding {

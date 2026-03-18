@@ -18,6 +18,7 @@ export interface IEmailDraft {
   source?: string;
   identifierId?: string;
   metadata?: Record<string, unknown>;
+  attachments?: Array<{ filename: string; url: string; contentType: string }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,6 +59,15 @@ export function createEmailDraftSchema(options?: CreateEmailDraftSchemaOptions) 
       source: { type: String },
       identifierId: { type: String },
       metadata: { type: Schema.Types.Mixed },
+      attachments: {
+        type: [{
+          _id: false,
+          filename: { type: String, required: true },
+          url: { type: String, required: true },
+          contentType: { type: String, required: true },
+        }],
+        default: [],
+      },
     },
     {
       timestamps: true,

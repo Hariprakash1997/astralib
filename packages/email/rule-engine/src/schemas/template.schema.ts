@@ -25,7 +25,7 @@ export function createEmailTemplateSchema(
   const schema = new Schema<IEmailTemplate>(
     {
       name: { type: String, required: true },
-      slug: { type: String, required: true, unique: true },
+      slug: { type: String, required: true, unique: true, maxlength: 200 },
       description: String,
       category: { type: String, enum: categoryValues || Object.values(TEMPLATE_CATEGORY), required: true },
       audience: { type: String, enum: audienceValues || Object.values(TEMPLATE_AUDIENCE), required: true },
@@ -52,6 +52,15 @@ export function createEmailTemplateSchema(
         }
       },
       variables: [{ type: String }],
+      attachments: {
+        type: [{
+          _id: false,
+          filename: { type: String, required: true },
+          url: { type: String, required: true },
+          contentType: { type: String, required: true },
+        }],
+        default: [],
+      },
       version: { type: Number, default: 1 },
       isActive: { type: Boolean, default: true }
     },
@@ -93,6 +102,7 @@ export function createEmailTemplateSchema(
             preheaders: input.preheaders || [],
             fields: input.fields || {},
             variables: input.variables || [],
+            attachments: input.attachments || [],
             version: 1,
             isActive: true
           });

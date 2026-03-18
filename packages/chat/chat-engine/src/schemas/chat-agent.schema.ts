@@ -14,6 +14,11 @@ export interface IChatAgent {
   maxConcurrentChats: number;
   activeChats: number;
   totalChatsHandled: number;
+  modeOverride?: 'ai' | 'manual' | null;
+  aiEnabled?: boolean;
+  autoAccept?: boolean;
+  visibility?: 'public' | 'internal';
+  isDefault?: boolean;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -43,6 +48,11 @@ export function createChatAgentSchema() {
       maxConcurrentChats: { type: Number, default: 5 },
       activeChats: { type: Number, default: 0 },
       totalChatsHandled: { type: Number, default: 0 },
+      modeOverride: { type: String, enum: ['ai', 'manual', null], default: null },
+      aiEnabled: { type: Boolean, default: undefined },
+      autoAccept: { type: Boolean, default: false },
+      visibility: { type: String, enum: ['public', 'internal'], default: 'internal' },
+      isDefault: { type: Boolean, default: false },
       metadata: { type: Schema.Types.Mixed, default: {} },
     },
     {

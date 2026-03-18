@@ -80,12 +80,42 @@ export class RedisService {
       }
       return count <= this.options.rateLimitPerMinute;
     } catch (err) {
-      this.logger.warn('Rate limit check failed, allowing request', {
+      // SECURITY NOTE: Fail-open on Redis errors allows unlimited messages.
+      // For strict rate limiting, configure Redis high-availability (sentinel/cluster).
+      this.logger.warn('Rate limit check failed — allowing request (fail-open)', {
         sessionId,
-        error: err instanceof Error ? err.message : 'Unknown error',
+        error: err instanceof Error ? err.message : 'unknown',
       });
       return true;
     }
+  }
+
+  async getRateLimitTTL(sessionId: string): Promise<number> {
+    try {
+      return await this.redis.ttl(this.key(`ratelimit:${sessionId}`));
+    } catch {
+      return 60;
+    }
+  }
+
+  // --- Agent multi-tab connection tracking ---
+
+  async incrementAgentConnections(agentId: string): Promise<number> {
+    const k = this.key(`agent-conns:${agentId}`);
+    return this.redis.incr(k);
+  }
+
+  async decrementAgentConnections(agentId: string): Promise<number> {
+    const k = this.key(`agent-conns:${agentId}`);
+    const val = await this.redis.decr(k);
+    if (val <= 0) await this.redis.del(k);
+    return Math.max(0, val);
+  }
+
+  async getAgentConnectionCount(agentId: string): Promise<number> {
+    const k = this.key(`agent-conns:${agentId}`);
+    const val = await this.redis.get(k);
+    return parseInt(val || '0', 10);
   }
 
   // --- Session activity ---
@@ -124,6 +154,27 @@ export class RedisService {
     await this.redis.del(this.key(`session:activity:${sessionId}`));
   }
 
+  // --- Disconnect tracking (reconnect detection) ---
+
+  async markDisconnected(sessionId: string): Promise<void> {
+    await this.redis.set(
+      this.key(`disconnect:${sessionId}`),
+      '1',
+      'PX',
+      this.options.reconnectWindowMs,
+    );
+  }
+
+  async hadRecentDisconnect(sessionId: string): Promise<boolean> {
+    const key = this.key(`disconnect:${sessionId}`);
+    const val = await this.redis.get(key);
+    if (val) {
+      await this.redis.del(key);
+      return true;
+    }
+    return false;
+  }
+
   // --- AI lock (uses RedisLock from @astralibx/core for safe acquire/release) ---
 
   async acquireAiLock(sessionId: string, ttlMs: number = 60_000): Promise<boolean> {
@@ -143,22 +194,47 @@ export class RedisService {
   async releaseAiLock(sessionId: string): Promise<void> {
     const lock = this.aiLocks.get(sessionId);
     if (lock) {
-      await lock.release();
+      try {
+        await lock.release();
+      } catch (err) {
+        this.logger.warn('Failed to release AI lock', {
+          sessionId,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
       this.aiLocks.delete(sessionId);
     }
+  }
+
+  async clearAllAiLocks(): Promise<void> {
+    for (const [sessionId, lock] of this.aiLocks) {
+      try {
+        await lock.release();
+      } catch (err) {
+        this.logger.warn('Failed to release AI lock during cleanup', {
+          sessionId,
+          error: err instanceof Error ? err.message : 'Unknown error',
+        });
+      }
+    }
+    this.aiLocks.clear();
   }
 
   // --- Pending messages ---
 
   async addPendingMessage(sessionId: string, message: Record<string, unknown>): Promise<void> {
-    await this.redis.rpush(
-      this.key(`pending:${sessionId}`),
-      JSON.stringify(message),
-    );
-    await this.redis.pexpire(
-      this.key(`pending:${sessionId}`),
-      this.options.pendingMessageTTLMs,
-    );
+    const key = this.key(`pending:${sessionId}`);
+
+    // Limit pending messages per session
+    const MAX_PENDING = 100;
+    const currentCount = await this.redis.llen(key);
+    if (currentCount >= MAX_PENDING) {
+      this.logger.warn('Pending message limit reached', { sessionId, count: currentCount });
+      return; // Drop silently — visitor will get messages when they reconnect
+    }
+
+    await this.redis.rpush(key, JSON.stringify(message));
+    await this.redis.pexpire(key, this.options.pendingMessageTTLMs);
   }
 
   async getPendingMessages(sessionId: string): Promise<Record<string, unknown>[]> {

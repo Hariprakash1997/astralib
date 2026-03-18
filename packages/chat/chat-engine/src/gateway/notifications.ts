@@ -1,8 +1,10 @@
 import type { Namespace } from 'socket.io';
 import type { LogAdapter } from '@astralibx/core';
-import { ServerToAgentEvent } from '@astralibx/chat-types';
-import type { ChatSessionSummary, ChatMessage, DashboardStats } from '@astralibx/chat-types';
+import { ServerToAgentEvent, ServerToVisitorEvent, ChatSessionStatus } from '@astralibx/chat-types';
+import type { ChatSessionSummary, ChatMessage, DashboardStats, EscalationNeededPayload } from '@astralibx/chat-types';
 import type { SessionMode } from '@astralibx/chat-types';
+import type { EmitDeps } from './emit';
+import { emitToVisitor } from './emit';
 
 export interface NotificationDeps {
   agentNs: Namespace;
@@ -42,6 +44,27 @@ export function broadcastSessionUpdate(
     eventType,
     ...data,
   });
+}
+
+export function notifyAgentsEscalation(
+  deps: NotificationDeps,
+  payload: EscalationNeededPayload,
+): void {
+  deps.agentNs.emit(ServerToAgentEvent.EscalationNeeded, payload);
+  deps.logger.info('Escalation broadcast to agents', { sessionId: payload.sessionId });
+}
+
+export async function broadcastQueuePositions(
+  updates: { sessionId: string; queuePosition: number }[],
+  emitDeps: EmitDeps,
+  logger: LogAdapter,
+): Promise<void> {
+  for (const update of updates) {
+    await emitToVisitor(emitDeps, update.sessionId, ServerToVisitorEvent.Status, {
+      status: ChatSessionStatus.WaitingAgent,
+      queuePosition: update.queuePosition,
+    });
+  }
 }
 
 export function broadcastModeChange(

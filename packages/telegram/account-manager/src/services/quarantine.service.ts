@@ -137,6 +137,7 @@ export class QuarantineService {
         this.logger.error('Quarantine monitor error', { error: err instanceof Error ? err.message : String(err) });
       }
     }, intervalMs);
+    this.monitorInterval.unref();
 
     this.logger.info('Quarantine monitor started', { intervalMs });
   }

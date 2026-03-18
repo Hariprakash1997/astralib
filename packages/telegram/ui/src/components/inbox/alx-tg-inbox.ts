@@ -12,6 +12,8 @@ import {
   alxCardStyles,
 } from '../../styles/shared.js';
 import { TelegramInboxAPI } from '../../api/inbox.api.js';
+import { TelegramAccountAPI } from '../../api/account.api.js';
+import { iconSync, iconSearch, iconSend } from '../../utils/icons.js';
 
 interface Conversation {
   _id: string;
@@ -49,12 +51,12 @@ export class AlxTgInbox extends LitElement {
       }
       .inbox-layout {
         display: grid;
-        grid-template-columns: 300px 1fr;
+        grid-template-columns: var(--alx-inbox-conv-width, 280px) 1fr;
         gap: 0;
         border: 1px solid var(--alx-border);
         border-radius: var(--alx-radius);
         overflow: hidden;
-        height: 500px;
+        height: var(--alx-inbox-height, 500px);
       }
 
       /* Left panel — conversation list */
@@ -147,7 +149,7 @@ export class AlxTgInbox extends LitElement {
       .msg-bubble {
         max-width: 75%;
         padding: 0.375rem 0.625rem;
-        border-radius: 8px;
+        border-radius: var(--alx-radius, 8px);
         font-size: 0.8125rem;
         line-height: 1.45;
         word-break: break-word;
@@ -201,6 +203,10 @@ export class AlxTgInbox extends LitElement {
         flex: 1;
       }
 
+      .account-filter-select { width: 100%; font-size: 0.75rem; }
+      .sync-btn { margin-top: 0.375rem; width: 100%; }
+      .conv-empty { padding: 1rem; text-align: center; color: var(--alx-text-muted); font-size: 0.8rem; }
+
       @media (max-width: 640px) {
         .inbox-layout {
           grid-template-columns: 1fr;
@@ -219,6 +225,7 @@ export class AlxTgInbox extends LitElement {
   ];
 
   @property({ type: String, reflect: true }) density: 'default' | 'compact' = 'default';
+  @property({ type: String, attribute: 'account-id' }) accountId = '';
 
   @state() private conversations: Conversation[] = [];
   @state() private messages: Message[] = [];
@@ -229,17 +236,25 @@ export class AlxTgInbox extends LitElement {
   @state() private loadingMsgs = false;
   @state() private sending = false;
   @state() private error = '';
+  @state() private accounts: Array<{ _id: string; phone: string; name?: string }> = [];
+  @state() private accountFilter = '';
 
   private _api?: TelegramInboxAPI;
   private get api(): TelegramInboxAPI {
     if (!this._api) this._api = new TelegramInboxAPI();
     return this._api;
   }
+  private _accountApi?: TelegramAccountAPI;
+  private get accountApi(): TelegramAccountAPI {
+    if (!this._accountApi) this._accountApi = new TelegramAccountAPI();
+    return this._accountApi;
+  }
   private _loadGeneration = 0;
 
   override connectedCallback(): void {
     super.connectedCallback();
     this.loadConversations();
+    this.loadAccounts();
   }
 
   async loadConversations(): Promise<void> {
@@ -249,6 +264,7 @@ export class AlxTgInbox extends LitElement {
     try {
       const params: Record<string, unknown> = { limit: 100 };
       if (this.searchQuery) params['search'] = this.searchQuery;
+      if (this.accountFilter) params['accountId'] = this.accountFilter;
       const res = await this.api.listConversations(params) as {
         conversations: Conversation[];
       };
@@ -260,6 +276,37 @@ export class AlxTgInbox extends LitElement {
     } finally {
       if (gen === this._loadGeneration) this.loadingConvs = false;
     }
+  }
+
+  private async loadAccounts(): Promise<void> {
+    try {
+      const res = await this.accountApi.listAccounts({ limit: 100, status: 'connected' }) as {
+        accounts: Array<{ _id: string; phone: string; name?: string }>;
+      };
+      this.accounts = res.accounts ?? [];
+    } catch {
+      // Non-critical — account filter just won't show
+    }
+  }
+
+  private async onSyncDialogs(): Promise<void> {
+    const id = this.accountFilter || this.accountId;
+    if (!id) return;
+    try {
+      const res = await this.api.syncDialogs(id) as { synced: number; total: number };
+      this.loadConversations();
+      this.dispatchEvent(new CustomEvent('alx-toast', {
+        detail: { message: `Synced ${res.synced} dialogs` },
+        bubbles: true, composed: true,
+      }));
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : 'Failed to sync dialogs';
+    }
+  }
+
+  private onAccountFilter(e: Event): void {
+    this.accountFilter = (e.target as HTMLSelectElement).value;
+    this.loadConversations();
   }
 
   private async selectConversation(conv: Conversation): Promise<void> {
@@ -356,12 +403,29 @@ export class AlxTgInbox extends LitElement {
               .value=${this.searchQuery}
               @input=${this.onSearchInput}
             />
+            ${this.accountId || this.accountFilter ? html`
+              <button class="alx-btn-sm sync-btn" @click=${this.onSyncDialogs}>
+                ${iconSync(14)} Sync
+              </button>
+            ` : ''}
           </div>
+          ${this.accounts.length > 0 ? html`
+            <div style="padding:0 0.5rem 0.5rem;border-bottom:1px solid var(--alx-border)">
+              <select class="account-filter-select" @change=${this.onAccountFilter}>
+                <option value="">All Accounts</option>
+                ${this.accounts.map(a => html`
+                  <option value=${a._id} ?selected=${this.accountFilter === a._id}>
+                    ${a.name || a.phone}
+                  </option>
+                `)}
+              </select>
+            </div>
+          ` : ''}
           <div class="conv-list">
             ${this.loadingConvs
               ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
               : this.conversations.length === 0
-                ? html`<div style="padding:1rem;text-align:center;color:var(--alx-text-muted);font-size:0.8rem">No conversations</div>`
+                ? html`<div class="conv-empty">No conversations</div>`
                 : this.conversations.map(c => html`
                     <div
                       class="conv-item ${this.selectedConvId === c._id ? 'active' : ''}"
@@ -412,7 +476,7 @@ export class AlxTgInbox extends LitElement {
                 ?disabled=${this.sending}
               />
               <button class="alx-btn-primary" @click=${this.onSendMessage} ?disabled=${this.sending || !this.newMessage.trim()}>
-                ${this.sending ? '...' : 'Send'}
+                ${this.sending ? '...' : html`${iconSend(14)} Send`}
               </button>
             </div>
           ` : html`

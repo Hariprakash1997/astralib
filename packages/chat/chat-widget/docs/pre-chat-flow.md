@@ -38,6 +38,12 @@ Introductory screen with optional online status indicator.
   title: 'Hi there!',
   subtitle: 'How can we help you today?',
   showOnlineStatus: true,
+  starters: [
+    'How do I reset my password?',
+    'What are your business hours?',
+    'I need billing help',
+    'Track my order',
+  ],
 }
 ```
 
@@ -47,6 +53,7 @@ Introductory screen with optional online status indicator.
 | `title` | `string` | Heading text |
 | `subtitle` | `string` | Subheading text |
 | `showOnlineStatus` | `boolean` | Show agent online/offline status |
+| `starters` | `string[]` | Conversation starter chips (max 4 shown). Clicking one sends the text as the visitor's first message and opens the chat. Dispatches `chat:starter-selected` |
 
 ### FAQ Step
 

@@ -23,6 +23,7 @@ export interface AccountSelection {
   accountId: string;
   phone: string;
   metadata: Record<string, unknown>;
+  healthScore?: number;
 }
 
 export interface RecipientIdentifier {
@@ -103,6 +104,8 @@ export interface TelegramRuleEngineConfig {
     maxConsecutiveFailures?: number;
     thinkingPauseProbability?: number;
     batchProgressInterval?: number;
+    healthDelayMultiplier?: number; // default 3
+    useRedisThrottle?: boolean; // default false, opt-in
   };
 
   hooks?: {

@@ -25,9 +25,10 @@ import {
   DEFAULT_DELAY_BETWEEN_SENDS_MS, DEFAULT_JITTER_MS,
   DEFAULT_MAX_CONSECUTIVE_FAILURES, DEFAULT_THINKING_PAUSE_PROBABILITY,
   DEFAULT_BATCH_PROGRESS_INTERVAL, DEFAULT_THROTTLE_CONFIG,
+  DEFAULT_THROTTLE_TTL_SECONDS,
   REDIS_KEY_PREFIX, RUN_PROGRESS_TTL_SECONDS, MESSAGE_PREVIEW_LENGTH,
   // Utilities
-  RedisLock, calculateDelay, isWithinSendWindow, getHumanDelay,
+  RedisLock, calculateDelay, isWithinSendWindow, getHumanDelay, getHealthAdjustedDelay,
   // Config validator
   validateConfig,
   // Factory
@@ -65,7 +66,9 @@ import {
 | `BeforeSendParams` | Params passed to the `beforeSend` hook. Fields: `message`, `account: { id, phone, metadata }`, `user: { id, contactId, name }`, `context: { ruleId, templateId, runId }`, `media?`. |
 | `BeforeSendResult` | Return type of the `beforeSend` hook. Fields: `message: string`, `media?`. |
 | `LogAdapter` | Logger interface (re-exported from `@astralibx/core`). Methods: `info`, `warn`, `error`. |
-| `TelegramRuleEngine` | Return type of `createTelegramRuleEngine()`. Fields: `routes: Router`, `runner`, `templateService`, `ruleService`, `models`. |
+| `TelegramRuleEngine` | Return type of `createTelegramRuleEngine()`. Fields: `routes: Router`, `runner`, `templateService`, `ruleService`, `models`, `destroy()`. |
+
+> **Note:** The `TelegramRuleEngineConfig.options` type includes `useRedisThrottle?: boolean`. When set to `true`, the engine uses Redis-based throttle tracking instead of MongoDB for lower-latency throttle checks during rule execution.
 
 ### Required Adapter Signatures
 
@@ -190,6 +193,7 @@ Type: `ErrorOperation = 'send' | 'sync' | 'connect' | 'other'`
 | `DEFAULT_THINKING_PAUSE_PROBABILITY` | `0.25` | Probability of extra thinking pause |
 | `DEFAULT_BATCH_PROGRESS_INTERVAL` | `10` | Progress update frequency |
 | `DEFAULT_THROTTLE_CONFIG` | `{ maxPerUserPerDay: 1, maxPerUserPerWeek: 2, minGapDays: 3, throttleWindow: 'rolling' }` | Default throttle settings |
+| `DEFAULT_THROTTLE_TTL_SECONDS` | `604800` | TTL for Redis throttle keys (7 days) |
 | `REDIS_KEY_PREFIX` | `'tg-rule-engine'` | Base Redis key prefix |
 | `RUN_PROGRESS_TTL_SECONDS` | `3600` | TTL for run progress keys in Redis |
 | `MESSAGE_PREVIEW_LENGTH` | `200` | Max preview text length |
@@ -231,3 +235,4 @@ Schema factory functions: `createTelegramTemplateSchema()`, `createTelegramRuleS
 | `calculateDelay` | Compute delay with jitter. |
 | `isWithinSendWindow` | Check if current time is within the configured send window. |
 | `getHumanDelay` | Get a human-like delay with optional thinking pause. |
+| `getHealthAdjustedDelay` | Adjust delay based on account health score. Signature: `(baseMs: number, healthScore: number, multiplier?: number) => number`. Health 100 = 1x, Health 0 = (1 + multiplier)x. |

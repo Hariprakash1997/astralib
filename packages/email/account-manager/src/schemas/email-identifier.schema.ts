@@ -35,7 +35,7 @@ export interface CreateEmailIdentifierSchemaOptions {
 export function createEmailIdentifierSchema(options?: CreateEmailIdentifierSchemaOptions) {
   const schema = new Schema<IEmailIdentifier>(
     {
-      email: { type: String, required: true, unique: true, lowercase: true },
+      email: { type: String, required: true, unique: true, lowercase: true, match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
       status: {
         type: String,
         enum: Object.values(IDENTIFIER_STATUS),
@@ -70,7 +70,7 @@ export function createEmailIdentifierSchema(options?: CreateEmailIdentifierSchem
                 bounceCount: 0,
               },
             },
-            { upsert: true, new: true },
+            { upsert: true, new: true, runValidators: true },
           );
           return { identifier: identifier!, created: true };
         },

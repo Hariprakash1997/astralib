@@ -76,7 +76,7 @@ export class AlxTelegramDashboard extends LitElement {
 
       .tab.active {
         background: var(--alx-primary);
-        color: #fff;
+        color: var(--alx-bg);
         border-color: var(--alx-primary);
       }
 
@@ -121,7 +121,7 @@ export class AlxTelegramDashboard extends LitElement {
 
       .ctrl-btn.active {
         background: var(--alx-primary);
-        color: #fff;
+        color: var(--alx-bg);
         border-color: var(--alx-primary);
       }
 
@@ -139,8 +139,9 @@ export class AlxTelegramDashboard extends LitElement {
         left: 50%;
         transform: translateX(-50%);
         padding: 0.4rem 1rem;
-        background: #1e293b;
-        color: #fff;
+        background: var(--alx-surface);
+        color: var(--alx-text);
+        border: 1px solid var(--alx-border);
         font-size: 0.75rem;
         border-radius: var(--alx-radius);
         z-index: 2000;

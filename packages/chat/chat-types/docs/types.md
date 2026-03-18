@@ -78,6 +78,8 @@ All event constants are `as const` objects with string literal values.
 | `TrackEvent` | `'chat:track_event'` |
 | `Ping` | `'chat:ping'` |
 | `Feedback` | `'chat:feedback'` |
+| `FetchSupportPersons` | `'chat:fetch_support_persons'` |
+| `SetPreferredAgent` | `'chat:set_preferred_agent'` |
 
 ### ServerToVisitorEvent (Server to Visitor)
 
@@ -92,6 +94,8 @@ All event constants are `as const` objects with string literal values.
 | `AgentLeave` | `'chat:agent:leave'` |
 | `Error` | `'chat:error'` |
 | `Pong` | `'chat:pong'` |
+| `SupportPersons` | `'chat:support_persons'` |
+| `AgentDisconnected` | `'chat:agent_disconnected'` |
 
 ### AgentEvent (Agent to Server)
 
@@ -110,6 +114,10 @@ All event constants are `as const` objects with string literal values.
 | `SaveMemory` | `'agent:save_memory'` |
 | `DeleteMemory` | `'agent:delete_memory'` |
 | `TransferChat` | `'agent:transfer_chat'` |
+| `SendAiMessage` | `'agent:send_ai_message'` |
+| `UpdateStatus` | `'agent:update_status'` |
+| `LabelMessage` | `'agent:label_message'` |
+| `LabelSession` | `'agent:label_session'` |
 
 ### ServerToAgentEvent (Server to Agent)
 
@@ -128,6 +136,7 @@ All event constants are `as const` objects with string literal values.
 | `SettingsUpdated` | `'agent:settings_updated'` |
 | `SessionEvent` | `'agent:session_event'` |
 | `ChatTransferred` | `'agent:chat_transferred'` |
+| `EscalationNeeded` | `'agent:escalation_needed'` |
 
 ## Message Types
 
@@ -370,6 +379,70 @@ All event constants are `as const` objects with string literal values.
 |-------|------|----------|
 | `rating` | `number` | No |
 | `survey` | `Record<string, unknown>` | No |
+
+### FetchSupportPersonsPayload
+
+| Field | Type | Required |
+|-------|------|----------|
+| `channel` | `string` | No |
+| `filters` | `Record<string, unknown>` | No |
+
+### SupportPersonsPayload
+
+| Field | Type | Required |
+|-------|------|----------|
+| `agents` | `ChatAgentInfo[]` | Yes |
+
+### SetPreferredAgentPayload
+
+| Field | Type | Required |
+|-------|------|----------|
+| `agentId` | `string` | Yes |
+
+### SendAiMessagePayload
+
+| Field | Type | Required |
+|-------|------|----------|
+| `sessionId` | `string` | Yes |
+| `content` | `string` | No |
+
+### EscalationNeededPayload
+
+| Field | Type | Required |
+|-------|------|----------|
+| `sessionId` | `string` | Yes |
+| `visitorId` | `string` | Yes |
+| `reason` | `string` | No |
+| `session` | `ChatSessionSummary` | Yes |
+
+### AgentDisconnectedPayload
+
+| Field | Type | Required |
+|-------|------|----------|
+| `sessionId` | `string` | Yes |
+| `agentId` | `string` | Yes |
+| `agentName` | `string` | No |
+
+### LabelMessagePayload
+
+| Field | Type | Required |
+|-------|------|----------|
+| `sessionId` | `string` | Yes |
+| `messageId` | `string` | Yes |
+| `trainingQuality` | `'good' \| 'bad' \| 'needs_review'` | Yes |
+
+### LabelSessionPayload
+
+| Field | Type | Required |
+|-------|------|----------|
+| `sessionId` | `string` | Yes |
+| `trainingQuality` | `'good' \| 'bad' \| 'needs_review'` | Yes |
+
+### UpdateStatusPayload
+
+| Field | Type | Required |
+|-------|------|----------|
+| `status` | `AgentStatus` | Yes |
 
 ## Config Types
 

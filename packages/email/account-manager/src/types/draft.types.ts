@@ -17,6 +17,7 @@ export interface EmailDraft {
   source?: string;
   identifierId?: string;
   metadata?: Record<string, unknown>;
+  attachments?: Array<{ filename: string; url: string; contentType: string }>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -31,4 +32,5 @@ export interface CreateDraftInput {
   source?: string;
   identifierId?: string;
   metadata?: Record<string, unknown>;
+  attachments?: Array<{ filename: string; url: string; contentType: string }>;
 }

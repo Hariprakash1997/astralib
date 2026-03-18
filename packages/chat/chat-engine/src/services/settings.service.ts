@@ -20,6 +20,9 @@ export class SettingsService {
     defaultSessionMode: string;
     autoAssignEnabled: boolean;
     aiEnabled: boolean;
+    requireAgentForChat: boolean;
+    visitorAgentSelection: boolean;
+    allowPerAgentMode: boolean;
     metadata: Record<string, unknown>;
   }>): Promise<ChatSettingsDocument> {
     const settings = await this.ChatSettings.findOneAndUpdate(

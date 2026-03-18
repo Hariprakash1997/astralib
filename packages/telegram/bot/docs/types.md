@@ -215,6 +215,32 @@ interface TelegramBot {
 
 ---
 
+## Account Manager Bridge
+
+Optional integration with `@astralibx/telegram-account-manager`. Exported from `@astralibx/telegram-bot`:
+
+```ts
+import {
+  createAccountManagerBridge,
+  type AccountManagerBridge,
+  type AccountManagerLike,
+} from '@astralibx/telegram-bot';
+```
+
+**`AccountManagerLike`** -- Structural interface for the account manager (duck-typed, no hard dependency).
+- `sendMessage(accountId: string, chatId: string, text: string): Promise<{ messageId: string }>`
+- `getConnectedAccounts(): { accountId: string; phone: string; name: string; isConnected: boolean }[]`
+- `health.getHealth(accountId: string): Promise<{ healthScore: number; status: string } | null>`
+
+**`AccountManagerBridge`** -- Bridge instance returned by `createAccountManagerBridge()`.
+- `sendViaTDLib(accountId: string, chatId: string, text: string): Promise<{ messageId: string }>` -- Send a message via TDLib
+- `getConnectedAccounts(): { accountId: string; phone: string; name: string; isConnected: boolean }[]` -- List connected accounts
+- `getAccountHealth(accountId: string): Promise<{ score: number; status: string } | null>` -- Get account health score
+
+**`createAccountManagerBridge(accountManager, logger?)`** -- Factory function. Pass an `AccountManagerLike` instance (e.g., the return value of `createTelegramAccountManager()`) and an optional logger.
+
+---
+
 ## `validateConfig`
 
 ```ts

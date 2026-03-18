@@ -45,11 +45,39 @@ Hooks are optional callbacks passed in the `hooks` config object. They fire afte
 | `onVisitorConnected` | `(visitorId: string, sessionId: string) => void` | Visitor WebSocket connected |
 | `onVisitorDisconnected` | `(visitorId: string, sessionId: string) => void` | Visitor WebSocket disconnected |
 
+## Memory Hooks
+
+| Hook | Signature | Trigger |
+|------|-----------|---------|
+| `onSaveMemory` | `(payload: { sessionId: string; visitorId: string; content: string; key?: string; category?: string }) => Promise<void>` | Agent saves a memory note during a chat session |
+| `onDeleteMemory` | `(payload: { sessionId: string; memoryId: string }) => Promise<void>` | Agent deletes a memory note |
+
+Wire both to `chat-ai` memory service for persistence. If `onSaveMemory` is not provided, `SaveMemory` socket events return an error to the agent.
+
 ## Feedback Hook
 
 | Hook | Signature | Trigger |
 |------|-----------|---------|
 | `onFeedbackReceived` | `(sessionId: string, feedback: ChatFeedback) => void` | Visitor submits rating or survey feedback |
+
+## Session Lifecycle Hooks
+
+| Hook | Signature | Trigger |
+|------|-----------|---------|
+| `onSessionTimeout` | `(session: { sessionId: string; visitorId: string; channel: string; startedAt: Date }) => Promise<void>` | Visitor disconnects and the reconnect window expires without them coming back |
+| `onSessionArchive` | `(session: { sessionId: string; visitorId: string; messages: unknown[]; metadata?: Record<string, unknown> }) => Promise<void>` | Session is resolved (chat ended) -- called with full message history |
+
+`onSessionTimeout` is different from `onSessionAbandoned` (which fires for idle timeout). Use `onSessionTimeout` for follow-up emails, ticket creation, or CRM updates.
+
+`onSessionArchive` is called with the complete message history when a session is resolved. Use it for archiving to external storage (S3, data warehouse, etc.).
+
+## AI Lifecycle Hook
+
+| Hook | Signature | Trigger |
+|------|-----------|---------|
+| `onAiRequest` | `(payload: { sessionId: string; stage: 'received' \| 'processing' \| 'completed' \| 'failed'; durationMs?: number; metadata?: Record<string, unknown> }) => Promise<void>` | Each stage of the AI response lifecycle |
+
+Fired at each stage transition: `received` (request queued), `processing` (AI call started), `completed` (response delivered), `failed` (error). Use for audit trails, performance monitoring, and cost tracking.
 
 ## Observability Hooks
 
@@ -69,6 +97,23 @@ const engine = createChatEngine({
     },
     onSessionResolved: (session, stats) => {
       analytics.track('chat_resolved', { sessionId: session.sessionId, duration: stats.durationMs });
+    },
+    onSessionTimeout: async (session) => {
+      await emailService.sendFollowUp(session.visitorId, session.sessionId);
+    },
+    onSessionArchive: async (session) => {
+      await s3.putObject({ Key: `chats/${session.sessionId}.json`, Body: JSON.stringify(session.messages) });
+    },
+    onSaveMemory: async (payload) => {
+      await memoryService.save(payload.sessionId, payload.content, payload.category);
+    },
+    onDeleteMemory: async (payload) => {
+      await memoryService.delete(payload.memoryId);
+    },
+    onAiRequest: async (payload) => {
+      if (payload.stage === 'completed') {
+        metrics.histogram('ai_response_duration', payload.durationMs);
+      }
     },
     onMetric: (metric) => {
       prometheus.counter(metric.name).inc(metric.value, metric.labels);

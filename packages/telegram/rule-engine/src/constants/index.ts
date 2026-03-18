@@ -15,6 +15,8 @@ export const DEFAULT_THROTTLE_CONFIG: ThrottleConfig = {
   throttleWindow: 'rolling',
 };
 
+export const DEFAULT_THROTTLE_TTL_SECONDS = 604800; // 7 days
+
 export const REDIS_KEY_PREFIX = 'tg-rule-engine';
 export const RUN_PROGRESS_TTL_SECONDS = 3600;
 export const MESSAGE_PREVIEW_LENGTH = 200;

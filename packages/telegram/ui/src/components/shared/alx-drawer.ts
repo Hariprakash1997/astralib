@@ -3,6 +3,7 @@ import { property } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import { alxDensityStyles, alxButtonStyles } from '../../styles/shared.js';
+import { iconClose } from '../../utils/icons.js';
 
 export class AlxTgDrawer extends LitElement {
   static override styles = [
@@ -34,8 +35,8 @@ export class AlxTgDrawer extends LitElement {
         top: 0;
         right: 0;
         bottom: 0;
-        width: min(560px, 90vw);
-        background: var(--alx-bg, #f8fafc);
+        width: var(--alx-drawer-width, min(520px, 90vw));
+        background: var(--alx-bg);
         box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
         z-index: 1000;
         transform: translateX(100%);
@@ -54,22 +55,22 @@ export class AlxTgDrawer extends LitElement {
         align-items: center;
         justify-content: space-between;
         padding: 0.75rem 1rem;
-        border-bottom: 1px solid var(--alx-border, #e2e8f0);
-        background: var(--alx-surface, #fff);
+        border-bottom: 1px solid var(--alx-border);
+        background: var(--alx-surface);
         flex-shrink: 0;
       }
 
       .drawer-title {
         font-size: 1rem;
         font-weight: 600;
-        color: var(--alx-text, #0f172a);
+        color: var(--alx-text);
         margin: 0;
       }
 
       .close-btn {
         background: none;
         border: none;
-        color: var(--alx-text-muted, #64748b);
+        color: var(--alx-text-muted);
         cursor: pointer;
         padding: 0.25rem;
         font-size: 1.25rem;
@@ -81,8 +82,8 @@ export class AlxTgDrawer extends LitElement {
       }
 
       .close-btn:hover {
-        color: var(--alx-text, #0f172a);
-        background: color-mix(in srgb, var(--alx-text, #0f172a) 8%, transparent);
+        color: var(--alx-text);
+        background: color-mix(in srgb, var(--alx-text) 8%, transparent);
       }
 
       .drawer-body {
@@ -132,7 +133,7 @@ export class AlxTgDrawer extends LitElement {
         <div class="drawer-header">
           <h2 class="drawer-title">${this.heading}</h2>
           <button class="close-btn" @click=${this._close} title="Close">
-            &times;
+            ${iconClose(18)}
           </button>
         </div>
         <div class="drawer-body">

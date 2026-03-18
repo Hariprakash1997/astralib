@@ -15,6 +15,8 @@ vi.mock('node-telegram-bot-api', () => ({
     sendDocument: vi.fn().mockResolvedValue({ message_id: 3 }),
     answerCallbackQuery: vi.fn().mockResolvedValue(true),
     answerInlineQuery: vi.fn().mockResolvedValue(true),
+    removeAllListeners: vi.fn(),
+    removeTextListener: vi.fn().mockReturnValue(null),
   })),
 }));
 

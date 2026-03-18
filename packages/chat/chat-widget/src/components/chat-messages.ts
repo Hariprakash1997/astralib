@@ -1,15 +1,41 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { property, state, query } from 'lit/decorators.js';
 import type { ChatMessage } from '@astralibx/chat-types';
-import { chatResetStyles, chatBaseStyles } from '../styles/shared.js';
+import { ChatSenderType } from '@astralibx/chat-types';
+import { chatResetStyles, chatBaseStyles, chatAnimations } from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 import './chat-bubble.js';
 import './chat-typing.js';
+
+interface GroupedMessage {
+  message: ChatMessage;
+  groupPosition: 'solo' | 'first' | 'middle' | 'last';
+  showAvatar: boolean;
+  showName: boolean;
+  showDateSeparator: boolean;
+  dateLabel: string;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
+}
+
+function formatDateLabel(date: Date): string {
+  const now = new Date();
+  if (isSameDay(date, now)) return 'Today';
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (isSameDay(date, yesterday)) return 'Yesterday';
+  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+}
 
 export class AlxChatMessages extends LitElement {
   static styles = [
     chatResetStyles,
     chatBaseStyles,
+    chatAnimations,
     css`
       :host {
         display: block;
@@ -20,8 +46,20 @@ export class AlxChatMessages extends LitElement {
       .messages-container {
         height: 100%;
         overflow-y: auto;
-        padding: 12px 0;
         scroll-behavior: smooth;
+      }
+
+      .messages-inner {
+        padding: 12px 0;
+        min-height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: stretch;
+      }
+
+      .messages-inner > * {
+        flex-shrink: 0;
       }
 
       .messages-container::-webkit-scrollbar {
@@ -56,7 +94,7 @@ export class AlxChatMessages extends LitElement {
         width: 48px;
         height: 48px;
         margin-bottom: 12px;
-        opacity: 0.4;
+        color: var(--alx-chat-text-muted);
       }
 
       .empty-title {
@@ -74,19 +112,19 @@ export class AlxChatMessages extends LitElement {
 
       .date-separator {
         display: flex;
-        align-items: center;
         justify-content: center;
         padding: 8px 16px;
         margin: 4px 0;
       }
 
-      .date-separator span {
+      .date-pill {
         font-size: 11px;
         color: var(--alx-chat-text-muted);
-        background: var(--alx-chat-bg);
-        padding: 2px 12px;
-        border-radius: 10px;
+        background: var(--alx-chat-surface-alt);
         border: 1px solid var(--alx-chat-border);
+        border-radius: 10px;
+        padding: 4px 12px;
+        font-weight: 500;
       }
     `,
   ];
@@ -94,6 +132,8 @@ export class AlxChatMessages extends LitElement {
   @property({ type: Array }) messages: ChatMessage[] = [];
   @property({ type: Boolean }) isTyping = false;
   @property() typingLabel = 'Agent is typing...';
+  @property({ type: String }) typingAgentName = '';
+  @property({ type: String }) typingAgentAvatar = '';
 
   @query('.messages-container') private container!: HTMLElement;
 
@@ -111,8 +151,11 @@ export class AlxChatMessages extends LitElement {
     if (this.messages.length === 0 && !this.isTyping) {
       return html`
         <div class="empty-state">
-          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          <svg class="empty-icon" width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <path d="M24 6C14.059 6 6 13.163 6 22c0 5.07 2.88 9.58 7.38 12.5-.275 2.68-1.47 5.19-3.255 7.2a.92.92 0 00.69 1.56c4.13-.275 7.7-1.925 10.185-3.94 1.1.15 2.2.23 3.35.23C33.941 39.55 42 32.387 42 23.55 42 13.163 33.941 6 24 6z" stroke="currentColor" stroke-width="2" fill="none" opacity="0.4"/>
+            <circle cx="17" cy="22" r="2" fill="currentColor" opacity="0.3"/>
+            <circle cx="24" cy="22" r="2" fill="currentColor" opacity="0.3"/>
+            <circle cx="31" cy="22" r="2" fill="currentColor" opacity="0.3"/>
           </svg>
           <div class="empty-title">No messages yet</div>
           <div class="empty-subtitle">Send a message to start the conversation</div>
@@ -120,12 +163,38 @@ export class AlxChatMessages extends LitElement {
       `;
     }
 
+    const grouped = this._groupMessages(this.messages);
+
     return html`
-      <div class="messages-container" @scroll=${this.handleScroll}>
-        ${this.renderMessages()}
-        ${this.isTyping
-          ? html`<alx-chat-typing .label=${this.typingLabel}></alx-chat-typing>`
-          : nothing}
+      <div class="messages-container" role="log" aria-live="polite" aria-label="Chat messages" @scroll=${this.handleScroll}>
+        <div class="messages-inner">
+        ${grouped.map(g => html`
+          ${g.showDateSeparator ? html`
+            <div class="date-separator">
+              <span class="date-pill">${g.dateLabel}</span>
+            </div>
+          ` : nothing}
+          <alx-chat-bubble
+            .message=${g.message}
+            .senderType=${g.message.senderType}
+            .senderName=${g.message.senderName || ''}
+            .content=${g.message.content}
+            .contentType=${g.message.contentType}
+            .status=${g.message.status}
+            .timestamp=${g.message.createdAt}
+            .metadata=${g.message.metadata || {}}
+            .groupPosition=${g.groupPosition}
+            .showAvatar=${g.showAvatar}
+            .showName=${g.showName}
+          ></alx-chat-bubble>
+        `)}
+        ${this.isTyping ? html`
+          <alx-chat-typing
+            .agentName=${this.typingAgentName || ''}
+            .agentAvatar=${this.typingAgentAvatar || ''}
+          ></alx-chat-typing>
+        ` : nothing}
+        </div>
       </div>
     `;
   }
@@ -138,33 +207,58 @@ export class AlxChatMessages extends LitElement {
     });
   }
 
-  private renderMessages() {
-    const result: unknown[] = [];
-    let lastDate = '';
+  private _groupMessages(messages: ChatMessage[]): GroupedMessage[] {
+    const grouped: GroupedMessage[] = [];
+    const GROUP_WINDOW_MS = 2 * 60 * 1000; // 2 minutes
 
-    for (const msg of this.messages) {
-      const msgDate = this.formatDate(msg.createdAt);
-      if (msgDate && msgDate !== lastDate) {
-        lastDate = msgDate;
-        result.push(html`
-          <div class="date-separator">
-            <span>${msgDate}</span>
-          </div>
-        `);
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const prev = i > 0 ? messages[i - 1] : null;
+      const next = i < messages.length - 1 ? messages[i + 1] : null;
+
+      // Date separator logic
+      const msgDate = new Date(msg.createdAt);
+      const prevDate = prev ? new Date(prev.createdAt) : null;
+      const showDateSeparator = !prevDate || !isSameDay(msgDate, prevDate);
+      const dateLabel = showDateSeparator ? formatDateLabel(msgDate) : '';
+
+      // System messages are always 'solo'
+      if (msg.senderType === ChatSenderType.System) {
+        grouped.push({ message: msg, groupPosition: 'solo', showAvatar: false, showName: false, showDateSeparator, dateLabel });
+        continue;
       }
 
-      result.push(html`
-        <alx-chat-bubble
-          .senderType=${msg.senderType}
-          .senderName=${msg.senderName ?? ''}
-          .content=${msg.content}
-          .timestamp=${msg.createdAt instanceof Date ? msg.createdAt.toISOString() : String(msg.createdAt)}
-          .status=${msg.status}
-        ></alx-chat-bubble>
-      `);
+      // Check if this message groups with previous and next
+      // System check on prev/next is implicit: if prev.senderType === msg.senderType
+      // and msg is not System (handled above with continue), prev can't be System either.
+      const sameAsPrev = prev
+        && prev.senderType === msg.senderType
+        && prev.senderName === msg.senderName
+        && (msgDate.getTime() - new Date(prev.createdAt).getTime()) < GROUP_WINDOW_MS
+        && !showDateSeparator;
+
+      const sameAsNext = next
+        && next.senderType === msg.senderType
+        && next.senderName === msg.senderName
+        && (new Date(next.createdAt).getTime() - msgDate.getTime()) < GROUP_WINDOW_MS
+        && isSameDay(msgDate, new Date(next.createdAt));
+
+      let groupPosition: 'solo' | 'first' | 'middle' | 'last';
+      if (!sameAsPrev && !sameAsNext) groupPosition = 'solo';
+      else if (!sameAsPrev && sameAsNext) groupPosition = 'first';
+      else if (sameAsPrev && sameAsNext) groupPosition = 'middle';
+      else groupPosition = 'last';
+
+      // Show avatar and name only on first message in group (or solo)
+      const isFirstInGroup = groupPosition === 'solo' || groupPosition === 'first';
+      const isAgent = msg.senderType === ChatSenderType.Agent || msg.senderType === ChatSenderType.AI;
+      const showAvatar = isFirstInGroup && isAgent;
+      const showName = isFirstInGroup && isAgent;
+
+      grouped.push({ message: msg, groupPosition, showAvatar, showName, showDateSeparator, dateLabel });
     }
 
-    return result;
+    return grouped;
   }
 
   private handleScroll() {
@@ -172,36 +266,6 @@ export class AlxChatMessages extends LitElement {
     const { scrollTop, scrollHeight, clientHeight } = this.container;
     // Auto-scroll if user is near the bottom (within 60px)
     this.shouldAutoScroll = scrollHeight - scrollTop - clientHeight < 60;
-  }
-
-  private formatDate(date: Date | string): string {
-    try {
-      const d = date instanceof Date ? date : new Date(date);
-      const now = new Date();
-      const isToday =
-        d.getDate() === now.getDate() &&
-        d.getMonth() === now.getMonth() &&
-        d.getFullYear() === now.getFullYear();
-
-      if (isToday) return 'Today';
-
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const isYesterday =
-        d.getDate() === yesterday.getDate() &&
-        d.getMonth() === yesterday.getMonth() &&
-        d.getFullYear() === yesterday.getFullYear();
-
-      if (isYesterday) return 'Yesterday';
-
-      return d.toLocaleDateString([], {
-        month: 'short',
-        day: 'numeric',
-        year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-      });
-    } catch {
-      return '';
-    }
   }
 }
 

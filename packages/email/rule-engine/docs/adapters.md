@@ -145,6 +145,9 @@ Delivers the rendered email. Called once per user after all checks pass (dedup, 
 | `textBody` | `string` | Rendered plain text fallback |
 | `ruleId` | `string` | Rule that triggered this send |
 | `autoApprove` | `boolean` | `true` = send immediately, `false` = save as draft |
+| `attachments` | `Array<{ filename, url, contentType }>` | Optional. URL-based file attachments from the template. |
+
+Attachments are URL references -- the sending service fetches the file at send time. Add attachment URLs in the template editor (filename + public/signed URL + MIME type). If a template has no attachments, this field is an empty array.
 
 **Nodemailer example:**
 
@@ -156,6 +159,11 @@ async function sendEmail(params: SendEmailParams) {
     subject: params.subject,
     html: params.htmlBody,
     text: params.textBody,
+    attachments: (params.attachments || []).map(a => ({
+      filename: a.filename,
+      path: a.url,
+      contentType: a.contentType,
+    })),
   });
 }
 ```
@@ -169,6 +177,7 @@ async function sendEmail(params: SendEmailParams) {
     subject: params.subject,
     html: params.htmlBody,
     text: params.textBody,
+    attachments: params.attachments || [],
     accountId: params.accountId,
   }, {
     attempts: 3,

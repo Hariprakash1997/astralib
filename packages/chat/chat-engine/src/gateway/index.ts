@@ -101,6 +101,6 @@ export function createGateway(deps: GatewayDeps): GatewayResult {
 export { setupVisitorHandlers } from './visitor.handler';
 export { setupAgentHandlers } from './agent.handler';
 export { emitToVisitor, emitToAgent } from './emit';
-export { notifyAgentsNewChat, notifyAgentsNewMessage, broadcastStatsUpdate, broadcastSessionUpdate, broadcastModeChange } from './notifications';
+export { notifyAgentsNewChat, notifyAgentsNewMessage, broadcastStatsUpdate, broadcastSessionUpdate, broadcastModeChange, broadcastQueuePositions } from './notifications';
 export { scheduleAiResponse, resetAiDebounce, clearAiDebounce } from './ai-debounce';
 export * from './helpers';

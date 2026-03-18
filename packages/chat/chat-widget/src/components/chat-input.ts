@@ -1,15 +1,19 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { property, state, query } from 'lit/decorators.js';
-import { chatResetStyles, chatBaseStyles } from '../styles/shared.js';
+import {
+  chatResetStyles,
+  chatBaseStyles,
+  chatAnimations,
+} from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 
 const TYPING_DEBOUNCE_MS = 2000;
-const MAX_ROWS = 4;
 
 export class AlxChatInput extends LitElement {
   static styles = [
     chatResetStyles,
     chatBaseStyles,
+    chatAnimations,
     css`
       :host {
         display: block;
@@ -18,37 +22,68 @@ export class AlxChatInput extends LitElement {
       .input-container {
         display: flex;
         align-items: flex-end;
-        gap: 8px;
+        gap: 10px;
         padding: 12px 16px;
         border-top: 1px solid var(--alx-chat-border);
-        background: var(--alx-chat-bg);
+        background: var(--alx-chat-surface);
       }
 
-      .textarea-wrapper {
-        flex: 1;
-        position: relative;
+      /* -- Attachment button -- */
+
+      .attach-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: transparent;
+        border: none;
+        color: var(--alx-chat-text-muted);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: background 0.15s, color 0.15s;
       }
+
+      .attach-btn:hover {
+        background: var(--alx-chat-surface-alt);
+        color: var(--alx-chat-text);
+      }
+
+      .attach-btn:active {
+        transform: scale(0.9);
+      }
+
+      /* -- Input wrapper (relative container for textarea + send btn) -- */
+
+      .input-wrapper {
+        position: relative;
+        flex: 1;
+      }
+
+      /* -- Textarea -- */
 
       textarea {
         width: 100%;
-        min-height: 40px;
-        max-height: calc(var(--alx-chat-font-size, 14px) * 1.5 * ${MAX_ROWS} + 20px);
-        padding: 10px 14px;
-        border: 1px solid var(--alx-chat-border);
-        border-radius: 20px;
-        background: var(--alx-chat-surface);
+        min-height: 44px;
+        max-height: 120px;
+        padding: 11px 48px 11px 16px;
+        border: 1.5px solid var(--alx-chat-border);
+        border-radius: 22px;
+        background: var(--alx-chat-bg);
         color: var(--alx-chat-text);
+        font-size: 14px;
         font-family: var(--alx-chat-font);
-        font-size: var(--alx-chat-font-size);
         line-height: 1.5;
         resize: none;
         outline: none;
         overflow-y: auto;
-        transition: border-color 0.15s;
+        transition: border-color 0.2s var(--alx-chat-spring-smooth), box-shadow 0.2s var(--alx-chat-spring-smooth);
       }
 
       textarea:focus {
         border-color: var(--alx-chat-primary);
+        box-shadow: 0 0 0 3px var(--alx-chat-primary-light);
       }
 
       textarea::placeholder {
@@ -61,44 +96,64 @@ export class AlxChatInput extends LitElement {
         cursor: not-allowed;
       }
 
+      /* Thin scrollbar */
+      textarea::-webkit-scrollbar {
+        width: 5px;
+      }
+
+      textarea::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      textarea::-webkit-scrollbar-thumb {
+        background: var(--alx-chat-border);
+        border-radius: 3px;
+      }
+
+      /* -- Send button (inside textarea wrapper) -- */
+
       .send-btn {
+        position: absolute;
+        right: 4px;
+        bottom: 4px;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: none;
+        cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 40px;
-        height: 40px;
-        border: none;
-        border-radius: 50%;
-        background: var(--alx-chat-primary);
-        color: var(--alx-chat-primary-text);
-        cursor: pointer;
-        transition: background 0.15s, transform 0.1s;
-        flex-shrink: 0;
+        transition: background 0.2s, transform 0.15s
+          var(--alx-chat-spring-snappy);
       }
 
-      .send-btn:hover:not(:disabled) {
+      .send-btn.empty {
+        background: transparent;
+        color: var(--alx-chat-text-muted);
+        cursor: default;
+        pointer-events: none;
+      }
+
+      .send-btn.has-text {
+        background: var(--alx-chat-primary);
+        color: var(--alx-chat-primary-text);
+        animation: alx-scaleIn 0.2s var(--alx-chat-spring-bounce);
+      }
+
+      .send-btn.has-text:hover {
         background: var(--alx-chat-primary-hover);
       }
 
-      .send-btn:active:not(:disabled) {
-        transform: scale(0.94);
-      }
-
-      .send-btn:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-      }
-
-      .send-btn svg {
-        width: 18px;
-        height: 18px;
-        fill: currentColor;
+      .send-btn.has-text:active {
+        transform: scale(0.9);
       }
     `,
   ];
 
   @property() placeholder = 'Type a message...';
   @property({ type: Boolean }) disabled = false;
+  @property({ type: Boolean, attribute: 'show-attach' }) showAttach = false;
 
   @state() private value = '';
 
@@ -108,28 +163,80 @@ export class AlxChatInput extends LitElement {
   private isCurrentlyTyping = false;
 
   render() {
+    const hasText = this.value.trim().length > 0;
+
     return html`
       <div class="input-container">
-        <div class="textarea-wrapper">
+        ${this.showAttach
+          ? html`
+              <button
+                class="attach-btn"
+                @click=${this.handleAttachClick}
+                aria-label="Attach file"
+              >
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                >
+                  <line
+                    x1="10"
+                    y1="4"
+                    x2="10"
+                    y2="16"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                  <line
+                    x1="4"
+                    y1="10"
+                    x2="16"
+                    y2="10"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </button>
+            `
+          : nothing}
+        <div class="input-wrapper">
           <textarea
             rows="1"
             .value=${this.value}
             placeholder=${this.placeholder}
             ?disabled=${this.disabled}
+            aria-label="Type a message"
+            role="textbox"
             @input=${this.handleInput}
             @keydown=${this.handleKeydown}
           ></textarea>
+          <button
+            class="send-btn ${hasText ? 'has-text' : 'empty'}"
+            @click=${this.handleSend}
+            aria-label="Send message"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 18 18"
+              fill="none"
+            >
+              <path
+                d="M3 9L15 3L12 15L9.5 10.5L3 9Z"
+                fill="currentColor"
+              />
+              <path
+                d="M9.5 10.5L15 3"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
         </div>
-        <button
-          class="send-btn"
-          ?disabled=${this.disabled || !this.value.trim()}
-          @click=${this.handleSend}
-          aria-label="Send message"
-        >
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-          </svg>
-        </button>
       </div>
     `;
   }
@@ -141,6 +248,12 @@ export class AlxChatInput extends LitElement {
   clear() {
     this.value = '';
     this.autoResize();
+  }
+
+  private handleAttachClick() {
+    this.dispatchEvent(
+      new CustomEvent('attach-click', { bubbles: true, composed: true }),
+    );
   }
 
   private handleInput(e: Event) {
@@ -180,7 +293,7 @@ export class AlxChatInput extends LitElement {
     const ta = this.textarea;
     if (!ta) return;
     ta.style.height = 'auto';
-    ta.style.height = `${Math.min(ta.scrollHeight, ta.clientHeight + 200)}px`;
+    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
   }
 
   private emitTyping(isTyping: boolean) {

@@ -25,6 +25,12 @@ export async function emitToVisitor(
       data,
       timestamp: new Date().toISOString(),
     });
+    deps.agentNs.emit('agent:session_event', {
+      sessionId,
+      type: 'message_pending',
+      event,
+      data,
+    });
     return false;
   }
 
@@ -35,6 +41,12 @@ export async function emitToVisitor(
       event,
       data,
       timestamp: new Date().toISOString(),
+    });
+    deps.agentNs.emit('agent:session_event', {
+      sessionId,
+      type: 'message_pending',
+      event,
+      data,
     });
     return false;
   }

@@ -1,7 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
-import { chatResetStyles, chatBaseStyles } from '../styles/shared.js';
+import { chatResetStyles, chatBaseStyles, chatAnimations } from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 
 export interface ChatOptionItem {
@@ -19,6 +19,7 @@ export class AlxChatOptions extends LitElement {
   static styles = [
     chatResetStyles,
     chatBaseStyles,
+    chatAnimations,
     css`
       :host {
         display: block;
@@ -46,7 +47,7 @@ export class AlxChatOptions extends LitElement {
         background: var(--alx-chat-surface);
         color: var(--alx-chat-text);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.2s var(--alx-chat-spring-smooth);
         font-family: var(--alx-chat-font);
         font-size: var(--alx-chat-font-size);
         text-align: left;
@@ -102,7 +103,7 @@ export class AlxChatOptions extends LitElement {
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.15s ease;
+        transition: all 0.15s var(--alx-chat-spring-smooth);
       }
 
       .option-card.selected .checkbox-indicator {
@@ -119,7 +120,7 @@ export class AlxChatOptions extends LitElement {
         stroke-linecap: round;
         stroke-linejoin: round;
         opacity: 0;
-        transition: opacity 0.15s ease;
+        transition: opacity 0.15s;
       }
 
       .option-card.selected .checkbox-indicator svg {
@@ -139,7 +140,7 @@ export class AlxChatOptions extends LitElement {
         font-size: var(--alx-chat-font-size);
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s ease;
+        transition: background 0.2s var(--alx-chat-spring-smooth);
       }
 
       .confirm-btn:hover {

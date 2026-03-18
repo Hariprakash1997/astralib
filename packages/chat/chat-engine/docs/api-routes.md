@@ -19,6 +19,7 @@ All routes are mounted on the router returned by `engine.routes`. All responses 
 | `GET` | `/sessions/:sessionId/messages` | Message history (query: `before`, `limit`) |
 | `POST` | `/sessions/:sessionId/resolve` | End session |
 | `POST` | `/sessions/:sessionId/feedback` | Submit feedback (body: `{ rating?, survey? }`) |
+| `GET` | `/sessions/:sessionId/context` | Rich session context (session + messages + metadata). Runs `enrichSessionContext` adapter if provided |
 | `GET` | `/sessions/feedback-stats` | Aggregate feedback ratings |
 
 ## Offline Messages
@@ -38,6 +39,45 @@ All routes are mounted on the router returned by `engine.routes`. All responses 
 | `PUT` | `/agents/:agentId` | Update agent |
 | `DELETE` | `/agents/:agentId` | Delete agent |
 | `POST` | `/agents/:agentId/toggle-active` | Toggle active status |
+| `POST` | `/agents/:agentId/avatar` | Upload avatar image (requires `uploadFile` adapter) |
+
+### Avatar Upload
+
+`POST /agents/:agentId/avatar` accepts a JSON body with base64-encoded image data:
+
+```json
+{
+  "data": "<base64-encoded image>",
+  "mimetype": "image/png",
+  "filename": "avatar.png"
+}
+```
+
+- Requires the `uploadFile` adapter to be configured. Returns 404 if not configured.
+- Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`, `image/gif`.
+- Max file size controlled by `options.maxUploadSizeMb` (default: 5MB).
+- On success, updates the agent's `avatar` field and returns `{ url: "..." }`.
+
+## Capabilities
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/capabilities` | Feature flags (public, no auth) |
+
+Returns which features are enabled based on the engine configuration:
+
+```json
+{
+  "agents": true,
+  "ai": false,
+  "visitorSelection": false,
+  "labeling": false,
+  "fileUpload": false,
+  "memory": false,
+  "prompts": false,
+  "knowledge": false
+}
+```
 
 ## Settings
 

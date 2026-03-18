@@ -16,6 +16,7 @@ export interface SmtpSendParams {
   html: string;
   text?: string;
   metadata?: Record<string, unknown>;
+  attachments?: Array<{ filename: string; url: string; contentType: string }>;
 }
 
 export interface SmtpSendResult {
@@ -68,6 +69,7 @@ export class SmtpService {
       text: params.text || '',
       unsubscribeUrl: unsubscribeUrl || undefined,
       metadata: params.metadata,
+      attachments: params.attachments || [],
     });
 
     return { success: true, messageId: jobId };
@@ -96,6 +98,7 @@ export class SmtpService {
     html: string,
     text: string,
     unsubscribeUrl?: string,
+    attachments?: Array<{ filename: string; url: string; contentType: string }>,
   ): Promise<SmtpSendResult> {
     const account = await this.EmailAccount.findById(accountId);
     if (!account) return { success: false, error: 'Account not found' };
@@ -133,6 +136,11 @@ export class SmtpService {
         text,
         html,
         headers,
+        attachments: attachments?.map(a => ({
+          filename: a.filename,
+          path: a.url,
+          contentType: a.contentType,
+        })) || [],
       };
 
       const info = await transporter.sendMail(mailOptions);

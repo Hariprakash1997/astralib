@@ -41,6 +41,50 @@ export class AlxChatAgentForm extends LitElement {
         font-size: 0.8125rem;
         color: var(--alx-text);
       }
+      .avatar-upload {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      .avatar-preview {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        overflow: hidden;
+        background: var(--alx-surface-alt, #1e2028);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px dashed var(--alx-border, #2a2d37);
+        flex-shrink: 0;
+      }
+      .avatar-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .avatar-placeholder {
+        color: var(--alx-text-muted, #8b8fa3);
+      }
+      .upload-btn {
+        padding: 8px 16px;
+        border: 1px solid var(--alx-border, #2a2d37);
+        border-radius: var(--alx-radius, 8px);
+        background: var(--alx-surface, transparent);
+        color: var(--alx-text, inherit);
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+        transition: border-color 0.15s;
+      }
+      .upload-btn:hover {
+        border-color: var(--alx-primary, #6366f1);
+      }
+      .upload-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
     `,
   ];
 
@@ -56,6 +100,7 @@ export class AlxChatAgentForm extends LitElement {
   @state() private promptTemplateId = '';
   @state() private promptTemplates: PromptTemplate[] = [];
   @state() private saving = false;
+  @state() private uploading = false;
   @state() private error = '';
   @state() private loading = false;
 
@@ -146,6 +191,46 @@ export class AlxChatAgentForm extends LitElement {
     }
   }
 
+  private async _handleFileSelect(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      this.error = 'Only image files allowed';
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      this.error = 'File too large (max 5MB)';
+      return;
+    }
+
+    this.uploading = true;
+    this.error = '';
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = (reader.result as string).split(',')[1];
+      try {
+        const res = await this.http.post<{ url: string }>(`/agents/${this.agentId}/avatar`, {
+          data: base64,
+          mimetype: file.type,
+          filename: file.name,
+        });
+        this.avatar = res.url;
+      } catch (err) {
+        this.error = err instanceof Error ? err.message : 'Upload failed';
+      } finally {
+        this.uploading = false;
+      }
+    };
+    reader.onerror = () => {
+      this.error = 'Failed to read file';
+      this.uploading = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
   private close() {
     this.open = false;
     this.agentId = '';
@@ -175,12 +260,34 @@ export class AlxChatAgentForm extends LitElement {
                   placeholder="Agent name" />
               </div>
 
-              <div class="form-group">
-                <label>Avatar URL</label>
-                <input type="text" .value=${this.avatar}
-                  @input=${(e: Event) => this.avatar = (e.target as HTMLInputElement).value}
-                  placeholder="https://..." />
-              </div>
+              ${AlxChatConfig.capabilities.fileUpload && this.agentId ? html`
+                <div class="avatar-upload">
+                  <div class="avatar-preview">
+                    ${this.avatar
+                      ? html`<img src=${this.avatar} alt="Avatar">`
+                      : html`<div class="avatar-placeholder">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.5"/>
+                            <path d="M4 20c0-4 3.5-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                          </svg>
+                        </div>`
+                    }
+                  </div>
+                  <button type="button" class="upload-btn" ?disabled=${this.uploading}
+                    @click=${() => this.renderRoot.querySelector<HTMLInputElement>('.avatar-file-input')?.click()}>
+                    ${this.uploading ? 'Uploading...' : 'Choose Photo'}
+                  </button>
+                  <input type="file" accept="image/*" class="avatar-file-input"
+                    @change=${this._handleFileSelect} style="display:none">
+                </div>
+              ` : html`
+                <div class="form-group">
+                  <label>Avatar URL</label>
+                  <input type="text" .value=${this.avatar}
+                    @input=${(e: Event) => this.avatar = (e.target as HTMLInputElement).value}
+                    placeholder="https://..." />
+                </div>
+              `}
 
               <div class="form-group">
                 <label>Role</label>

@@ -11,6 +11,7 @@ import {
   alxBadgeStyles,
 } from '../../styles/shared.js';
 import { TelegramRuleAPI } from '../../api/rule.api.js';
+import { iconClose, iconPlus } from '../../utils/icons.js';
 
 interface Condition {
   field: string;
@@ -341,10 +342,10 @@ export class AlxTgRuleEditor extends LitElement {
                       <option value="exists">exists</option>
                     </select>
                     <input type="text" .value=${c.value} @input=${(e: Event) => this.updateCondition(i, 'value', (e.target as HTMLInputElement).value)} placeholder="Value" />
-                    <button type="button" class="alx-btn-icon danger" @click=${() => this.removeCondition(i)}>&times;</button>
+                    <button type="button" class="alx-btn-icon danger" @click=${() => this.removeCondition(i)}>${iconClose(14)}</button>
                   </div>
                 `)}
-                <button type="button" class="alx-btn-sm" @click=${this.addCondition}>+ Add Condition</button>
+                <button type="button" class="alx-btn-sm" @click=${this.addCondition}>${iconPlus(14)} Add Condition</button>
               </div>
             ` : html`
               <div class="form-section-title">Identifiers</div>
@@ -352,10 +353,10 @@ export class AlxTgRuleEditor extends LitElement {
                 ${this.identifiers.map((id, i) => html`
                   <div class="identifier-row">
                     <input type="text" .value=${id} @input=${(e: Event) => this.updateIdentifier(i, (e.target as HTMLInputElement).value)} placeholder="User ID or phone" />
-                    <button type="button" class="alx-btn-icon danger" @click=${() => this.removeIdentifier(i)}>&times;</button>
+                    <button type="button" class="alx-btn-icon danger" @click=${() => this.removeIdentifier(i)}>${iconClose(14)}</button>
                   </div>
                 `)}
-                <button type="button" class="alx-btn-sm" @click=${this.addIdentifier}>+ Add Identifier</button>
+                <button type="button" class="alx-btn-sm" @click=${this.addIdentifier}>${iconPlus(14)} Add Identifier</button>
               </div>
             `}
 

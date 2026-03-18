@@ -10,6 +10,7 @@ import { HistorySyncService } from './services/history-sync.service';
 import { MessageService } from './services/message.service';
 import { SessionService } from './services/session.service';
 import { TypingBroadcasterService } from './services/typing-broadcaster.service';
+import { DialogLoaderService } from './services/dialog-loader.service';
 import { InboxEventGateway } from './services/websocket-gateway';
 import { createConversationController } from './controllers/conversation.controller';
 import { createSessionController } from './controllers/session.controller';
@@ -23,6 +24,7 @@ export interface TelegramInbox {
   messages: MessageService;
   sessions: SessionService;
   typing: TypingBroadcasterService;
+  dialogs: DialogLoaderService;
   events: InboxEventGateway;
   models: {
     TelegramMessage: TelegramMessageModel;
@@ -40,15 +42,17 @@ export function createTelegramInbox(config: TelegramInboxConfig): TelegramInbox 
   const accountManager = config.accountManager;
 
   // 1. Create models
-  const TelegramMessage = conn.model<any>(
-    `${prefix}TelegramMessage`,
+  const messageModelName = `${prefix}TelegramMessage`;
+  const TelegramMessage = (conn.models[messageModelName] || conn.model<any>(
+    messageModelName,
     createTelegramMessageSchema(prefix || undefined),
-  ) as TelegramMessageModel;
+  )) as TelegramMessageModel;
 
-  const TelegramConversationSession = conn.model<any>(
-    `${prefix}TelegramConversationSession`,
+  const sessionModelName = `${prefix}TelegramConversationSession`;
+  const TelegramConversationSession = (conn.models[sessionModelName] || conn.model<any>(
+    sessionModelName,
     createTelegramConversationSessionSchema(prefix || undefined),
-  ) as TelegramConversationSessionModel;
+  )) as TelegramConversationSessionModel;
 
   // 2. Create event gateway
   const events = new InboxEventGateway();
@@ -70,6 +74,8 @@ export function createTelegramInbox(config: TelegramInboxConfig): TelegramInbox 
 
   const typingBroadcaster = new TypingBroadcasterService(accountManager, config, logger);
 
+  const dialogLoaderService = new DialogLoaderService(accountManager, TelegramConversationSession, logger);
+
   const messageListenerService = new MessageListenerService(
     accountManager,
     TelegramMessage,
@@ -84,6 +90,7 @@ export function createTelegramInbox(config: TelegramInboxConfig): TelegramInbox 
     messageService,
     historySyncService,
     logger,
+    dialogLoaderService,
   );
 
   const sessionController = createSessionController(sessionService, logger);
@@ -117,6 +124,7 @@ export function createTelegramInbox(config: TelegramInboxConfig): TelegramInbox 
     messages: messageService,
     sessions: sessionService,
     typing: typingBroadcaster,
+    dialogs: dialogLoaderService,
     events,
     models: { TelegramMessage, TelegramConversationSession },
     destroy,

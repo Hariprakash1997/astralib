@@ -29,6 +29,26 @@ export {
 export type { PaginationParams, ApiResponse, PaginatedResponse } from './api/index.js';
 
 export { safeRegister } from './utils/safe-register.js';
+export {
+  iconEdit,
+  iconDelete,
+  iconClose,
+  iconClone,
+  iconPlus,
+  iconRefresh,
+  iconConnect,
+  iconDisconnect,
+  iconSync,
+  iconSearch,
+  iconSend,
+  iconFilter,
+  iconChevronLeft,
+  iconChevronRight,
+  iconCheck,
+  iconWarning,
+  iconPlay,
+  iconPause,
+} from './utils/icons.js';
 
 export {
   AlxTgAccountList,

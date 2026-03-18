@@ -40,6 +40,7 @@ export function createApprovalProcessor(
       subject: d.subject,
       html: d.htmlBody,
       text: d.textBody || '',
+      attachments: d.attachments || [],
     });
 
     if (d.identifierId && identifierService) {

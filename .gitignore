@@ -7,4 +7,5 @@ coverage/
 .claude/
 *.log
 dev.html
+packages/chat/dev-server/
 close-issues.bat

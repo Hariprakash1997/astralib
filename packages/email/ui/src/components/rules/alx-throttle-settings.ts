@@ -77,6 +77,7 @@ export class AlxThrottleSettings extends LitElement {
   @state() private _saving = false;
   @state() private _error = '';
   @state() private _saved = false;
+  private _savedTimer?: ReturnType<typeof setTimeout>;
 
   private __api?: RuleAPI;
   private get _api(): RuleAPI {
@@ -120,7 +121,8 @@ export class AlxThrottleSettings extends LitElement {
           composed: true,
         }),
       );
-      setTimeout(() => {
+      if (this._savedTimer) clearTimeout(this._savedTimer);
+      this._savedTimer = setTimeout(() => {
         this._saved = false;
       }, 3000);
     } catch (err) {

@@ -11,6 +11,7 @@ export interface TemplateData {
   fields: Record<string, string>;
   textBody: string;
   variables: string[];
+  attachments: Array<{ filename: string; url: string; contentType: string }>;
   isActive: boolean;
 }
 
@@ -26,5 +27,6 @@ export const EMPTY_TEMPLATE: TemplateData = {
   fields: {},
   textBody: '',
   variables: [],
+  attachments: [],
   isActive: true,
 };

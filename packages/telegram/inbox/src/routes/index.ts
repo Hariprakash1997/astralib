@@ -15,7 +15,10 @@ export function createRoutes(deps: TelegramInboxRouteDeps): Router {
 
   // --- Conversation routes ---
   // Static routes BEFORE parameterized routes
+  router.get('/conversations/dialogs', conversationController.loadDialogs);
+  router.post('/conversations/sync-dialogs', conversationController.syncDialogs);
   router.get('/conversations/unread', conversationController.getUnreadCount);
+  router.get('/conversations/search', conversationController.search);
 
   router.get('/conversations', conversationController.list);
   router.get('/conversations/:chatId/messages', conversationController.getMessages);

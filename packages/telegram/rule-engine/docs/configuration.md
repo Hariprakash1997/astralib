@@ -73,6 +73,18 @@ If omitted, the Mongoose schema accepts any string for these fields.
 | `maxConsecutiveFailures` | `number` | `3` | Stop processing a rule after this many consecutive send failures. |
 | `thinkingPauseProbability` | `number` | `0.25` | Probability (0--1) of adding an extra "thinking" pause between sends for human-like behavior. |
 | `batchProgressInterval` | `number` | `10` | Update Redis progress key every N sends. |
+| `healthDelayMultiplier` | `number` | `3` | Multiplier for health-adjusted delays. At health 0, delay = base * (1 + multiplier). At health 100, delay = base * 1. |
+| `useRedisThrottle` | `boolean` | `false` | Use Redis-based throttle tracking instead of MongoDB. When enabled, throttle checks and increments are performed against Redis for lower latency. Falls back to the default MongoDB-based throttle when `false`. See details below. |
+
+### useRedisThrottle
+
+**When to use:** Multi-instance deployments where the in-memory throttle map doesn't share state across processes. With `useRedisThrottle: true`, all instances read and write throttle data to the same Redis, ensuring consistent per-user limits regardless of which instance handles the send.
+
+**Redis key pattern:** `${keyPrefix}throttle:${identifierId}` with a 7-day TTL (`DEFAULT_THROTTLE_TTL_SECONDS = 604800`).
+
+**Tradeoffs:** There is a slight latency overhead per send for the Redis round-trip, but you gain consistent throttling across all instances. For single-instance deployments the default MongoDB-based throttle is sufficient and avoids the extra network hop.
+
+**Concurrency note:** Redis throttle operations run under the built-in `RedisLock`, so they are safe in single-lock setups. For multi-lock setups (e.g., multiple engines sharing the same Redis with separate lock scopes), consider atomic Lua scripts to avoid race conditions between the check and increment steps.
 
 **Send window example** -- only send between 9 AM and 8 PM IST:
 
@@ -181,6 +193,8 @@ const engine = createTelegramRuleEngine({
     maxConsecutiveFailures: 3,
     thinkingPauseProbability: 0.25,
     batchProgressInterval: 10,
+    healthDelayMultiplier: 3,
+    useRedisThrottle: false,
   },
 
   hooks: {

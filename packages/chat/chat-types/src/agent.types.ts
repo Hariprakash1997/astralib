@@ -7,6 +7,8 @@ export interface ChatAgentInfo {
   role?: string;
   status: AgentStatus;
   isAI: boolean;
+  visibility?: 'public' | 'internal';
+  isDefault?: boolean;
 }
 
 export interface AgentIdentity {

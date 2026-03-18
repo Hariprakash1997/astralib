@@ -1,6 +1,6 @@
 export {
   ACCOUNT_STATUS, IDENTIFIER_STATUS,
-  type AccountStatus, type IdentifierStatus,
+  type AccountStatus, type IdentifierStatus, type RotationStrategy,
 } from '../constants';
 
 export type {

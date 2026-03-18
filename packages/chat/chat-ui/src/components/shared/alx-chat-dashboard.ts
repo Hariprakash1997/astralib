@@ -1,6 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
+import { AlxChatConfig } from '../../config.js';
 import {
   alxChatResetStyles,
   alxChatThemeStyles,
@@ -31,7 +32,7 @@ import '../analytics/alx-chat-feedback-stats.js';
 import '../analytics/alx-chat-offline-messages.js';
 import '../settings/alx-chat-settings.js';
 
-const TABS = [
+const ALL_TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'sessions', label: 'Sessions' },
   { key: 'agents', label: 'Agents' },
@@ -42,7 +43,24 @@ const TABS = [
   { key: 'settings', label: 'Settings' },
 ] as const;
 
-type TabKey = (typeof TABS)[number]['key'];
+type TabKey = (typeof ALL_TABS)[number]['key'];
+
+/** Capability-gated tabs — keys that require a specific capability to be true. */
+const TAB_CAPABILITY_MAP: Partial<Record<TabKey, keyof typeof AlxChatConfig.capabilities>> = {
+  agents: 'agents',
+  memory: 'memory',
+  prompts: 'prompts',
+  knowledge: 'knowledge',
+};
+
+function getVisibleTabs(): Array<{ key: TabKey; label: string }> {
+  const caps = AlxChatConfig.capabilities;
+  return ALL_TABS.filter(t => {
+    const requiredCap = TAB_CAPABILITY_MAP[t.key];
+    if (!requiredCap) return true;
+    return caps[requiredCap];
+  });
+}
 
 export class AlxChatDashboard extends LitElement {
   static styles = [
@@ -191,6 +209,7 @@ export class AlxChatDashboard extends LitElement {
     this.activeTab = this.defaultTab;
     this.handleHash();
     window.addEventListener('hashchange', this.boundHashHandler);
+    AlxChatConfig.fetchCapabilities().then(() => this.requestUpdate());
   }
 
   disconnectedCallback() {
@@ -200,7 +219,7 @@ export class AlxChatDashboard extends LitElement {
 
   private handleHash() {
     const hash = window.location.hash.replace('#', '');
-    if (hash && TABS.some(t => t.key === hash)) {
+    if (hash && getVisibleTabs().some(t => t.key === hash)) {
       this.activeTab = hash as TabKey;
     }
   }
@@ -460,7 +479,7 @@ export class AlxChatDashboard extends LitElement {
       </div>
 
       <div class="tabs">
-        ${TABS.map(t => html`
+        ${getVisibleTabs().map(t => html`
           <button class="tab ${this.activeTab === t.key ? 'active' : ''}"
             @click=${() => this.setTab(t.key)}>${t.label}</button>
         `)}

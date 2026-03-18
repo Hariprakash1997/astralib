@@ -7,6 +7,13 @@ import type {
   EmailAccount,
   CreateEmailAccountInput,
   EmailAccountManagerConfig,
+  ImapSearchSince, ApprovalMode, SpreadStrategy,
+  // ... etc.
+} from '@astralibx/email-account-manager';
+
+import {
+  IMAP_SEARCH_SINCE, APPROVAL_MODE, SPREAD_STRATEGY,
+  ACCOUNT_PROVIDER, ACCOUNT_STATUS, DRAFT_STATUS,
   // ... etc.
 } from '@astralibx/email-account-manager';
 ```
@@ -175,15 +182,15 @@ Available hooks on `EmailAccountManagerConfig.hooks`:
 
 **`ImapSettings`** -- IMAP bounce checking configuration.
 - `enabled: boolean`, `pollIntervalMs: number`
-- `searchSince: 'last_check' | 'last_24h' | 'last_7d'`
+- `searchSince: ImapSearchSince` -- use `IMAP_SEARCH_SINCE` constant (`'last_check'`, `'last_24h'`, `'last_7d'`)
 - `bounceSenders: string[]`
 
 **`SesSettings`** -- SES tracking settings.
 - `configurationSet?: string`, `trackOpens: boolean`, `trackClicks: boolean`
 
 **`ApprovalSettings`** -- Draft approval workflow settings.
-- `enabled: boolean`, `defaultMode: 'manual' | 'auto'`, `autoApproveDelayMs: number`
-- `sendWindow: ApprovalSendWindow`, `spreadStrategy: 'random' | 'even'`, `maxSpreadMinutes: number`
+- `enabled: boolean`, `defaultMode: ApprovalMode`, `autoApproveDelayMs: number` -- use `APPROVAL_MODE` constant (`'manual'`, `'auto'`)
+- `sendWindow: ApprovalSendWindow`, `spreadStrategy: SpreadStrategy`, `maxSpreadMinutes: number` -- use `SPREAD_STRATEGY` constant (`'random'`, `'even'`)
 
 **`ApprovalSendWindow`** -- Time window for sending approved drafts.
 - `timezone: string`, `startHour: number`, `endHour: number`

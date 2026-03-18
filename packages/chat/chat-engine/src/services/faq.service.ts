@@ -53,10 +53,11 @@ export class FAQService {
     if (filters?.category) query.category = filters.category;
     if (filters?.isActive !== undefined) query.isActive = filters.isActive;
     if (filters?.search) {
+      const escaped = String(filters.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
-        { question: { $regex: filters.search, $options: 'i' } },
-        { answer: { $regex: filters.search, $options: 'i' } },
-        { tags: { $in: [new RegExp(filters.search, 'i')] } },
+        { question: { $regex: escaped, $options: 'i' } },
+        { answer: { $regex: escaped, $options: 'i' } },
+        { tags: { $in: [new RegExp(escaped, 'i')] } },
       ];
     }
     return this.ChatFAQItem.find(query).sort({ order: 1 });

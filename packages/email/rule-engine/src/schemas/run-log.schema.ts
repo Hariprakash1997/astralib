@@ -1,5 +1,5 @@
 import { Schema, Model, Types, HydratedDocument } from 'mongoose';
-import { RUN_TRIGGER } from '../constants';
+import { RUN_TRIGGER, RUN_LOG_STATUS } from '../constants';
 
 export interface IEmailRuleRunLog {
   runId?: string;
@@ -58,7 +58,7 @@ export function createEmailRuleRunLogSchema(collectionPrefix?: string) {
     {
       runId: { type: String, index: true },
       runAt: { type: Date, required: true, default: () => new Date() },
-      status: { type: String, enum: ['completed', 'cancelled', 'failed'], default: 'completed' },
+      status: { type: String, enum: Object.values(RUN_LOG_STATUS), default: RUN_LOG_STATUS.Completed },
       triggeredBy: { type: String, enum: Object.values(RUN_TRIGGER), required: true },
       duration: { type: Number, required: true },
       rulesProcessed: { type: Number, required: true },

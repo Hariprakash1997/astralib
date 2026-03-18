@@ -2,6 +2,8 @@
 
 A customizable Telegram bot factory with command registration, keyboard builder, webhook/polling support, user tracking, and Express admin routes. Create a fully functional bot with a single factory call.
 
+> **Getting started?** See the [Quick Start Tutorial](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/quick-start-tutorial.md) for a step-by-step walkthrough, [Integration Guide](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/integration-guide.md) for multi-package setup, or the [Glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/glossary.md) for ID terminology.
+
 ## Install
 
 ```bash
@@ -123,12 +125,36 @@ await bot.sendMessage(chatId, 'Keyboard removed.', { reply_markup: remove });
 - **User tracking** -- Automatic contact tracking with interaction history per bot. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/bot/docs/types.md#usertrackerservice)
 - **Admin API routes** -- 4 REST endpoints for bot status, stats, and user management. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/bot/docs/api-routes.md)
 - **Lifecycle hooks** -- React to new users, blocked users, commands, and errors. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/bot/docs/configuration.md#hooks)
+- **Account Manager Bridge** -- Optional integration with `@astralibx/telegram-account-manager` for sending messages via TDLib clients. [Details](#account-manager-bridge)
 
 ## Getting Started Guide
 
 1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/bot/docs/configuration.md) -- Token, mode, database, commands, callbacks, middleware, hooks
 2. [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/bot/docs/api-routes.md) -- 4 admin REST endpoints for status, stats, and users
 3. [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/bot/docs/types.md) -- All importable types, constants, errors, and service classes
+
+## Account Manager Bridge
+
+Optional utility for integrating with `@astralibx/telegram-account-manager`. Allows bot commands to send messages via TDLib clients.
+
+```typescript
+import { createAccountManagerBridge } from '@astralibx/telegram-bot';
+import { createTelegramAccountManager } from '@astralibx/telegram-account-manager';
+
+const tam = createTelegramAccountManager(config);
+const bridge = createAccountManagerBridge(tam);
+
+// In a bot command handler:
+commands: [{
+  command: 'send',
+  description: 'Send via TDLib',
+  handler: async (msg, bot) => {
+    await bridge.sendViaTDLib('account-id', msg.chat.id.toString(), 'Hello from TDLib!');
+  },
+}]
+```
+
+See [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/bot/docs/types.md#account-manager-bridge) for the `AccountManagerBridge` and `AccountManagerLike` interfaces.
 
 ## License
 

@@ -33,6 +33,7 @@ export interface SendJobData {
   text: string;
   unsubscribeUrl?: string;
   metadata?: Record<string, unknown>;
+  attachments?: Array<{ filename: string; url: string; contentType: string }>;
 }
 
 export interface ApprovalJobData {

@@ -93,6 +93,10 @@ curl -X POST http://localhost:3000/api/telegram-rules/templates/665abc123/previe
 | `name` | string | yes | Rule name |
 | `target` | object | yes | `{ mode: 'query', conditions: {} }` or `{ mode: 'list', identifiers: string[] }` |
 | `templateId` | string | yes | ID of the template to use |
+| `sendOnce` | boolean | no | Send only once per user, ever (default `false`) |
+| `maxPerRun` | number | no | Max users processed per execution (default from config) |
+| `validFrom` | ISO date string | no | Rule is inactive before this date |
+| `validTill` | ISO date string | no | Rule is inactive after this date |
 | `platform` | string | no | Must be a valid platform value |
 | `audience` | string | no | Must be a valid audience value |
 

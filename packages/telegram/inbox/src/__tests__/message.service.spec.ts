@@ -249,17 +249,14 @@ describe('MessageService', () => {
       });
     });
 
-    it('should generate fallback messageId when sentMessage.id is missing', async () => {
+    it('should throw when sentMessage.id is missing', async () => {
       const mockClient = {
         sendMessage: vi.fn().mockResolvedValue({}),
       };
       accountManager.getClient.mockReturnValue(mockClient);
-      (TelegramMessage.create as ReturnType<typeof vi.fn>).mockResolvedValue({ _id: 'id-1' });
 
-      await service.sendMessage('acc-1', 'chat-1', 'test');
-
-      const createCall = (TelegramMessage.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      expect(createCall.messageId).toMatch(/^out_\d+$/);
+      await expect(service.sendMessage('acc-1', 'chat-1', 'test'))
+        .rejects.toThrow('Telegram sendMessage returned no message ID');
     });
   });
 

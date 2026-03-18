@@ -6,6 +6,9 @@ export interface IChatSettings {
   defaultSessionMode: SessionMode;
   autoAssignEnabled: boolean;
   aiEnabled: boolean;
+  requireAgentForChat?: boolean;
+  visitorAgentSelection?: boolean;
+  allowPerAgentMode?: boolean;
   metadata?: Record<string, unknown>;
   updatedAt: Date;
 }
@@ -25,6 +28,9 @@ export function createChatSettingsSchema() {
       },
       autoAssignEnabled: { type: Boolean, default: true },
       aiEnabled: { type: Boolean, default: true },
+      requireAgentForChat: { type: Boolean, default: false },
+      visitorAgentSelection: { type: Boolean, default: false },
+      allowPerAgentMode: { type: Boolean, default: false },
       metadata: { type: Schema.Types.Mixed, default: {} },
     },
     {

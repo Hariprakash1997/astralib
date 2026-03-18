@@ -30,7 +30,16 @@ The dashboard is the main entry point. It renders all other components in a tabb
 | `AlxChatAgentForm` | `alx-chat-agent-form` | Create/edit agent drawer |
 | `AlxChatAgentDashboard` | `alx-chat-agent-dashboard` | Real-time agent chat interface (Socket.IO) |
 
-The agent dashboard requires `socket.io-client` as a peer dependency and a configured `socketUrl` and `agentNamespace` in `AlxChatConfig`.
+The agent dashboard (`<alx-chat-agent-dashboard>`) connects to the Socket.IO agent namespace for real-time chat. It requires `socket.io-client` as a peer dependency.
+
+The component:
+- Connects to `socketUrl + agentNamespace` from AlxChatConfig
+- Three-pane layout: session list (left), messages (center), details (right)
+- Receives new chats, messages, typing indicators in real-time
+- Canned response autocomplete: type `/` in the message input
+- Transfer and resolve actions in the header
+
+If `socket.io-client` is not installed, the component renders without real-time features.
 
 ## Memory
 
@@ -88,6 +97,20 @@ The agent dashboard requires `socket.io-client` as a peer dependency and a confi
 ```html
 <alx-chat-session-list></alx-chat-session-list>
 <alx-chat-agent-dashboard></alx-chat-agent-dashboard>
+```
+
+### Using Components Independently
+
+All components can be used independently without the dashboard wrapper. Each component fetches its own data via the internal HttpClient.
+
+Components are self-contained -- they do not communicate with each other. If you need coordination (e.g., selecting a session in a list updates a detail panel), wire it yourself via event listeners:
+
+```html
+<alx-chat-session-list @session-selected=${(e) => {
+  document.querySelector('alx-chat-session-detail').sessionId = e.detail.sessionId;
+}}>
+</alx-chat-session-list>
+<alx-chat-session-detail></alx-chat-session-detail>
 ```
 
 ### Density attribute

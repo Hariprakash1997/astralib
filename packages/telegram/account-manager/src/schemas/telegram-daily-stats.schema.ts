@@ -13,7 +13,7 @@ export interface ITelegramDailyStats {
 export type TelegramDailyStatsDocument = HydratedDocument<ITelegramDailyStats>;
 
 export interface TelegramDailyStatsStatics {
-  incrementStat(accountId: string, field: string, count?: number, date?: string): Promise<TelegramDailyStatsDocument>;
+  incrementStat(accountId: string, field: 'sent' | 'failed' | 'skipped', count?: number, date?: string): Promise<TelegramDailyStatsDocument>;
   getForAccount(accountId: string, days?: number): Promise<TelegramDailyStatsDocument[]>;
   getForDate(date: string): Promise<TelegramDailyStatsDocument[]>;
 }
@@ -38,7 +38,7 @@ export function createTelegramDailyStatsSchema(options?: CreateTelegramDailyStat
       collection: options?.collectionName || 'telegram_daily_stats',
 
       statics: {
-        incrementStat(accountId: string, field: string, count = 1, date?: string) {
+        incrementStat(accountId: string, field: 'sent' | 'failed' | 'skipped', count = 1, date?: string) {
           const targetDate = date || new Date().toISOString().split('T')[0];
           const update: Record<string, number> = {};
           update[field] = count;

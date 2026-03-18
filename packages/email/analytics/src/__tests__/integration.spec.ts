@@ -206,4 +206,211 @@ describe('Email Analytics Integration', () => {
       expect(overview.unsubscribed).toBe(0);
     });
   });
+
+  describe('Channel tracking', () => {
+    it('should record events with channel and persist them', async () => {
+      await analytics.events.record(
+        makeEvent({
+          type: EVENT_TYPE.Sent,
+          recipientEmail: 'chan1@example.com',
+          channel: 'whatsapp',
+        }),
+      );
+
+      await analytics.events.record(
+        makeEvent({
+          type: EVENT_TYPE.Sent,
+          recipientEmail: 'chan2@example.com',
+          channel: 'email',
+        }),
+      );
+
+      const docs = await analytics.models.EmailEvent.find({});
+      expect(docs).toHaveLength(2);
+
+      const channels = docs.map((d) => d.channel).sort();
+      expect(channels).toContain('email');
+      expect(channels).toContain('whatsapp');
+    });
+
+    it('should aggregate channel events into daily stats', async () => {
+      const today = new Date();
+
+      await analytics.events.recordBatch([
+        makeEvent({ type: EVENT_TYPE.Sent, recipientEmail: 'ch1@example.com', channel: 'whatsapp', timestamp: today }),
+        makeEvent({ type: EVENT_TYPE.Sent, recipientEmail: 'ch2@example.com', channel: 'email', timestamp: today }),
+        makeEvent({ type: EVENT_TYPE.Sent, recipientEmail: 'ch3@example.com', channel: 'email', timestamp: today }),
+      ]);
+
+      await analytics.aggregator.aggregateDaily(today);
+
+      const overview = await analytics.query.getOverview(today, today);
+      expect(overview.sent).toBe(3);
+    });
+  });
+
+  describe('Variant analytics', () => {
+    it('should track subject/body variant indices on events', async () => {
+      const today = new Date();
+
+      await analytics.events.record(
+        makeEvent({
+          type: EVENT_TYPE.Sent,
+          recipientEmail: 'var1@example.com',
+          subjectIndex: 0,
+          bodyIndex: 0,
+          timestamp: today,
+        }),
+      );
+
+      await analytics.events.record(
+        makeEvent({
+          type: EVENT_TYPE.Sent,
+          recipientEmail: 'var2@example.com',
+          subjectIndex: 1,
+          bodyIndex: 0,
+          timestamp: today,
+        }),
+      );
+
+      await analytics.events.record(
+        makeEvent({
+          type: EVENT_TYPE.Sent,
+          recipientEmail: 'var3@example.com',
+          subjectIndex: 0,
+          bodyIndex: 1,
+          timestamp: today,
+        }),
+      );
+
+      const docs = await analytics.models.EmailEvent.find({}).sort({ recipientEmail: 1 });
+      expect(docs).toHaveLength(3);
+
+      const var1 = docs.find((d) => d.recipientEmail === 'var1@example.com');
+      expect(var1!.subjectIndex).toBe(0);
+      expect(var1!.bodyIndex).toBe(0);
+
+      const var2 = docs.find((d) => d.recipientEmail === 'var2@example.com');
+      expect(var2!.subjectIndex).toBe(1);
+      expect(var2!.bodyIndex).toBe(0);
+
+      const var3 = docs.find((d) => d.recipientEmail === 'var3@example.com');
+      expect(var3!.subjectIndex).toBe(0);
+      expect(var3!.bodyIndex).toBe(1);
+
+      // Aggregate and verify variant stats were created
+      await analytics.aggregator.aggregateDaily(today);
+
+      // Verify variant stats differentiate between subject indices
+      const variantStats = await analytics.models.AnalyticsStats.find({
+        subjectIndex: { $ne: null },
+      });
+      expect(variantStats.length).toBeGreaterThanOrEqual(2);
+
+      const subj0 = variantStats.filter((s) => s.subjectIndex === 0);
+      const subj1 = variantStats.filter((s) => s.subjectIndex === 1);
+      expect(subj0.length).toBeGreaterThanOrEqual(1);
+      expect(subj1.length).toBeGreaterThanOrEqual(1);
+
+      // Subject 0 has 2 sent (var1 + var3), Subject 1 has 1 sent (var2)
+      const subj0Total = subj0.reduce((sum, s) => sum + (s as any).sent, 0);
+      const subj1Total = subj1.reduce((sum, s) => sum + (s as any).sent, 0);
+      expect(subj0Total).toBe(2);
+      expect(subj1Total).toBe(1);
+    });
+  });
+
+  describe('Batch recording edge cases', () => {
+    it('should handle empty batch gracefully', async () => {
+      await expect(analytics.events.recordBatch([])).resolves.not.toThrow();
+
+      const docs = await analytics.models.EmailEvent.find({});
+      expect(docs).toHaveLength(0);
+    });
+
+    it('should handle large batch of events', async () => {
+      const events = Array.from({ length: 100 }, (_, i) =>
+        makeEvent({ recipientEmail: `batch${i}@example.com` }),
+      );
+
+      await analytics.events.recordBatch(events);
+
+      const docs = await analytics.models.EmailEvent.find({});
+      expect(docs).toHaveLength(100);
+    });
+  });
+
+  // ─── Negative scenarios ─────────────────────────────────────────
+
+  describe('Negative scenarios', () => {
+    it('should fail when recording event with missing required type', async () => {
+      await expect(
+        analytics.events.record({
+          accountId: accountId1,
+          recipientEmail: 'test@example.com',
+        } as any),
+      ).rejects.toThrow(); // Mongoose required validation for 'type'
+    });
+
+    it('should reject event with missing accountId', async () => {
+      await expect(
+        analytics.events.record({
+          type: EVENT_TYPE.Sent,
+          recipientEmail: 'test@example.com',
+        } as any),
+      ).rejects.toThrow(/accountId is required/);
+    });
+
+    it('should fail when recording event with invalid event type', async () => {
+      await expect(
+        analytics.events.record(
+          makeEvent({ type: 'invalid_event' as any }),
+        ),
+      ).rejects.toThrow(); // Mongoose enum validation
+    });
+
+    it('should throw InvalidDateRangeError when aggregating with from after to', async () => {
+      const from = new Date('2025-06-10T00:00:00Z');
+      const to = new Date('2025-06-01T00:00:00Z');
+
+      await expect(
+        analytics.aggregator.aggregateRange(from, to),
+      ).rejects.toThrow(); // InvalidDateRangeError
+    });
+
+    it('should return zeros when querying overview with no events (missing date params scenario)', async () => {
+      const from = new Date('2099-01-01T00:00:00Z');
+      const to = new Date('2099-12-31T23:59:59Z');
+
+      const overview = await analytics.query.getOverview(from, to);
+
+      expect(overview.sent).toBe(0);
+      expect(overview.bounced).toBe(0);
+      expect(overview.failed).toBe(0);
+      expect(overview.delivered).toBe(0);
+    });
+
+    it('should complete aggregation without error when no events exist', async () => {
+      const today = new Date();
+
+      // aggregateDaily with no events should not throw
+      await expect(
+        analytics.aggregator.aggregateDaily(today),
+      ).resolves.not.toThrow();
+
+      // Stats should be empty or zero
+      const overview = await analytics.query.getOverview(today, today);
+      expect(overview.sent).toBe(0);
+    });
+
+    it('should reject event with extremely long recipientEmail field', async () => {
+      const longEmail = 'a'.repeat(10000) + '@example.com';
+
+      await expect(
+        analytics.events.record(
+          makeEvent({ recipientEmail: longEmail }),
+        ),
+      ).rejects.toThrow(/maximum allowed length/);
+    });
+  });
 });

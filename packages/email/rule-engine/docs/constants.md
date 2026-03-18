@@ -28,6 +28,12 @@ import {
 
   EMAIL_SEND_STATUS,
   // { Sent: 'sent', Error: 'error', Skipped: 'skipped', Invalid: 'invalid', Throttled: 'throttled' }
+
+  TARGET_MODE,
+  // { Query: 'query', List: 'list' }
+
+  RUN_LOG_STATUS,
+  // { Completed: 'completed', Cancelled: 'cancelled', Failed: 'failed' }
 } from '@astralibx/email-rule-engine';
 ```
 
@@ -43,5 +49,7 @@ import type {
   EmailType,            // 'automated' | 'transactional'
   RunTrigger,           // 'cron' | 'manual'
   EmailSendStatus,      // 'sent' | 'error' | 'skipped' | 'invalid' | 'throttled'
+  TargetMode,           // 'query' | 'list'
+  RunLogStatus,         // 'completed' | 'cancelled' | 'failed'
 } from '@astralibx/email-rule-engine';
 ```

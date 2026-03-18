@@ -4,4 +4,5 @@ export { HistorySyncService, type SyncResult } from './history-sync.service';
 export { MessageService } from './message.service';
 export { SessionService } from './session.service';
 export { TypingBroadcasterService } from './typing-broadcaster.service';
+export { DialogLoaderService, type Dialog } from './dialog-loader.service';
 export { InboxEventGateway, type TypingEvent, type MessageReadEvent } from './websocket-gateway';

@@ -56,9 +56,10 @@ export class CannedResponseService {
     if (filters?.category) query.category = filters.category;
     if (filters?.isActive !== undefined) query.isActive = filters.isActive;
     if (filters?.search) {
+      const escaped = String(filters.search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       query.$or = [
-        { title: { $regex: filters.search, $options: 'i' } },
-        { content: { $regex: filters.search, $options: 'i' } },
+        { title: { $regex: escaped, $options: 'i' } },
+        { content: { $regex: escaped, $options: 'i' } },
       ];
     }
     return this.ChatCannedResponse.find(query).sort({ order: 1 });

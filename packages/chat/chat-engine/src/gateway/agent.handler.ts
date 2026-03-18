@@ -2,6 +2,7 @@ import type { Namespace, Socket } from 'socket.io';
 import type { LogAdapter } from '@astralibx/core';
 import {
   AgentEvent,
+  AgentStatus,
   ServerToAgentEvent,
   ServerToVisitorEvent,
   ChatSessionStatus,
@@ -12,8 +13,13 @@ import {
 import type {
   TransferChatPayload,
   SaveMemoryPayload,
+  SendAiMessagePayload,
+  AgentDisconnectedPayload,
   MessagePayload,
   TypingPayload,
+  LabelMessagePayload,
+  LabelSessionPayload,
+  UpdateStatusPayload,
 } from '@astralibx/chat-types';
 import type { SessionService } from '../services/session.service';
 import type { MessageService } from '../services/message.service';
@@ -28,12 +34,15 @@ import {
   broadcastStatsUpdate,
   broadcastSessionUpdate,
   broadcastModeChange,
+  broadcastQueuePositions,
 } from './notifications';
 import { clearAiDebounce } from './ai-debounce';
 import {
   validateMessageContent,
   validateSessionForMessaging,
+  validateAgentOwnership,
   setTypingTimeout,
+  clearTypingTimeout,
   withSocketErrorHandler,
 } from './helpers';
 
@@ -60,19 +69,29 @@ export function setupAgentHandlers(
     let connectedAgentId: string | undefined;
 
     socket.on(AgentEvent.Connect, withSocketErrorHandler(socket, deps.logger, async (payload: { token?: string; agentId: string }) => {
-      if (deps.config.adapters.authenticateAgent && payload.token) {
-        const identity = await deps.config.adapters.authenticateAgent(payload.token);
-        if (!identity) {
-          socket.emit('agent:error', { code: 'AUTH_FAILED', message: 'Agent authentication failed' });
+      if (deps.config.adapters.authenticateAgent) {
+        if (!payload.token) {
+          deps.logger.warn('Agent connection rejected: no token provided');
           socket.disconnect();
           return;
         }
+        const identity = await deps.config.adapters.authenticateAgent(payload.token);
+        if (!identity) {
+          deps.logger.warn('Agent connection rejected: invalid token');
+          socket.disconnect();
+          return;
+        }
+      } else {
+        deps.logger.warn('No authenticateAgent adapter configured — agent namespace is unprotected. Configure authenticateAgent for production use.');
       }
 
       const agent = await deps.agentService.connect(payload.agentId);
       connectedAgentId = payload.agentId;
 
       await deps.redisService.setAgentConnection(payload.agentId, socket.id, payload.agentId);
+
+      // Gap 25: Track agent connection count for multi-tab dedup
+      await deps.redisService.incrementAgentConnections(payload.agentId);
 
       const [waitingChats, assignedChats] = await Promise.all([
         deps.sessionService.findWaitingSessions(),
@@ -142,12 +161,20 @@ export function setupAgentHandlers(
       broadcastSessionUpdate(deps.notificationDeps, payload.sessionId, 'accepted', {
         agentId: connectedAgentId,
       });
+
+      // Gap 9: Recalculate queue positions for sessions behind the accepted one
+      const accepted = await deps.sessionService.findById(payload.sessionId);
+      if (accepted?.queuePosition != null) {
+        const updates = await deps.sessionService.recalculateQueuePositions(accepted.queuePosition);
+        await broadcastQueuePositions(updates, deps.emitDeps, deps.logger);
+      }
     }));
 
     socket.on(AgentEvent.SendMessage, withSocketErrorHandler(socket, deps.logger, async (payload: MessagePayload & { sessionId: string }) => {
       if (!connectedAgentId) return;
 
       const session = await deps.sessionService.findByIdOrFail(payload.sessionId);
+      validateAgentOwnership(session, connectedAgentId);
       validateSessionForMessaging(session);
 
       const content = validateMessageContent(payload.content, deps.options);
@@ -179,7 +206,7 @@ export function setupAgentHandlers(
       deps.config.hooks?.onMetric?.({
         name: 'message_sent',
         value: 1,
-        labels: { channel: session.channel, senderType: 'agent', contentType: payload.contentType || 'text' },
+        labels: { channel: session.channel, senderType: ChatSenderType.Agent, contentType: payload.contentType || ChatContentType.Text },
       });
     }));
 
@@ -202,10 +229,32 @@ export function setupAgentHandlers(
     socket.on(AgentEvent.ResolveChat, withSocketErrorHandler(socket, deps.logger, async (payload: { sessionId: string }) => {
       if (!connectedAgentId) return;
 
+      const preResolve = await deps.sessionService.findByIdOrFail(payload.sessionId);
+      validateAgentOwnership(preResolve, connectedAgentId);
+
       clearAiDebounce(payload.sessionId);
+
+      // Gap 9: Capture queue position before resolving
+      const preQueuePosition = preResolve?.queuePosition;
 
       const session = await deps.sessionService.resolve(payload.sessionId);
       await deps.agentService.decrementChats(connectedAgentId);
+
+      // Gap 23: Conversation archiving hook
+      if (deps.config.hooks?.onSessionArchive) {
+        const archiveMessages = await deps.messageService.findBySession(payload.sessionId);
+        await deps.config.hooks.onSessionArchive({
+          sessionId: session.sessionId,
+          visitorId: session.visitorId,
+          messages: archiveMessages.map(m => deps.messageService.toPayload(m)),
+          metadata: session.metadata,
+        }).catch((err: unknown) => {
+          deps.logger.error('Session archive hook failed', {
+            sessionId: payload.sessionId,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+        });
+      }
 
       await deps.messageService.createSystemMessage(
         payload.sessionId,
@@ -238,6 +287,12 @@ export function setupAgentHandlers(
         totalAgents,
         activeAgents,
       });
+
+      // Gap 9: Recalculate queue positions for sessions behind the resolved one
+      if (preQueuePosition != null) {
+        const updates = await deps.sessionService.recalculateQueuePositions(preQueuePosition);
+        await broadcastQueuePositions(updates, deps.emitDeps, deps.logger);
+      }
     }));
 
     socket.on(AgentEvent.TakeOver, withSocketErrorHandler(socket, deps.logger, async (payload: { sessionId: string }) => {
@@ -324,22 +379,42 @@ export function setupAgentHandlers(
     }));
 
     socket.on(AgentEvent.SaveMemory, withSocketErrorHandler(socket, deps.logger, async (payload: SaveMemoryPayload) => {
-      deps.logger.info('Memory save requested', {
+      if (!deps.config.hooks?.onSaveMemory) {
+        socket.emit(ServerToAgentEvent.SessionEvent, { error: 'Memory feature not configured' });
+        return;
+      }
+
+      const session = await deps.sessionService.findByIdOrFail(payload.sessionId);
+      await deps.config.hooks.onSaveMemory({
         sessionId: payload.sessionId,
+        visitorId: session.visitorId,
+        content: payload.content,
         key: payload.key,
         category: payload.category,
       });
+
+      deps.logger.info('Memory saved', { sessionId: payload.sessionId });
     }));
 
-    socket.on(AgentEvent.DeleteMemory, withSocketErrorHandler(socket, deps.logger, async (payload: { sessionId: string; key: string }) => {
-      deps.logger.info('Memory delete requested', {
+    socket.on(AgentEvent.DeleteMemory, withSocketErrorHandler(socket, deps.logger, async (payload: { sessionId: string; memoryId: string }) => {
+      if (!deps.config.hooks?.onDeleteMemory) {
+        socket.emit(ServerToAgentEvent.SessionEvent, { error: 'Memory feature not configured' });
+        return;
+      }
+
+      await deps.config.hooks.onDeleteMemory({
         sessionId: payload.sessionId,
-        key: payload.key,
+        memoryId: payload.memoryId,
       });
+
+      deps.logger.info('Memory deleted', { sessionId: payload.sessionId, memoryId: payload.memoryId });
     }));
 
     socket.on(AgentEvent.TransferChat, withSocketErrorHandler(socket, deps.logger, async (payload: TransferChatPayload) => {
       if (!connectedAgentId) return;
+
+      const sessionToTransfer = await deps.sessionService.findByIdOrFail(payload.sessionId);
+      validateAgentOwnership(sessionToTransfer, connectedAgentId);
 
       const session = await deps.sessionService.transfer(
         payload.sessionId,
@@ -380,12 +455,139 @@ export function setupAgentHandlers(
       });
     }));
 
+    socket.on(AgentEvent.SendAiMessage, withSocketErrorHandler(socket, deps.logger, async (payload: SendAiMessagePayload) => {
+      if (!connectedAgentId) return;
+
+      if (!deps.config.adapters.generateAiResponse) {
+        socket.emit(ServerToAgentEvent.SessionEvent, {
+          sessionId: payload.sessionId,
+          error: 'AI not configured',
+        });
+        return;
+      }
+
+      const session = await deps.sessionService.findByIdOrFail(payload.sessionId);
+      const messages = await deps.messageService.findBySession(payload.sessionId, deps.options.maxSessionHistory);
+
+      const agentDoc = await deps.agentService.findById(connectedAgentId);
+      const aiAgent = agentDoc || await deps.agentService.findDefaultAiAgent();
+      const agentInfo = aiAgent ? deps.agentService.toAgentInfo(aiAgent) : {
+        agentId: 'ai',
+        name: 'AI Assistant',
+        status: AgentStatus.Available,
+        isAI: true,
+      };
+
+      const aiInput = {
+        sessionId: session.sessionId,
+        visitorId: session.visitorId,
+        messages: messages.map(m => deps.messageService.toPayload(m)),
+        agent: agentInfo,
+        visitorContext: {
+          visitorId: session.visitorId,
+          channel: session.channel,
+          fingerprint: session.visitorFingerprint,
+        },
+        conversationSummary: session.conversationSummary,
+        metadata: session.metadata,
+      };
+
+      const aiOutput = await deps.config.adapters.generateAiResponse(aiInput);
+
+      for (const content of aiOutput.messages) {
+        const msg = await deps.messageService.create({
+          sessionId: session.sessionId,
+          senderType: ChatSenderType.AI,
+          senderName: agentInfo.name,
+          content,
+          contentType: ChatContentType.Text,
+        });
+
+        await deps.sessionService.updateLastMessage(session.sessionId);
+
+        const messagePayload = deps.messageService.toPayload(msg);
+
+        await emitToVisitor(deps.emitDeps, session.sessionId, ServerToVisitorEvent.Message, {
+          message: messagePayload,
+        });
+
+        deps.emitDeps.agentNs?.emit(ServerToAgentEvent.Message, {
+          sessionId: session.sessionId,
+          message: messagePayload,
+        });
+      }
+
+      if (aiOutput.conversationSummary) {
+        await deps.sessionService.updateConversationSummary(session.sessionId, aiOutput.conversationSummary);
+      }
+
+      deps.logger.info('AI message sent by agent', {
+        sessionId: payload.sessionId,
+        messageCount: aiOutput.messages.length,
+      });
+    }));
+
+    // Gap 8: Message labeling
+    socket.on(AgentEvent.LabelMessage, withSocketErrorHandler(socket, deps.logger, async (payload: LabelMessagePayload) => {
+      if (!deps.options.labelingEnabled) return;
+      await deps.messageService.updateLabel(payload.messageId, payload.trainingQuality);
+      deps.logger.info('Message labeled', { messageId: payload.messageId, quality: payload.trainingQuality });
+    }));
+
+    // Gap 8: Session labeling
+    socket.on(AgentEvent.LabelSession, withSocketErrorHandler(socket, deps.logger, async (payload: LabelSessionPayload) => {
+      if (!deps.options.labelingEnabled) return;
+      await deps.sessionService.updateMetadata(payload.sessionId, {
+        trainingQuality: payload.trainingQuality,
+      });
+      deps.logger.info('Session labeled', { sessionId: payload.sessionId, quality: payload.trainingQuality });
+    }));
+
+    // Gap 11: Agent status update
+    socket.on(AgentEvent.UpdateStatus, withSocketErrorHandler(socket, deps.logger, async (payload: UpdateStatusPayload) => {
+      if (!connectedAgentId) return;
+
+      await deps.agentService.updateStatus(connectedAgentId, payload.status);
+
+      const stats = await deps.sessionService.getDashboardStats();
+      const [totalAgents, activeAgents] = await Promise.all([
+        deps.agentService.getTotalAgentCount(),
+        deps.agentService.getOnlineAgentCount(),
+      ]);
+      broadcastStatsUpdate(deps.notificationDeps, {
+        ...stats,
+        totalAgents,
+        activeAgents,
+      });
+
+      deps.logger.info('Agent status updated', { agentId: connectedAgentId, status: payload.status });
+    }));
+
     socket.on('disconnect', async () => {
       deps.logger.info('Agent socket disconnected', { socketId: socket.id, agentId: connectedAgentId });
 
       if (connectedAgentId) {
+        // Clear typing timeouts for all sessions this agent was handling
+        const assignedSessions = await deps.sessionService.findByAgent(connectedAgentId);
+        for (const session of assignedSessions) {
+          clearTypingTimeout(`agent:${session.sessionId}`);
+        }
+
+        // Notify visitors whose agent has disconnected
+        const agentDoc = await deps.agentService.findById(connectedAgentId);
+        for (const session of assignedSessions) {
+          await emitToVisitor(deps.emitDeps, session.sessionId, ServerToVisitorEvent.AgentDisconnected, {
+            sessionId: session.sessionId,
+            agentId: connectedAgentId,
+            agentName: agentDoc?.name,
+          } as AgentDisconnectedPayload);
+        }
+
         await deps.agentService.disconnect(connectedAgentId);
         await deps.redisService.removeAgentConnection(connectedAgentId);
+
+        // Gap 25: Decrement agent connection count
+        await deps.redisService.decrementAgentConnections(connectedAgentId);
 
         const dashStats = await deps.sessionService.getDashboardStats();
         const [totalAgents, activeAgents] = await Promise.all([

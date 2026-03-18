@@ -14,6 +14,8 @@ Rules define **who** gets a message, **when**, and **how often**. Each rule link
 | `sendOnce` | `boolean` | `false` | Send only once per user, ever |
 | `validFrom` | `Date` | -- | Rule is inactive before this date |
 | `validTill` | `Date` | -- | Rule is inactive after this date |
+| `platform` | `string` | -- | Optional platform categorization (validated against `platforms` config if set) |
+| `audience` | `string` | -- | Optional audience categorization (validated against `audiences` config if set) |
 
 ## Targeting (Discriminated Union)
 

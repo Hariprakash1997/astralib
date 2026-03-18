@@ -14,12 +14,23 @@ import {
   alxProgressBarStyles,
 } from '../../styles/shared.js';
 import { TelegramAccountAPI } from '../../api/account.api.js';
+import {
+  iconEdit,
+  iconDelete,
+  iconPlus,
+  iconRefresh,
+  iconConnect,
+  iconDisconnect,
+  iconChevronLeft,
+  iconChevronRight,
+} from '../../utils/icons.js';
 
 interface TgAccount {
   _id: string;
   phone: string;
   name?: string;
   status: string;
+  tags?: string[];
   health?: { score?: number };
   dailyLimit?: number;
   sentToday?: number;
@@ -64,6 +75,8 @@ export class AlxTgAccountList extends LitElement {
       .health-good { color: var(--alx-success); }
       .health-fair { color: var(--alx-warning); }
       .health-poor { color: var(--alx-danger); }
+      .tag-filter-input { width: 120px; }
+      .alx-table-wrap { overflow-x: auto; }
     `,
   ];
 
@@ -76,6 +89,7 @@ export class AlxTgAccountList extends LitElement {
   @state() private loading = false;
   @state() private error = '';
   @state() private statusFilter = '';
+  @state() private tagFilter = '';
 
   private _api?: TelegramAccountAPI;
   private get api(): TelegramAccountAPI {
@@ -99,6 +113,7 @@ export class AlxTgAccountList extends LitElement {
         limit: this.limit,
       };
       if (this.statusFilter) params['status'] = this.statusFilter;
+      if (this.tagFilter) params['tag'] = this.tagFilter;
 
       const res = await this.api.listAccounts(params) as {
         accounts: TgAccount[];
@@ -136,6 +151,35 @@ export class AlxTgAccountList extends LitElement {
     this.statusFilter = (e.target as HTMLSelectElement).value;
     this.page = 1;
     this.load();
+  }
+
+  private onTagChange(e: Event): void {
+    this.tagFilter = (e.target as HTMLInputElement).value;
+    this.page = 1;
+    this.load();
+  }
+
+  private async onConnectAll(): Promise<void> {
+    try {
+      const res = await this.api.connectAll() as { connected: number; errors: number };
+      this.load();
+      this.dispatchEvent(new CustomEvent('alx-toast', {
+        detail: { message: `Connected ${res.connected} accounts${res.errors ? `, ${res.errors} errors` : ''}` },
+        bubbles: true, composed: true,
+      }));
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : 'Failed to connect all';
+    }
+  }
+
+  private async onDisconnectAll(): Promise<void> {
+    if (!confirm('Disconnect all accounts?')) return;
+    try {
+      await this.api.disconnectAll();
+      this.load();
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : 'Failed to disconnect all';
+    }
   }
 
   private onPrev(): void {
@@ -239,11 +283,21 @@ export class AlxTgAccountList extends LitElement {
             <option value="warmup">Warmup</option>
           </select>
 
+          <input
+            type="text"
+            placeholder="Filter by tag..."
+            .value=${this.tagFilter}
+            @input=${this.onTagChange}
+            class="tag-filter-input"
+          />
+
           <span class="spacer"></span>
 
-          <button @click=${() => this.load()}>Refresh</button>
+          <button @click=${() => this.load()}>${iconRefresh(14)} Refresh</button>
+          <button class="alx-btn-sm alx-btn-success" @click=${this.onConnectAll}>${iconConnect(14)} Connect All</button>
+          <button class="alx-btn-sm" @click=${this.onDisconnectAll}>${iconDisconnect(14)} Disconnect All</button>
           <button class="alx-btn-primary" @click=${this.onCreate}>
-            + Add Account
+            ${iconPlus(14)} Add Account
           </button>
         </div>
 
@@ -254,10 +308,10 @@ export class AlxTgAccountList extends LitElement {
             ? html`<div class="alx-empty">
   <p>Add your Telegram accounts to start sending.</p>
   <p>Each account needs a phone number and session string.</p>
-  <button class="alx-btn-primary alx-btn-sm" style="margin-top:0.5rem" @click=${this.onCreate}>+ Add Account</button>
+  <button class="alx-btn-primary alx-btn-sm" style="margin-top:0.5rem" @click=${this.onCreate}>${iconPlus(14)} Add Account</button>
 </div>`
             : html`
-                <table>
+                <div class="alx-table-wrap"><table>
                   <thead>
                     <tr>
                       <th>NAME</th>
@@ -275,6 +329,9 @@ export class AlxTgAccountList extends LitElement {
                           <td>
                             <div class="phone-cell">
                               <div class="phone-cell-main">${a.name || '--'}</div>
+                              <div class="phone-cell-sub">
+                                ${a.tags?.length ? a.tags.map(t => html`<span class="alx-badge alx-badge-muted" style="font-size:0.6rem;margin-right:2px">${t}</span>`) : ''}
+                              </div>
                             </div>
                           </td>
                           <td>${a.phone}</td>
@@ -303,27 +360,27 @@ export class AlxTgAccountList extends LitElement {
                           <td>
                             <div class="action-group">
                               ${a.status === 'disconnected'
-                                ? html`<button class="alx-btn-sm alx-btn-success" @click=${(e: Event) => this.onConnect(e, a)}>Connect</button>`
+                                ? html`<button class="alx-btn-sm alx-btn-success" @click=${(e: Event) => this.onConnect(e, a)}>${iconConnect(14)} Connect</button>`
                                 : a.status === 'connected'
-                                  ? html`<button class="alx-btn-sm" @click=${(e: Event) => this.onDisconnect(e, a)}>Disconnect</button>`
+                                  ? html`<button class="alx-btn-sm" @click=${(e: Event) => this.onDisconnect(e, a)}>${iconDisconnect(14)} Disconnect</button>`
                                   : ''}
                               <button
                                 class="alx-btn-icon"
                                 title="Edit"
                                 @click=${() => this.onEdit(a)}
-                              >&#9998;</button>
+                              >${iconEdit(14)}</button>
                               <button
                                 class="alx-btn-icon danger"
                                 title="Delete"
                                 @click=${(e: Event) => this.onDelete(e, a)}
-                              >&times;</button>
+                              >${iconDelete(14)}</button>
                             </div>
                           </td>
                         </tr>
                       `,
                     )}
                   </tbody>
-                </table>
+                </table></div>
 
                 <div class="pagination">
                   <button
@@ -331,7 +388,7 @@ export class AlxTgAccountList extends LitElement {
                     ?disabled=${this.page <= 1}
                     @click=${this.onPrev}
                   >
-                    Prev
+                    ${iconChevronLeft(14)} Prev
                   </button>
                   <span class="text-small text-muted">
                     Page ${this.page} of ${this.totalPages}
@@ -341,7 +398,7 @@ export class AlxTgAccountList extends LitElement {
                     ?disabled=${this.page >= this.totalPages}
                     @click=${this.onNext}
                   >
-                    Next
+                    Next ${iconChevronRight(14)}
                   </button>
                 </div>
               `}

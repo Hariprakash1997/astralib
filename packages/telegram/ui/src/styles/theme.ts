@@ -45,6 +45,14 @@ export const alxBaseStyles = css`
     color: var(--alx-text, #ccc);
     background: var(--alx-bg, #111);
     box-sizing: border-box;
+    --alx-inbox-height: 500px;
+    --alx-inbox-conv-width: 280px;
+    --alx-stat-value-size: 1.25rem;
+    --alx-drawer-width: min(520px, 90vw);
+  }
+
+  :host([density="compact"]) {
+    --alx-stat-value-size: 1rem;
   }
 
   *,

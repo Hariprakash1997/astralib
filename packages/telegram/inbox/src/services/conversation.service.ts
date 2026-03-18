@@ -1,7 +1,9 @@
 import { noopLogger } from '@astralibx/core';
+import type { PipelineStage } from 'mongoose';
 import type { LogAdapter, TelegramInboxConfig } from '../types/config.types';
 import type { TelegramMessageModel, TelegramMessageDocument } from '../schemas/telegram-message.schema';
 import type { InboxEventGateway } from './websocket-gateway';
+import { DIRECTION_INBOUND } from '../constants';
 
 export interface ConversationListItem {
   conversationId: string;
@@ -16,6 +18,7 @@ export interface ConversationListItem {
 }
 
 export interface ConversationFilters {
+  accountId?: string;
   direction?: 'inbound' | 'outbound';
   contentType?: string;
   startDate?: Date;
@@ -45,6 +48,7 @@ export class ConversationService {
   ): Promise<{ items: ConversationListItem[]; total: number }> {
     const matchStage: Record<string, unknown> = {};
 
+    if (filters?.accountId) matchStage.accountId = filters.accountId;
     if (filters?.direction) matchStage.direction = filters.direction;
     if (filters?.contentType) matchStage.contentType = filters.contentType;
     if (filters?.startDate || filters?.endDate) {
@@ -53,7 +57,7 @@ export class ConversationService {
       if (filters.endDate) (matchStage.createdAt as Record<string, unknown>).$lte = filters.endDate;
     }
 
-    const pipeline: any[] = [];
+    const pipeline: PipelineStage[] = [];
 
     if (Object.keys(matchStage).length > 0) {
       pipeline.push({ $match: matchStage });
@@ -76,7 +80,7 @@ export class ConversationService {
           unreadCount: {
             $sum: {
               $cond: [
-                { $and: [{ $eq: ['$direction', 'inbound'] }, { $eq: ['$readAt', null] }] },
+                { $and: [{ $eq: ['$direction', DIRECTION_INBOUND] }, { $eq: ['$readAt', null] }] },
                 1,
                 0,
               ],
@@ -87,24 +91,22 @@ export class ConversationService {
       { $sort: { 'lastMessage.createdAt': -1 as const } },
     );
 
-    // Count total distinct conversations
-    const countPipeline = [...pipeline, { $count: 'total' }];
-    const countResult = await this.TelegramMessage.aggregate(countPipeline);
-    const total = countResult[0]?.total || 0;
+    // Use $facet to get count and paginated results in a single aggregation
+    pipeline.push({
+      $facet: {
+        metadata: [{ $count: 'total' }],
+        data: [{ $skip: (page - 1) * limit }, { $limit: limit }],
+      },
+    });
 
-    // Paginate
-    pipeline.push(
-      { $skip: (page - 1) * limit },
-      { $limit: limit },
-    );
+    const [facetResult] = await this.TelegramMessage.aggregate(pipeline);
+    const total = facetResult?.metadata[0]?.total || 0;
 
-    const results = await this.TelegramMessage.aggregate(pipeline);
-
-    const items: ConversationListItem[] = results.map((r: any) => ({
-      conversationId: r._id,
-      lastMessage: r.lastMessage,
-      messageCount: r.messageCount,
-      unreadCount: r.unreadCount,
+    const items: ConversationListItem[] = (facetResult?.data || []).map((r: Record<string, unknown>) => ({
+      conversationId: r._id as string,
+      lastMessage: r.lastMessage as ConversationListItem['lastMessage'],
+      messageCount: r.messageCount as number,
+      unreadCount: r.unreadCount as number,
     }));
 
     return { items, total };
@@ -114,8 +116,10 @@ export class ConversationService {
     conversationId: string,
     page = 1,
     limit = 50,
+    accountId?: string,
   ): Promise<{ items: TelegramMessageDocument[]; total: number }> {
-    const query = { conversationId };
+    const query: Record<string, unknown> = { conversationId };
+    if (accountId) query.accountId = accountId;
 
     const [items, total] = await Promise.all([
       this.TelegramMessage.find(query)
@@ -128,14 +132,21 @@ export class ConversationService {
     return { items, total };
   }
 
+  // Note: Uses $regex for search which does a collection scan. For large datasets,
+  // consider adding a MongoDB text index on the 'content' field.
   async search(
     query: string,
     page = 1,
     limit = 50,
+    accountId?: string,
   ): Promise<{ items: TelegramMessageDocument[]; total: number }> {
-    const searchQuery = {
-      content: { $regex: query, $options: 'i' },
+    if (!query?.trim()) return { items: [], total: 0 };
+
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const searchQuery: Record<string, unknown> = {
+      content: { $regex: escaped, $options: 'i' },
     };
+    if (accountId) searchQuery.accountId = accountId;
 
     const [items, total] = await Promise.all([
       this.TelegramMessage.find(searchQuery)
@@ -148,12 +159,13 @@ export class ConversationService {
     return { items, total };
   }
 
-  async markAsRead(conversationId: string, upToMessageId?: string): Promise<number> {
+  async markAsRead(conversationId: string, upToMessageId?: string, accountId?: string): Promise<number> {
     const query: Record<string, unknown> = {
       conversationId,
-      direction: 'inbound',
+      direction: DIRECTION_INBOUND,
       readAt: null,
     };
+    if (accountId) query.accountId = accountId;
 
     if (upToMessageId) {
       const upToMessage = await this.TelegramMessage.findOne({ messageId: upToMessageId });
@@ -162,14 +174,15 @@ export class ConversationService {
       }
     }
 
+    const readAt = new Date();
     const result = await this.TelegramMessage.updateMany(query, {
-      $set: { readAt: new Date() },
+      $set: { readAt },
     });
 
     this.logger.info('Messages marked as read', { conversationId, count: result.modifiedCount });
 
     try {
-      this.hooks?.onMessageRead?.({ messageId: upToMessageId || 'all', chatId: conversationId, readAt: new Date() });
+      this.hooks?.onMessageRead?.({ messageId: upToMessageId || 'all', chatId: conversationId, readAt });
     } catch (e) {
       this.logger.error('onMessageRead hook error', e as Record<string, unknown>);
     }
@@ -179,15 +192,14 @@ export class ConversationService {
     return result.modifiedCount;
   }
 
-  async getUnreadCount(conversationId?: string): Promise<number> {
+  async getUnreadCount(conversationId?: string, accountId?: string): Promise<number> {
     const query: Record<string, unknown> = {
-      direction: 'inbound',
+      direction: DIRECTION_INBOUND,
       readAt: null,
     };
 
-    if (conversationId) {
-      query.conversationId = conversationId;
-    }
+    if (accountId) query.accountId = accountId;
+    if (conversationId) query.conversationId = conversationId;
 
     return this.TelegramMessage.countDocuments(query);
   }

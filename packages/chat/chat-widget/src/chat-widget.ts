@@ -21,6 +21,9 @@ import type {
   AgentSelectorStep,
   PostChatConfig,
   OfflineConfig,
+  AgentDisconnectedPayload,
+  SupportPersonsPayload,
+  ChatWidgetFeatures,
 } from '@astralibx/chat-types';
 import {
   ChatSenderType,
@@ -82,6 +85,53 @@ export class AlxChatWidget extends LitElement {
         position: relative;
         z-index: 9998;
       }
+      :host([dir="rtl"]) {
+        direction: rtl;
+      }
+      .connection-failed {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        min-height: 300px;
+        gap: 16px;
+        color: var(--alx-chat-text-muted);
+      }
+      .connection-failed-text {
+        font-size: 14px;
+        margin: 0;
+      }
+      .retry-connection-btn {
+        padding: 10px 24px;
+        border: 1px solid var(--alx-chat-border);
+        border-radius: var(--alx-chat-radius-sm);
+        background: transparent;
+        color: var(--alx-chat-text);
+        cursor: pointer;
+        font-size: 13px;
+        font-family: inherit;
+      }
+      .retry-connection-btn:hover {
+        background: var(--alx-chat-surface);
+        border-color: var(--alx-chat-primary);
+      }
+      .queue-status {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: var(--alx-chat-primary-light);
+        color: var(--alx-chat-text);
+        font-size: 13px;
+        font-weight: 500;
+        border-bottom: 1px solid var(--alx-chat-border);
+      }
+      .queue-status svg {
+        color: var(--alx-chat-primary);
+        flex-shrink: 0;
+      }
     `,
   ];
 
@@ -89,9 +139,11 @@ export class AlxChatWidget extends LitElement {
 
   @property({ attribute: 'socket-url' }) socketUrl = '';
   @property() channel = '';
-  @property({ reflect: true }) theme: 'light' | 'dark' = 'dark';
+  @property({ reflect: true }) theme: 'light' | 'dark' | 'auto' = 'dark';
   @property() position: 'bottom-right' | 'bottom-left' = 'bottom-right';
   @property({ attribute: 'primary-color' }) primaryColor = '';
+  @property() dir: 'ltr' | 'rtl' | 'auto' = 'auto';
+  @property() locale = '';
 
   // -- Internal state --
 
@@ -102,14 +154,16 @@ export class AlxChatWidget extends LitElement {
   @state() private status: ChatSessionStatus = ChatSessionStatusEnum.New;
   @state() private isTyping = false;
   @state() private unreadCount = 0;
-  @state() private connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' = 'disconnected';
+  @state() private connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed' = 'disconnected';
+  @state() private queuePosition: number | null = null;
   @state() private currentView: 'flow' | 'chat' | 'feedback' | 'offline' = 'chat';
   @state() private currentFlowStep: FlowStep | null = null;
+  @state() private _resolvedTheme: 'dark' | 'light' = 'dark';
 
   // -- Config --
 
   private translations: ChatTranslations = { ...DEFAULT_TRANSLATIONS };
-  private features = {
+  private features: ChatWidgetFeatures & { soundNotifications: boolean; desktopNotifications: boolean; typingIndicator: boolean; readReceipts: boolean } = {
     soundNotifications: true,
     desktopNotifications: false,
     typingIndicator: true,
@@ -119,6 +173,17 @@ export class AlxChatWidget extends LitElement {
   private branding: { primaryColor?: string; companyName?: string; logoUrl?: string } = {};
   private offlineConfig: OfflineConfig | null = null;
   private postChatConfig: PostChatConfig | null = null;
+
+  // -- Theme --
+
+  private _mediaQuery: MediaQueryList | null = null;
+  private _handleThemeChange = (e: MediaQueryListEvent) => {
+    if (this.theme === 'auto') {
+      this._resolvedTheme = e.matches ? 'dark' : 'light';
+      this.setAttribute('theme', this._resolvedTheme);
+      this.requestUpdate();
+    }
+  };
 
   // -- Services --
 
@@ -138,6 +203,8 @@ export class AlxChatWidget extends LitElement {
     if (config.channel) this.channel = config.channel;
     if (config.theme) this.theme = config.theme;
     if (config.position) this.position = config.position;
+    if (config.dir) this.dir = config.dir;
+    if (config.locale) this.locale = config.locale;
     if (config.translations) {
       this.translations = { ...DEFAULT_TRANSLATIONS, ...Object.fromEntries(Object.entries(config.translations).filter(([, v]) => v !== undefined)) } as ChatTranslations;
     }
@@ -166,10 +233,29 @@ export class AlxChatWidget extends LitElement {
     if (config.postChat) {
       this.postChatConfig = config.postChat;
     }
+
+    // Apply custom style overrides
+    if (config.styles) {
+      for (const [prop, value] of Object.entries(config.styles)) {
+        if (prop.startsWith('--alx-chat-')) {
+          this.style.setProperty(prop, value);
+        }
+      }
+    }
   }
 
   connectedCallback() {
     super.connectedCallback();
+
+    // Set ARIA attributes on host
+    this.setAttribute('role', 'complementary');
+    this.setAttribute('aria-label', 'Chat widget');
+    this.setAttribute('dir', this._resolveDir());
+
+    // Init theme media query listener
+    this._mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    this._mediaQuery.addEventListener('change', this._handleThemeChange);
+    this._resolveTheme();
 
     // Init storage manager
     this.storageManager = new ChatStorageManager(this.channel || 'default');
@@ -184,40 +270,100 @@ export class AlxChatWidget extends LitElement {
 
     // Listen for visibility change to stop title flash
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
+
+    // Handle file attachment clicks from chat-input
+    this.addEventListener('attach-click', this.handleAttachClick as EventListener);
+
+    // Handle message retry from chat-bubble
+    this.addEventListener('message-retry', this._handleMessageRetry as EventListener);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this._mediaQuery?.removeEventListener('change', this._handleThemeChange);
     this.socketManager?.disconnect();
     this.notificationManager?.destroy();
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
+    this.removeEventListener('attach-click', this.handleAttachClick as EventListener);
+    this.removeEventListener('message-retry', this._handleMessageRetry as EventListener);
   }
 
   updated(changedProps: Map<string, unknown>) {
-    // Apply primary color as CSS custom property
-    if (changedProps.has('primaryColor') && this.primaryColor) {
-      this.style.setProperty('--alx-chat-primary', this.primaryColor);
+    if (changedProps.has('theme')) {
+      this._resolveTheme();
+      this.setAttribute('theme', this._resolvedTheme);
     }
+    if (changedProps.has('primaryColor')) {
+      this._applyPrimaryColor(this.primaryColor);
+    }
+    if (changedProps.has('dir') || changedProps.has('locale')) {
+      this.setAttribute('dir', this._resolveDir());
+    }
+  }
+
+  private _resolveTheme(): void {
+    if (this.theme === 'auto') {
+      this._resolvedTheme = this._mediaQuery?.matches ? 'dark' : 'light';
+    } else {
+      this._resolvedTheme = this.theme;
+    }
+    this.setAttribute('theme', this._resolvedTheme);
+  }
+
+  private _resolveDir(): 'ltr' | 'rtl' {
+    if (this.dir === 'ltr' || this.dir === 'rtl') return this.dir;
+    const rtlLocales = ['ar', 'he', 'fa', 'ur', 'ps', 'sd', 'yi'];
+    const lang = (this.locale || navigator.language || 'en').split('-')[0].toLowerCase();
+    return rtlLocales.includes(lang) ? 'rtl' : 'ltr';
+  }
+
+  private _applyPrimaryColor(hex: string): void {
+    if (!hex) return;
+    const style = this.style;
+    style.setProperty('--alx-chat-primary', hex);
+    style.setProperty('--alx-chat-primary-hover', `color-mix(in srgb, ${hex} 85%, #000)`);
+    // primary-light and primary-muted are already derived via color-mix in shared.ts
   }
 
   render() {
     return html`
-      <alx-chat-window
-        .open=${this.isOpen && this.currentView === 'chat'}
-        .position=${this.position}
-        .messages=${this.messages}
-        .agentName=${this.agent?.name ?? this.branding.companyName ?? this.translations.welcomeTitle}
-        .agentAvatar=${this.agent?.avatar ?? this.branding.logoUrl ?? ''}
-        .connectionStatus=${this.connectionStatus}
-        .isTyping=${this.isTyping}
-        .typingLabel=${this.agent?.name ? `${this.agent.name} is typing...` : 'Agent is typing...'}
-        .inputPlaceholder=${this.translations.inputPlaceholder}
-        .inputDisabled=${this.connectionStatus !== 'connected'}
-        @minimize=${this.handleToggle}
-        @end-chat=${this.handleEndChat}
-        @send=${this.handleSend}
-        @typing=${this.handleLocalTyping}
-      ></alx-chat-window>
+      ${this.connectionStatus === 'failed' && this.isOpen && this.currentView === 'chat' ? html`
+        <div class="connection-failed">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <circle cx="20" cy="20" r="16" stroke="currentColor" stroke-width="2"/>
+            <line x1="14" y1="14" x2="26" y2="26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="26" y1="14" x2="14" y2="26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <p class="connection-failed-text">Unable to connect to chat server</p>
+          <button class="retry-connection-btn" @click=${this._retryConnection}>Try Again</button>
+        </div>
+      ` : html`
+        ${this.status === ChatSessionStatusEnum.WaitingAgent && this.queuePosition != null ? html`
+          <div class="queue-status">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+              <polyline points="8 4 8 8 11 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>You're #${this.queuePosition} in queue</span>
+          </div>
+        ` : nothing}
+        <alx-chat-window
+          .open=${this.isOpen && this.currentView === 'chat'}
+          .position=${this.position}
+          .messages=${this.messages}
+          .agentName=${this.agent?.name ?? this.branding.companyName ?? this.translations.welcomeTitle}
+          .agentAvatar=${this.agent?.avatar ?? this.branding.logoUrl ?? ''}
+          .connectionStatus=${this.connectionStatus}
+          .isTyping=${this.isTyping}
+          .typingLabel=${this.agent?.name ? `${this.agent.name} is typing...` : 'Agent is typing...'}
+          .inputPlaceholder=${this.translations.inputPlaceholder}
+          .inputDisabled=${this.connectionStatus !== 'connected'}
+          @minimize=${this.handleToggle}
+          @end-chat=${this.handleEndChat}
+          @send=${this.handleSend}
+          @typing=${this.handleLocalTyping}
+        ></alx-chat-window>
+      `}
       ${this.isOpen && this.currentView !== 'chat' ? this.renderOverlayView() : nothing}
       <alx-chat-launcher
         .open=${this.isOpen}
@@ -426,10 +572,29 @@ export class AlxChatWidget extends LitElement {
   };
 
   private handleFeedbackSubmitted = (e: CustomEvent) => {
-    this.fireEvent('chat:feedback-submitted', e.detail);
+    const detail = e.detail;
+
+    if (detail.skipped) {
+      // User skipped feedback, disconnect and close
+      this.socketManager?.disconnect();
+      this.connectionStatus = 'disconnected';
+      this.currentView = 'chat';
+      return;
+    }
+
+    // Send feedback via socket before disconnecting
+    this.socketManager?.sendFeedback(detail.rating, detail.survey);
+
+    // Dispatch to host for consumer analytics
+    this.dispatchEvent(new CustomEvent('chat:feedback-submitted', {
+      bubbles: true, composed: true,
+      detail: { rating: detail.rating, survey: detail.survey },
+    }));
 
     // Close widget after a short delay for thank-you message
     setTimeout(() => {
+      this.socketManager?.disconnect();
+      this.connectionStatus = 'disconnected';
       this.isOpen = false;
       this.storageManager?.setWidgetOpen(false);
       this.currentView = 'chat';
@@ -500,7 +665,7 @@ export class AlxChatWidget extends LitElement {
 
   private handleSend = (e: CustomEvent<{ content: string }>) => {
     const { content } = e.detail;
-    if (!content.trim()) return;
+    if (!content.trim() || !this.sessionId) return;
 
     const tempId = `temp-${++this.tempIdCounter}-${Date.now()}`;
 
@@ -540,6 +705,23 @@ export class AlxChatWidget extends LitElement {
     this.socketManager?.sendTyping(e.detail.isTyping);
   };
 
+  private handleAttachClick = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,application/pdf,.doc,.docx,.txt';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      this.dispatchEvent(new CustomEvent('chat:file-selected', {
+        bubbles: true,
+        composed: true,
+        detail: { file, name: file.name, type: file.type, size: file.size },
+      }));
+    };
+    input.click();
+  };
+
   private handleEndChat = () => {
     if (this.sessionId) {
       this.fireEvent('chat:session-ended', { sessionId: this.sessionId });
@@ -548,9 +730,7 @@ export class AlxChatWidget extends LitElement {
     // Check if post-chat feedback is enabled
     if (this.postChatConfig?.enabled) {
       this.currentView = 'feedback';
-      // Disconnect socket but keep widget open for feedback
-      this.socketManager?.disconnect();
-      this.connectionStatus = 'disconnected';
+      // Keep socket alive so sendFeedback can reach the server
       return;
     }
 
@@ -570,6 +750,45 @@ export class AlxChatWidget extends LitElement {
     if (this.flowManager.isFlowEnabled()) {
       this.flowManager.reset();
     }
+  };
+
+  private _retryConnection = () => {
+    this.connectionStatus = 'connecting';
+    this.messages = [];
+    this.sessionId = null;
+    this.agent = null;
+    this.queuePosition = null;
+    this.socketManager?.disconnect();
+    this.socketManager = null;
+    this.initSocket();
+  };
+
+  private _handleMessageRetry = (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const messageId = detail?.messageId;
+    if (!messageId) return;
+
+    const msg = this.messages.find(m => m.messageId === messageId || m._id === messageId);
+    if (!msg) return;
+
+    const newTempId = `temp-${++this.tempIdCounter}-${Date.now()}`;
+
+    // Update status to sending and assign new tempId
+    this.messages = this.messages.map(m =>
+      (m.messageId === messageId || m._id === messageId)
+        ? { ...m, messageId: newTempId, _id: newTempId, status: ChatMessageStatus.Sending }
+        : m,
+    );
+
+    this.socketManager
+      ?.sendMessage(msg.content, msg.contentType, newTempId)
+      .catch(() => {
+        this.messages = this.messages.map(m =>
+          m.messageId === newTempId
+            ? { ...m, status: ChatMessageStatus.Failed }
+            : m,
+        );
+      });
   };
 
   private handleVisibilityChange = () => {
@@ -598,10 +817,18 @@ export class AlxChatWidget extends LitElement {
       onStatus: this.onSocketStatus,
       onAgentJoin: this.onSocketAgentJoin,
       onAgentLeave: this.onSocketAgentLeave,
+      onAgentDisconnected: this.onSocketAgentDisconnected,
+      onSupportPersons: this.onSocketSupportPersons,
       onError: this.onSocketError,
       onConnectionChange: (status) => {
         this.connectionStatus = status;
       },
+      onConnectionFailed: () => {
+        this.connectionStatus = 'failed';
+        this.fireEvent('chat:connection-failed');
+      },
+    }, '/chat', {
+      maxReconnectAttempts: this.features.maxReconnectAttempts,
     });
 
     this.socketManager.connect(
@@ -636,9 +863,14 @@ export class AlxChatWidget extends LitElement {
 
     if (tempId) {
       // Replace optimistic message
-      this.messages = this.messages.map((m) =>
-        m.messageId === tempId ? message : m,
-      );
+      const exists = this.messages.some(m => m.messageId === tempId);
+      if (exists) {
+        this.messages = this.messages.map((m) =>
+          m.messageId === tempId ? message : m,
+        );
+      } else {
+        this.messages = [...this.messages, message];
+      }
     } else {
       this.messages = [...this.messages, message];
     }
@@ -656,12 +888,20 @@ export class AlxChatWidget extends LitElement {
     }
   };
 
-  private onSocketMessageStatus = (payload: MessageStatusPayload) => {
-    this.messages = this.messages.map((m) =>
-      m.messageId === payload.messageId
-        ? { ...m, status: payload.status, deliveredAt: payload.deliveredAt, readAt: payload.readAt }
-        : m,
-    );
+  private onSocketMessageStatus = (payload: MessageStatusPayload & { tempId?: string }) => {
+    this.messages = this.messages.map((m) => {
+      // Match by messageId OR by tempId (for optimistic messages not yet confirmed)
+      if (m.messageId === payload.messageId || (payload.tempId && m.messageId === payload.tempId)) {
+        return {
+          ...m,
+          messageId: payload.messageId, // Update to real messageId
+          status: payload.status,
+          deliveredAt: payload.deliveredAt,
+          readAt: payload.readAt,
+        };
+      }
+      return m;
+    });
   };
 
   private onSocketTyping = (payload: TypingPayload) => {
@@ -675,6 +915,7 @@ export class AlxChatWidget extends LitElement {
     if (payload.agent) {
       this.agent = payload.agent;
     }
+    this.queuePosition = payload.queuePosition ?? null;
   };
 
   private onSocketAgentJoin = (agent: ChatAgentInfo) => {
@@ -683,6 +924,19 @@ export class AlxChatWidget extends LitElement {
 
   private onSocketAgentLeave = () => {
     this.agent = null;
+  };
+
+  private onSocketAgentDisconnected = (payload: AgentDisconnectedPayload) => {
+    // Agent went offline — clear the agent and notify user
+    this.agent = null;
+    this.fireEvent('chat:agent-disconnected', {
+      agentId: payload.agentId,
+      agentName: payload.agentName,
+    });
+  };
+
+  private onSocketSupportPersons = (payload: SupportPersonsPayload) => {
+    this.fireEvent('chat:support-persons', { agents: payload.agents });
   };
 
   private onSocketError = (_payload: ChatErrorPayload) => {

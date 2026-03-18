@@ -57,6 +57,14 @@ export class TelegramAccountAPI {
     return this.http.post(`/accounts/${id}/release`);
   }
 
+  connectAll(): Promise<any> {
+    return this.http.post('/accounts/connect-all');
+  }
+
+  disconnectAll(): Promise<any> {
+    return this.http.post('/accounts/disconnect-all');
+  }
+
   getCapacity(id: string): Promise<any> {
     return this.http.get(`/accounts/${id}/capacity`);
   }

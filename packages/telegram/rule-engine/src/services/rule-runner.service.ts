@@ -1,6 +1,6 @@
 import { TemplateRenderService } from './template-render.service';
 import { RedisLock, noopLogger } from '@astralibx/core';
-import { isWithinSendWindow, calculateDelay, getHumanDelay } from '../utils/delay';
+import { isWithinSendWindow, calculateDelay, getHumanDelay, getHealthAdjustedDelay } from '../utils/delay';
 import type { TelegramRuleModel } from '../schemas/rule.schema';
 import type { TelegramTemplateModel } from '../schemas/template.schema';
 import type { TelegramSendLogModel } from '../schemas/send-log.schema';
@@ -17,8 +17,11 @@ import {
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_THINKING_PAUSE_PROBABILITY,
   DEFAULT_BATCH_PROGRESS_INTERVAL,
+  DEFAULT_THROTTLE_TTL_SECONDS,
+  DEFAULT_THROTTLE_CONFIG,
   MESSAGE_PREVIEW_LENGTH,
-  RUN_PROGRESS_TTL_SECONDS
+  RUN_PROGRESS_TTL_SECONDS,
+  REDIS_KEY_PREFIX
 } from '../constants';
 import crypto from 'crypto';
 import type { Redis } from 'ioredis';
@@ -65,7 +68,7 @@ export class RuleRunnerService {
     private TelegramErrorLog: TelegramErrorLogModel,
     private config: TelegramRuleEngineConfig
   ) {
-    this.keyPrefix = config.redis.keyPrefix || '';
+    this.keyPrefix = config.redis.keyPrefix ?? REDIS_KEY_PREFIX;
     this.redis = config.redis.connection;
     const lockTTL = config.options?.lockTTLMs || DEFAULT_LOCK_TTL_MS;
     this.lock = new RedisLock(
@@ -75,6 +78,11 @@ export class RuleRunnerService {
       config.logger
     );
     this.logger = config.logger || noopLogger;
+  }
+
+  async destroy(): Promise<void> {
+    await this.lock.release();
+    this.logger.info('RuleRunnerService destroyed');
   }
 
   trigger(triggeredBy?: string): { runId: string } {
@@ -119,7 +127,7 @@ export class RuleRunnerService {
     let runStatus: 'completed' | 'cancelled' | 'failed' = 'completed';
 
     try {
-      const throttleConfig = await this.TelegramThrottleConfig.getConfig();
+      const throttleConfig = (await this.TelegramThrottleConfig.getConfig()) || DEFAULT_THROTTLE_CONFIG;
       const allActiveRules = await this.TelegramRule.findActive();
 
       const now = new Date();
@@ -162,14 +170,14 @@ export class RuleRunnerService {
 
       const templateIds = [...new Set(activeRules.map(r => r.templateId.toString()))];
       const templates = await this.TelegramTemplate.find({ _id: { $in: templateIds } }).lean();
-      const templateMap = new Map<string, any>();
+      const templateMap = new Map<string, Record<string, unknown>>();
       for (const t of templates) {
         templateMap.set(t._id.toString(), t);
       }
 
       const recentSends = await this.TelegramSendLog.find({
         sentAt: { $gte: new Date(Date.now() - 7 * MS_PER_DAY) }
-      }).lean();
+      }).select('identifierId sentAt').lean();
 
       const throttleMap = this.buildThrottleMap(recentSends);
       const perRuleStats: PerRuleStats[] = [];
@@ -356,7 +364,13 @@ export class RuleRunnerService {
           continue;
         }
 
-        if (!this.checkThrottle(identifier.id, ruleId, throttleMap, throttleConfig, stats, rule.name, templateId, runId)) continue;
+        const useRedisThrottle = this.config.options?.useRedisThrottle;
+        if (useRedisThrottle) {
+          const allowed = await this.checkThrottleRedis(identifier.id, ruleId, throttleConfig, stats, rule.name, templateId, runId);
+          if (!allowed) continue;
+        } else {
+          if (!this.checkThrottle(identifier.id, ruleId, throttleMap, throttleConfig, stats, rule.name, templateId, runId)) continue;
+        }
 
         if (rule.sendOnce) {
           const existingSend = await this.TelegramSendLog.findOne({
@@ -407,11 +421,12 @@ export class RuleRunnerService {
             });
             finalMessage = modified.message;
             finalMedia = modified.media;
-          } catch (hookErr: any) {
-            this.logger.error(`beforeSend hook failed for identifier ${identifier.id}: ${hookErr.message}`);
+          } catch (hookErr: unknown) {
+            const hookErrMsg = hookErr instanceof Error ? hookErr.message : String(hookErr);
+            this.logger.error(`beforeSend hook failed for identifier ${identifier.id}: ${hookErrMsg}`);
             stats.failed++;
             try {
-              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, identifierId: identifier.id, status: 'error', accountId: accountSelection.accountId, templateId, runId, messageIndex: mi, failureReason: hookErr.message });
+              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, identifierId: identifier.id, status: 'error', accountId: accountSelection.accountId, templateId, runId, messageIndex: mi, failureReason: hookErrMsg });
             } catch { /* hook error safe */ }
             continue;
           }
@@ -441,12 +456,20 @@ export class RuleRunnerService {
             sentAt: new Date(),
           });
 
-          const current = throttleMap.get(identifier.id) || { today: 0, thisWeek: 0, lastSentDate: null };
-          throttleMap.set(identifier.id, {
-            today: current.today + 1,
-            thisWeek: current.thisWeek + 1,
-            lastSentDate: new Date()
-          });
+          if (useRedisThrottle) {
+            try {
+              await this.incrementRedisThrottle(identifier.id);
+            } catch (err) {
+              this.logger.warn('Redis throttle increment failed', { identifierId: identifier.id, error: (err as Error).message });
+            }
+          } else {
+            const current = throttleMap.get(identifier.id) || { today: 0, thisWeek: 0, lastSentDate: null };
+            throttleMap.set(identifier.id, {
+              today: current.today + 1,
+              thisWeek: current.thisWeek + 1,
+              lastSentDate: new Date()
+            });
+          }
 
           stats.sent++;
           consecutiveFailures = 0;
@@ -508,7 +531,11 @@ export class RuleRunnerService {
           const delayMs = this.config.options?.delayBetweenSendsMs ?? DEFAULT_DELAY_BETWEEN_SENDS_MS;
           const jitterMs = this.config.options?.jitterMs ?? DEFAULT_JITTER_MS;
           const thinkingPause = this.config.options?.thinkingPauseProbability ?? DEFAULT_THINKING_PAUSE_PROBABILITY;
-          const totalDelay = getHumanDelay(delayMs, jitterMs, thinkingPause);
+          let totalDelay = getHumanDelay(delayMs, jitterMs, thinkingPause);
+          // Apply health-adjusted delay if account selection has a health score
+          if (accountSelection && typeof accountSelection.healthScore === 'number') {
+            totalDelay = getHealthAdjustedDelay(totalDelay, accountSelection.healthScore, this.config.options?.healthDelayMultiplier ?? 3);
+          }
           if (totalDelay > 0) await new Promise(resolve => setTimeout(resolve, totalDelay));
         }
       } catch (err) {
@@ -586,7 +613,13 @@ export class RuleRunnerService {
       }
 
       try {
-        if (!this.checkThrottle(identifier.id, ruleId, throttleMap, throttleConfig, stats, rule.name, templateId, runId)) continue;
+        const useRedisThrottle = this.config.options?.useRedisThrottle;
+        if (useRedisThrottle) {
+          const allowed = await this.checkThrottleRedis(identifier.id, ruleId, throttleConfig, stats, rule.name, templateId, runId);
+          if (!allowed) continue;
+        } else {
+          if (!this.checkThrottle(identifier.id, ruleId, throttleMap, throttleConfig, stats, rule.name, templateId, runId)) continue;
+        }
 
         if (rule.sendOnce) {
           const existingSend = await this.TelegramSendLog.findOne({
@@ -638,11 +671,12 @@ export class RuleRunnerService {
             });
             finalMessage = modified.message;
             finalMedia = modified.media;
-          } catch (hookErr: any) {
-            this.logger.error(`beforeSend hook failed for identifier ${identifier.id}: ${hookErr.message}`);
+          } catch (hookErr: unknown) {
+            const hookErrMsg = hookErr instanceof Error ? hookErr.message : String(hookErr);
+            this.logger.error(`beforeSend hook failed for identifier ${identifier.id}: ${hookErrMsg}`);
             stats.failed++;
             try {
-              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, identifierId: identifier.id, status: 'error', accountId: accountSelection.accountId, templateId, runId, messageIndex: mi, failureReason: hookErr.message });
+              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, identifierId: identifier.id, status: 'error', accountId: accountSelection.accountId, templateId, runId, messageIndex: mi, failureReason: hookErrMsg });
             } catch { /* hook error safe */ }
             continue;
           }
@@ -672,12 +706,20 @@ export class RuleRunnerService {
             sentAt: new Date(),
           });
 
-          const current = throttleMap.get(identifier.id) || { today: 0, thisWeek: 0, lastSentDate: null };
-          throttleMap.set(identifier.id, {
-            today: current.today + 1,
-            thisWeek: current.thisWeek + 1,
-            lastSentDate: new Date()
-          });
+          if (useRedisThrottle) {
+            try {
+              await this.incrementRedisThrottle(identifier.id);
+            } catch (err) {
+              this.logger.warn('Redis throttle increment failed', { identifierId: identifier.id, error: (err as Error).message });
+            }
+          } else {
+            const current = throttleMap.get(identifier.id) || { today: 0, thisWeek: 0, lastSentDate: null };
+            throttleMap.set(identifier.id, {
+              today: current.today + 1,
+              thisWeek: current.thisWeek + 1,
+              lastSentDate: new Date()
+            });
+          }
 
           stats.sent++;
           consecutiveFailures = 0;
@@ -739,7 +781,11 @@ export class RuleRunnerService {
           const delayMs = this.config.options?.delayBetweenSendsMs ?? DEFAULT_DELAY_BETWEEN_SENDS_MS;
           const jitterMs = this.config.options?.jitterMs ?? DEFAULT_JITTER_MS;
           const thinkingPause = this.config.options?.thinkingPauseProbability ?? DEFAULT_THINKING_PAUSE_PROBABILITY;
-          const totalDelay = getHumanDelay(delayMs, jitterMs, thinkingPause);
+          let totalDelay = getHumanDelay(delayMs, jitterMs, thinkingPause);
+          // Apply health-adjusted delay if account selection has a health score
+          if (accountSelection && typeof accountSelection.healthScore === 'number') {
+            totalDelay = getHealthAdjustedDelay(totalDelay, accountSelection.healthScore, this.config.options?.healthDelayMultiplier ?? 3);
+          }
           if (totalDelay > 0) await new Promise(resolve => setTimeout(resolve, totalDelay));
         }
       } catch (err) {
@@ -773,6 +819,138 @@ export class RuleRunnerService {
     const minGap = config.minGapDays;
 
     const userThrottle = throttleMap.get(identifierId) || { today: 0, thisWeek: 0, lastSentDate: null };
+
+    if (userThrottle.today >= dailyLimit) {
+      stats.throttled++;
+      try {
+        this.config.hooks?.onSend?.({ ruleId, ruleName, identifierId, status: 'throttled', accountId: '', templateId, runId, messageIndex: -1, failureReason: 'daily throttle limit' });
+      } catch { /* hook error safe */ }
+      return false;
+    }
+    if (userThrottle.thisWeek >= weeklyLimit) {
+      stats.throttled++;
+      try {
+        this.config.hooks?.onSend?.({ ruleId, ruleName, identifierId, status: 'throttled', accountId: '', templateId, runId, messageIndex: -1, failureReason: 'weekly throttle limit' });
+      } catch { /* hook error safe */ }
+      return false;
+    }
+    if (userThrottle.lastSentDate) {
+      const daysSinceLastSend = (Date.now() - userThrottle.lastSentDate.getTime()) / MS_PER_DAY;
+      if (daysSinceLastSend < minGap) {
+        stats.throttled++;
+        try {
+          this.config.hooks?.onSend?.({ ruleId, ruleName, identifierId, status: 'throttled', accountId: '', templateId, runId, messageIndex: -1, failureReason: 'min gap days' });
+        } catch { /* hook error safe */ }
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private getWeekStartDate(): string {
+    const timezone = this.config.options?.sendWindow?.timezone;
+    const now = new Date();
+    if (timezone) {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: timezone,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        weekday: 'short',
+        hour12: false,
+      }).formatToParts(now);
+      const dayOfWeek = parts.find(p => p.type === 'weekday')?.value || '';
+      const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+      const day = dayMap[dayOfWeek] ?? 0;
+      const diff = day === 0 ? 6 : day - 1;
+      const monday = new Date(now);
+      monday.setDate(monday.getDate() - diff);
+      return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(monday);
+    }
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(now);
+    monday.setDate(diff);
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(monday);
+  }
+
+  private getTodayString(): string {
+    const timezone = this.config.options?.sendWindow?.timezone;
+    if (timezone) {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: timezone }).format(new Date());
+    }
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  private sanitizeRedisKey(value: string): string {
+    return value.replace(/[\s\n\r]/g, '_');
+  }
+
+  private async getRedisThrottle(identifierId: string): Promise<UserThrottle> {
+    const key = `${this.keyPrefix}throttle:${this.sanitizeRedisKey(identifierId)}`;
+    const data = await this.redis.hgetall(key);
+
+    if (!data || Object.keys(data).length === 0) {
+      return { today: 0, thisWeek: 0, lastSentDate: null };
+    }
+
+    const todayStr = this.getTodayString();
+    const today = data.todayDate === todayStr ? parseInt(data.today || '0', 10) : 0;
+
+    const weekStartStr = this.getWeekStartDate();
+    const thisWeek = data.weekStartDate === weekStartStr ? parseInt(data.thisWeek || '0', 10) : 0;
+
+    const lastSentDate = data.lastSentDate ? new Date(data.lastSentDate) : null;
+
+    return { today, thisWeek, lastSentDate };
+  }
+
+  // Note: This method is safe under the single RedisLock held by runAllRules().
+  // If used without the lock in a multi-instance deployment, consider a Lua script for atomicity.
+  private async incrementRedisThrottle(identifierId: string): Promise<void> {
+    const key = `${this.keyPrefix}throttle:${this.sanitizeRedisKey(identifierId)}`;
+    const todayStr = this.getTodayString();
+    const weekStartStr = this.getWeekStartDate();
+
+    // Read current state
+    const [currentToday, currentWeek] = await Promise.all([
+      this.redis.hget(key, 'todayDate'),
+      this.redis.hget(key, 'weekStartDate'),
+    ]);
+
+    const pipe = this.redis.pipeline();
+
+    // Reset counters if date/week changed
+    if (currentToday !== todayStr) {
+      pipe.hset(key, 'today', '1', 'todayDate', todayStr);
+    } else {
+      pipe.hincrby(key, 'today', 1);
+    }
+
+    if (currentWeek !== weekStartStr) {
+      pipe.hset(key, 'thisWeek', '1', 'weekStartDate', weekStartStr);
+    } else {
+      pipe.hincrby(key, 'thisWeek', 1);
+    }
+
+    pipe.hset(key, 'lastSentDate', new Date().toISOString());
+    pipe.expire(key, DEFAULT_THROTTLE_TTL_SECONDS);
+    await pipe.exec();
+  }
+
+  private async checkThrottleRedis(
+    identifierId: string,
+    ruleId: string,
+    throttleConfig: any,
+    stats: RuleRunStats,
+    ruleName: string,
+    templateId: string,
+    runId: string
+  ): Promise<boolean> {
+    const dailyLimit = throttleConfig.maxPerUserPerDay;
+    const weeklyLimit = throttleConfig.maxPerUserPerWeek;
+    const minGap = throttleConfig.minGapDays;
+
+    const userThrottle = await this.getRedisThrottle(identifierId);
 
     if (userThrottle.today >= dailyLimit) {
       stats.throttled++;
@@ -843,8 +1021,10 @@ export class RuleRunnerService {
       }
     }
     if (flat.length > 0) {
-      await this.redis.hset(key, ...flat);
-      await this.redis.expire(key, RUN_PROGRESS_TTL_SECONDS);
+      const pipe = this.redis.pipeline();
+      pipe.hset(key, ...flat);
+      pipe.expire(key, RUN_PROGRESS_TTL_SECONDS);
+      await pipe.exec();
     }
   }
 
@@ -859,11 +1039,13 @@ export class RuleRunnerService {
     progress.failed = stats.failed;
     progress.skipped = stats.skipped;
     progress.throttled = stats.throttled;
-    await this.redis.hset(key, 'progress', JSON.stringify(progress));
-    await this.redis.expire(key, RUN_PROGRESS_TTL_SECONDS);
+    const pipe = this.redis.pipeline();
+    pipe.hset(key, 'progress', JSON.stringify(progress));
+    pipe.expire(key, RUN_PROGRESS_TTL_SECONDS);
+    await pipe.exec();
   }
 
-  buildThrottleMap(recentSends: any[]): Map<string, UserThrottle> {
+  private buildThrottleMap(recentSends: any[]): Map<string, UserThrottle> {
     const map = new Map<string, UserThrottle>();
     const todayStart = this.getTodayStart();
 
@@ -924,7 +1106,7 @@ export class RuleRunnerService {
   }
 
   private categorizeError(err: any): string {
-    const code = (err.code || err.errorMessage || '').toUpperCase();
+    const code = String(err?.code || err?.errorMessage || '').toUpperCase();
 
     if (['AUTH_KEY_UNREGISTERED', 'SESSION_REVOKED', 'USER_DEACTIVATED_BAN', 'PHONE_NUMBER_BANNED'].some(c => code.includes(c))) {
       return 'critical';

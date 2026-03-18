@@ -249,4 +249,262 @@ describe('Email Account Manager Integration', () => {
       expect(processWarnings).toHaveLength(0);
     });
   });
+
+  describe('Draft approval lifecycle', () => {
+    let accountId: string;
+
+    beforeAll(async () => {
+      const account = await manager.accounts.create({
+        email: 'draft-test@gmail.com',
+        senderName: 'Draft Test',
+        provider: 'gmail',
+        smtp: { host: 'smtp.gmail.com', port: 587, user: 'draft', pass: 'pass' },
+        limits: { dailyMax: 50 },
+        health: {
+          score: 100,
+          consecutiveErrors: 0,
+          bounceCount: 0,
+          thresholds: { minScore: 50, maxBounceRate: 0.1, maxConsecutiveErrors: 5 },
+        },
+        warmup: { enabled: true, currentDay: 1, schedule: [] },
+      });
+      accountId = account._id.toString();
+    });
+
+    it('should create a draft with pending status and persist it', async () => {
+      const draft = await manager.approval.createDraft({
+        to: 'draft@example.com',
+        subject: 'Test Draft',
+        htmlBody: '<p>Hello</p>',
+        textBody: 'Hello',
+        accountId,
+      });
+
+      expect(draft).toBeDefined();
+      expect(draft.status).toBe('pending');
+      expect(draft.to).toBe('draft@example.com');
+      expect(draft.subject).toBe('Test Draft');
+      expect(draft.htmlBody).toBe('<p>Hello</p>');
+      expect(draft.textBody).toBe('Hello');
+
+      // Read back from DB to verify persistence
+      const draftModelName = Object.keys(connection.models).find(k => k.toLowerCase().includes('draft'))!;
+      const updatedDraft = await connection.models[draftModelName]?.findById(draft._id);
+      expect(updatedDraft).toBeDefined();
+      expect(updatedDraft!.status).toBe('pending');
+      expect(updatedDraft!.to).toBe('draft@example.com');
+    });
+
+    it('should create a draft with attachments', async () => {
+      const draft = await manager.approval.createDraft({
+        to: 'att-draft@example.com',
+        subject: 'Attachment Draft',
+        htmlBody: '<p>See attached</p>',
+        accountId,
+        attachments: [
+          { filename: 'report.pdf', url: 'https://cdn.example.com/report.pdf', contentType: 'application/pdf' },
+        ],
+      });
+
+      expect(draft.attachments).toHaveLength(1);
+      expect(draft.attachments![0].filename).toBe('report.pdf');
+    });
+
+    it('should reject a draft with a reason', async () => {
+      const draft = await manager.approval.createDraft({
+        to: 'reject@example.com',
+        subject: 'Reject Draft',
+        htmlBody: '<p>Will be rejected</p>',
+        accountId,
+      });
+
+      expect(draft.status).toBe('pending');
+
+      await manager.approval.reject(draft._id.toString(), 'Content not appropriate');
+
+      const updatedDraft = await connection.models[
+        Object.keys(connection.models).find(k => k.toLowerCase().includes('draft'))!
+      ]?.findById(draft._id);
+      expect(updatedDraft).toBeDefined();
+      expect(updatedDraft!.status).toBe('rejected');
+      expect(updatedDraft!.rejectionReason).toBe('Content not appropriate');
+    });
+  });
+
+  describe('Health score updates', () => {
+    let accountId: string;
+
+    beforeEach(async () => {
+      const account = await manager.accounts.create({
+        email: `health-${Date.now()}@gmail.com`,
+        senderName: 'Health Test',
+        provider: 'gmail',
+        smtp: { host: 'smtp.gmail.com', port: 587, user: 'health', pass: 'pass' },
+        limits: { dailyMax: 50 },
+        health: {
+          score: 50,
+          consecutiveErrors: 0,
+          bounceCount: 0,
+          thresholds: { minScore: 10, maxBounceRate: 0.1, maxConsecutiveErrors: 20 },
+        },
+        warmup: { enabled: true, currentDay: 1, schedule: [] },
+      });
+      accountId = account._id.toString();
+    });
+
+    it('should increment health score on successful send event', async () => {
+      const account = await manager.accounts.findById(accountId);
+      const initialScore = account!.health.score;
+
+      await manager.health.recordSuccess(accountId);
+
+      const updated = await manager.accounts.findById(accountId);
+      expect(updated!.health.score).toBeGreaterThan(initialScore);
+    });
+
+    it('should decrement health score on error event', async () => {
+      const account = await manager.accounts.findById(accountId);
+      const initialScore = account!.health.score;
+
+      await manager.health.recordError(accountId, 'SMTP timeout');
+
+      const updated = await manager.accounts.findById(accountId);
+      expect(updated!.health.score).toBeLessThan(initialScore);
+    });
+  });
+
+  describe('Global settings', () => {
+    it('should persist and retrieve settings', async () => {
+      await manager.settings.update({ timezone: 'Asia/Kolkata' });
+      const settings = await manager.settings.get();
+      expect(settings.timezone).toBe('Asia/Kolkata');
+    });
+
+    it('should update individual sections', async () => {
+      await manager.settings.update({
+        ses: { trackOpens: false, trackClicks: true },
+      });
+      const settings = await manager.settings.get();
+      expect(settings.ses.trackOpens).toBe(false);
+      expect(settings.ses.trackClicks).toBe(true);
+    });
+  });
+
+  // ─── Negative scenarios ─────────────────────────────────────────
+
+  describe('Negative scenarios', () => {
+    it('should fail when creating account with missing email', async () => {
+      await expect(
+        manager.accounts.create({
+          senderName: 'No Email',
+          provider: 'gmail',
+          smtp: { host: 'smtp.gmail.com', port: 587, user: 'test', pass: 'pass' },
+          limits: { dailyMax: 50 },
+          health: {
+            score: 100,
+            consecutiveErrors: 0,
+            bounceCount: 0,
+            thresholds: { minScore: 50, maxBounceRate: 0.1, maxConsecutiveErrors: 5 },
+          },
+          warmup: { enabled: true, currentDay: 1, schedule: [] },
+        }),
+      ).rejects.toThrow(); // Mongoose required field validation
+    });
+
+    it('should fail when creating account with invalid provider', async () => {
+      await expect(
+        manager.accounts.create({
+          email: 'outlook@test.com',
+          senderName: 'Outlook User',
+          provider: 'outlook' as any,
+          smtp: { host: 'smtp.outlook.com', port: 587, user: 'test', pass: 'pass' },
+          limits: { dailyMax: 50 },
+          health: {
+            score: 100,
+            consecutiveErrors: 0,
+            bounceCount: 0,
+            thresholds: { minScore: 50, maxBounceRate: 0.1, maxConsecutiveErrors: 5 },
+          },
+          warmup: { enabled: true, currentDay: 1, schedule: [] },
+        }),
+      ).rejects.toThrow(); // Mongoose enum validation
+    });
+
+    it('should fail when creating account with missing SMTP config', async () => {
+      await expect(
+        manager.accounts.create({
+          email: 'nosmtp@test.com',
+          senderName: 'No SMTP',
+          provider: 'gmail',
+          limits: { dailyMax: 50 },
+          health: {
+            score: 100,
+            consecutiveErrors: 0,
+            bounceCount: 0,
+            thresholds: { minScore: 50, maxBounceRate: 0.1, maxConsecutiveErrors: 5 },
+          },
+          warmup: { enabled: true, currentDay: 1, schedule: [] },
+        } as any),
+      ).rejects.toThrow(); // Mongoose required field validation for smtp
+    });
+
+    it('should return null when updating non-existent account', async () => {
+      const fakeId = new mongoose.Types.ObjectId().toString();
+      const result = await manager.accounts.update(fakeId, { senderName: 'Ghost' });
+      expect(result).toBeNull();
+    });
+
+    it('should reject identifier with invalid email format', async () => {
+      await expect(
+        manager.identifiers.findOrCreate('not-an-email'),
+      ).rejects.toThrow(/Invalid email format/);
+    });
+
+    it('should deduplicate identifiers with same email', async () => {
+      const email = `dup-test-${Date.now()}@example.com`;
+      const first = await manager.identifiers.findOrCreate(email);
+      const second = await manager.identifiers.findOrCreate(email);
+
+      expect(first._id.toString()).toBe(second._id.toString());
+    });
+
+    it('should handle health event for non-existent account gracefully', async () => {
+      const fakeId = new mongoose.Types.ObjectId().toString();
+
+      // recordSuccess on non-existent account should not throw — returns early
+      await expect(manager.health.recordSuccess(fakeId)).resolves.not.toThrow();
+
+      // recordError on non-existent account should not throw — returns early
+      await expect(manager.health.recordError(fakeId, 'test error')).resolves.not.toThrow();
+    });
+
+    it('should fail when creating draft with missing required fields', async () => {
+      // Missing 'to' field
+      await expect(
+        manager.approval.createDraft({
+          subject: 'Test',
+          htmlBody: '<p>Hello</p>',
+          accountId: new mongoose.Types.ObjectId().toString(),
+        } as any),
+      ).rejects.toThrow(); // Mongoose required validation for 'to'
+
+      // Missing 'subject' field
+      await expect(
+        manager.approval.createDraft({
+          to: 'test@example.com',
+          htmlBody: '<p>Hello</p>',
+          accountId: new mongoose.Types.ObjectId().toString(),
+        } as any),
+      ).rejects.toThrow(); // Mongoose required validation for 'subject'
+
+      // Missing 'htmlBody' field
+      await expect(
+        manager.approval.createDraft({
+          to: 'test@example.com',
+          subject: 'Test',
+          accountId: new mongoose.Types.ObjectId().toString(),
+        } as any),
+      ).rejects.toThrow(); // Mongoose required validation for 'htmlBody'
+    });
+  });
 });

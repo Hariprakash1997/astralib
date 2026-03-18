@@ -43,6 +43,7 @@ const config: TelegramInboxConfig = {
     onNewMessage: (message) => {},
     onMessageRead: ({ messageId, chatId, readAt }) => {},
     onTyping: ({ chatId, userId, accountId }) => {},
+    onNewContact: ({ telegramUserId, firstName, lastName, username, accountId, chatId }) => {},
   },
 };
 ```
@@ -107,8 +108,25 @@ All hooks are optional. They fire after the corresponding event is processed.
 
 | Hook | Fires when | Payload |
 |------|------------|---------|
-| `onNewMessage` | A new message is received or sent | `InboxMessage` -- `{ conversationId, messageId, senderId, senderType, direction, contentType, content, mediaUrl?, mediaType?, createdAt }` |
+| `onNewMessage` | A new message is received or sent | `InboxMessage` -- `{ conversationId, messageId, senderId, senderType, direction, contentType, content, mediaUrl?, mediaType?, accountId, createdAt }` |
 | `onMessageRead` | `conversationService.markAsRead()` completes | `{ messageId: string, chatId: string, readAt: Date }` -- `messageId` is the specific message ID or `'all'` if marking all messages |
 | `onTyping` | A typing event is detected | `{ chatId: string, userId: string, accountId: string }` |
+| `onNewContact` | An inbound message is received | `{ telegramUserId: string, firstName?: string, lastName?: string, username?: string, accountId: string, chatId: string }` |
+
+> **Note:** The `InboxMessage` payload (used by `onNewMessage`) always includes `accountId`, identifying which connected account received or sent the message. Other hook payloads (`onTyping`, `onNewContact`) also include `accountId` for consistent account identification across all hooks.
+
+The `onNewContact` hook fires on every inbound message. It is the consumer's responsibility to check whether the contact already exists before creating a new identifier. This keeps the inbox decoupled from identifier storage.
+
+```ts
+hooks: {
+  onNewContact: ({ telegramUserId, firstName, lastName, username, accountId, chatId }) => {
+    // Check if identifier exists, create if not
+    const existing = await IdentifierModel.findOne({ telegramUserId });
+    if (!existing) {
+      await IdentifierModel.create({ telegramUserId, firstName, lastName, username, knownByAccounts: [accountId] });
+    }
+  },
+},
+```
 
 The `conversationId` used throughout the system is the raw Telegram chat ID (e.g. `"123456789"`). When creating sessions via the API, pass the chat ID as `conversationId` to ensure consistency with the message listener.

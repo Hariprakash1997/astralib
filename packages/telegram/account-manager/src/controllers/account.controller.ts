@@ -7,7 +7,8 @@ import type { CapacityManager } from '../services/capacity-manager';
 import type { QuarantineService } from '../services/quarantine.service';
 import type { HealthTracker } from '../services/health-tracker';
 import type { LogAdapter, TelegramAccountManagerConfig } from '../types/config.types';
-import { ACCOUNT_STATUS, DEFAULT_DAILY_LIMIT, DEFAULT_WARMUP_SCHEDULE } from '../constants';
+import { Types } from 'mongoose';
+import { ACCOUNT_STATUS, DEFAULT_DAILY_LIMIT, DEFAULT_HEALTH_SCORE, DEFAULT_MAX_ACCOUNTS, DEFAULT_WARMUP_SCHEDULE, MAX_PAGE_LIMIT } from '../constants';
 
 export function createAccountController(
   TelegramAccount: TelegramAccountModel,
@@ -19,15 +20,30 @@ export function createAccountController(
   quarantineService: QuarantineService,
   healthTracker: HealthTracker,
 ) {
+  const validateId = (id: string, res: Response): boolean => {
+    if (!Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, error: 'Invalid ID format' });
+      return false;
+    }
+    return true;
+  };
+
   return {
     async list(req: Request, res: Response) {
       try {
-        const { status, page, limit } = req.query;
+        const { status, tag, page, limit } = req.query;
+
+        const validStatuses: string[] = Object.values(ACCOUNT_STATUS);
+        if (status && !validStatuses.includes(status as string)) {
+          return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+        }
+
         const filter: Record<string, unknown> = {};
         if (status) filter.status = status;
+        if (tag) filter.tags = tag;
 
-        const pageNum = Number(page) || 1;
-        const limitNum = Number(limit) || 20;
+        const pageNum = Math.max(Number(page) || 1, 1);
+        const limitNum = Math.min(Number(limit) || 20, MAX_PAGE_LIMIT);
         const skip = (pageNum - 1) * limitNum;
 
         const total = await TelegramAccount.countDocuments(filter);
@@ -47,6 +63,7 @@ export function createAccountController(
     async getById(req: Request, res: Response) {
       try {
         const id = req.params.id as string;
+        if (!validateId(id, res)) return;
         const account = await TelegramAccount.findById(id).select('-session');
         if (!account) {
           return res.status(404).json({ success: false, error: 'Account not found' });
@@ -61,6 +78,7 @@ export function createAccountController(
     async getCapacity(req: Request, res: Response) {
       try {
         const id = req.params.id as string;
+        if (!validateId(id, res)) return;
         const capacity = await capacityManager.getAccountCapacity(id);
         res.json({ success: true, data: capacity });
       } catch (error: unknown) {
@@ -72,6 +90,7 @@ export function createAccountController(
     async getHealth(req: Request, res: Response) {
       try {
         const id = req.params.id as string;
+        if (!validateId(id, res)) return;
         const health = await healthTracker.getHealth(id);
         if (!health) {
           return res.status(404).json({ success: false, error: 'Account not found' });
@@ -96,6 +115,12 @@ export function createAccountController(
           return res.status(400).json({ success: false, error: 'Phone number already registered' });
         }
 
+        const totalAccounts = await TelegramAccount.countDocuments();
+        const maxAccounts = config.options?.maxAccounts ?? DEFAULT_MAX_ACCOUNTS;
+        if (totalAccounts >= maxAccounts) {
+          return res.status(400).json({ success: false, error: `Maximum accounts (${maxAccounts}) reached` });
+        }
+
         const warmupSchedule = config.options?.warmup?.defaultSchedule || DEFAULT_WARMUP_SCHEDULE;
         const warmupEnabled = config.options?.warmup?.enabled !== false;
 
@@ -103,8 +128,9 @@ export function createAccountController(
           phone: input.phone,
           name: input.name,
           session: input.session,
+          tags: input.tags || [],
           status: warmupEnabled ? ACCOUNT_STATUS.Warmup : ACCOUNT_STATUS.Disconnected,
-          healthScore: 100,
+          healthScore: DEFAULT_HEALTH_SCORE,
           consecutiveErrors: 0,
           floodWaitCount: 0,
           currentDailyLimit: DEFAULT_DAILY_LIMIT,
@@ -133,6 +159,23 @@ export function createAccountController(
     async update(req: Request, res: Response) {
       try {
         const input: UpdateTelegramAccountInput = req.body;
+        const id = req.params.id as string;
+        if (!validateId(id, res)) return;
+
+        if (input.session !== undefined) {
+          const client = connectionService.getClient(id);
+          if (client) {
+            return res.status(400).json({ success: false, error: 'Disconnect account before updating session' });
+          }
+        }
+
+        if (input.currentDailyLimit !== undefined && input.currentDailyLimit < 0) {
+          return res.status(400).json({ success: false, error: 'currentDailyLimit must be non-negative' });
+        }
+        if (input.currentDelayMin !== undefined && input.currentDelayMax !== undefined && input.currentDelayMin > input.currentDelayMax) {
+          return res.status(400).json({ success: false, error: 'currentDelayMin must not exceed currentDelayMax' });
+        }
+
         const updates: Record<string, unknown> = {};
 
         if (input.name !== undefined) updates.name = input.name;
@@ -140,8 +183,8 @@ export function createAccountController(
         if (input.currentDailyLimit !== undefined) updates.currentDailyLimit = input.currentDailyLimit;
         if (input.currentDelayMin !== undefined) updates.currentDelayMin = input.currentDelayMin;
         if (input.currentDelayMax !== undefined) updates.currentDelayMax = input.currentDelayMax;
+        if (input.tags !== undefined) updates.tags = input.tags;
 
-        const id = req.params.id as string;
         const account = await TelegramAccount.findByIdAndUpdate(
           id,
           { $set: updates },
@@ -162,6 +205,7 @@ export function createAccountController(
     async remove(req: Request, res: Response) {
       try {
         const id = req.params.id as string;
+        if (!validateId(id, res)) return;
         const client = connectionService.getClient(id);
         if (client) {
           return res.status(400).json({ success: false, error: 'Account must be disconnected before deletion' });
@@ -171,6 +215,8 @@ export function createAccountController(
         if (!result) {
           return res.status(404).json({ success: false, error: 'Account not found' });
         }
+
+        await TelegramDailyStats.deleteMany({ accountId: new Types.ObjectId(id) });
 
         res.json({ success: true });
       } catch (error: unknown) {
@@ -182,6 +228,7 @@ export function createAccountController(
     async connect(req: Request, res: Response) {
       try {
         const id = req.params.id as string;
+        if (!validateId(id, res)) return;
         await connectionService.connect(id);
         res.json({ success: true });
       } catch (error: unknown) {
@@ -193,6 +240,7 @@ export function createAccountController(
     async disconnect(req: Request, res: Response) {
       try {
         const id = req.params.id as string;
+        if (!validateId(id, res)) return;
         await connectionService.disconnect(id);
         res.json({ success: true });
       } catch (error: unknown) {
@@ -204,6 +252,7 @@ export function createAccountController(
     async reconnect(req: Request, res: Response) {
       try {
         const id = req.params.id as string;
+        if (!validateId(id, res)) return;
         await connectionService.reconnect(id);
         res.json({ success: true });
       } catch (error: unknown) {
@@ -218,8 +267,12 @@ export function createAccountController(
         if (!reason) {
           return res.status(400).json({ success: false, error: 'reason is required' });
         }
+        if (durationMs !== undefined && (typeof durationMs !== 'number' || durationMs <= 0)) {
+          return res.status(400).json({ success: false, error: 'durationMs must be a positive number' });
+        }
 
         const id = req.params.id as string;
+        if (!validateId(id, res)) return;
         await quarantineService.quarantine(id, reason, durationMs);
         res.json({ success: true });
       } catch (error: unknown) {
@@ -231,6 +284,7 @@ export function createAccountController(
     async release(req: Request, res: Response) {
       try {
         const id = req.params.id as string;
+        if (!validateId(id, res)) return;
         await quarantineService.release(id);
         res.json({ success: true });
       } catch (error: unknown) {
@@ -243,6 +297,43 @@ export function createAccountController(
       try {
         const result = await capacityManager.getAllCapacity();
         res.json({ success: true, data: result });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ success: false, error: message });
+      }
+    },
+
+    async sendMessage(req: Request, res: Response) {
+      try {
+        const id = req.params.id as string;
+        if (!validateId(id, res)) return;
+        const { chatId, text } = req.body;
+        if (!chatId || !text) {
+          return res.status(400).json({ success: false, error: 'chatId and text are required' });
+        }
+
+        const result = await connectionService.sendMessage(id, chatId, text);
+        res.json({ success: true, data: result });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ success: false, error: message });
+      }
+    },
+
+    async connectAll(_req: Request, res: Response) {
+      try {
+        const result = await connectionService.connectAll();
+        res.json({ success: true, data: result });
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        res.status(500).json({ success: false, error: message });
+      }
+    },
+
+    async disconnectAll(_req: Request, res: Response) {
+      try {
+        await connectionService.disconnectAll();
+        res.json({ success: true });
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         res.status(500).json({ success: false, error: message });

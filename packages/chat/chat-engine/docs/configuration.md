@@ -49,10 +49,96 @@ All options have sensible defaults and are optional.
 | `sessionTimeoutCheckMs` | `number` | `30000` | Session timeout worker check interval |
 | `reconnectWindowMs` | `number` | `300000` (5min) | Disconnect grace period before session is abandoned |
 | `pendingMessageTTLMs` | `number` | `86400000` (24hr) | Pending message TTL for offline delivery |
+| `singleSessionPerVisitor` | `boolean` | `true` | Prevent same visitor from having multiple active sessions |
+| `trackEventsAsMessages` | `boolean` | `false` | Create system messages for tracked visitor events (page views, clicks) |
+| `labelingEnabled` | `boolean` | `false` | Enable message/session labeling for AI training data |
+| `maxUploadSizeMb` | `number` | `5` | Max file size for avatar/file uploads in MB |
 
-## `adapters` (required)
+### AI Simulation Config
 
-See [Adapters](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md) for full details.
+Fine-grained control over AI response pacing. Only active when `aiTypingSimulation: true`. Creates a realistic sequence: deliver -> read -> pause -> type -> respond.
+
+```ts
+options: {
+  aiSimulation: {
+    deliveryDelay: { min: 300, max: 1000 },   // ms before marking visitor messages as Delivered
+    readDelay: { min: 1000, max: 3000 },       // ms before marking as Read (scales with message length)
+    preTypingDelay: { min: 500, max: 1500 },   // ms pause before typing indicator starts
+    bubbleDelay: { min: 800, max: 2000 },      // ms between multi-message AI responses
+    minTypingDuration: 2000,                    // minimum ms the typing indicator shows
+  },
+}
+```
+
+All values are optional -- unset fields use internal defaults.
+
+## ChatSettings (runtime-mutable via REST API)
+
+Global chat behavior. Change at runtime via `PUT /settings`:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `defaultSessionMode` | `'ai' \| 'manual'` | `'ai'` | Global default session mode |
+| `aiEnabled` | `boolean` | `true` | Global AI toggle |
+| `autoAssignEnabled` | `boolean` | `true` | Auto-assign agents to new sessions |
+| `requireAgentForChat` | `boolean` | `false` | `false` = chats work without agents (solo/inbox mode) |
+| `visitorAgentSelection` | `boolean` | `false` | `true` = visitors can browse and pick agents |
+| `allowPerAgentMode` | `boolean` | `false` | `true` = agents can override global mode |
+
+## ChatAgent Fields (per-agent overrides)
+
+Per-agent configuration via `POST /agents` or `PUT /agents/:id`:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | `string` | -- | Agent display name |
+| `role` | `string` | -- | Agent role label |
+| `visibility` | `'public' \| 'internal'` | `'internal'` | `'public'` = visitors can see the agent |
+| `isDefault` | `boolean` | `false` | Default AI agent (used when no human assigned) |
+| `modeOverride` | `'ai' \| 'manual' \| null` | `null` | Overrides global `defaultSessionMode` |
+| `aiEnabled` | `boolean \| null` | `null` | Overrides global `aiEnabled`. `null` = use global |
+| `autoAccept` | `boolean` | `false` | Auto-accept incoming chats (skip queue) |
+| `isAI` | `boolean` | `false` | AI persona (config record, never connects via socket) |
+| `promptTemplateId` | `string \| null` | `null` | Template from `chat-ai` for this agent's AI responses |
+
+When `allowPerAgentMode` is `true`, the agent's `modeOverride` and `aiEnabled` override global settings for sessions they handle.
+
+## Typing Throttle
+
+Typing events are automatically throttled server-side: max 1 typing event per 2 seconds per session. Excess events are silently dropped. No configuration needed.
+
+## Agent Multi-Tab Support
+
+Agent connection count is tracked in Redis. Opening the dashboard in multiple tabs creates multiple socket connections. Events are delivered to all tabs. No deduplication is applied -- agents see the same events in each tab.
+
+## MessagePending
+
+When a message is sent to an offline visitor, it is stored as a pending message. The agent namespace receives a `session_event` with `type: 'message_pending'` so agents know the message is queued and not yet delivered.
+
+## `adapters` (optional)
+
+All adapters are optional. Omit the entire `adapters` object for solo mode (no agents, no AI). See [Adapters](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md) for full details.
+
+```ts
+// Solo mode — minimal config, no adapters needed
+const engine = createChatEngine({
+  db: { connection },
+  redis: { connection: redis, keyPrefix: 'myapp:chat:' },
+  socket: { cors: { origin: '*' } },
+});
+
+// Full mode — all adapters
+const engine = createChatEngine({
+  db: { connection },
+  redis: { connection: redis, keyPrefix: 'myapp:chat:' },
+  socket: { cors: { origin: '*' } },
+  adapters: {
+    assignAgent: async (ctx) => { /* ... */ },
+    generateAiResponse: ai.generateResponse,
+    authenticateAgent: async (token) => { /* ... */ },
+  },
+});
+```
 
 ## `hooks` (optional)
 
@@ -63,6 +149,78 @@ See [Hooks](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `logger` | `LogAdapter` | console logger | Custom logger implementing `LogAdapter` from `@astralibx/core` |
+
+## Setup Verification
+
+```ts
+const engine = createChatEngine(config);
+
+// Attach to Express server
+const io = engine.attach(httpServer);
+
+// Mount REST routes
+app.use('/api/chat', engine.routes);
+
+// Verify
+console.log('Chat engine ready');
+console.log('Models:', Object.keys(engine.models));
+console.log('Services:', Object.keys(engine.services));
+```
+
+### `attach(httpServer)`
+
+Creates the Socket.IO server on the given HTTP server, sets up visitor and agent namespaces, wires gateway event handlers, and starts the session timeout worker. Returns the Socket.IO `Server` instance.
+
+This must be called once after creating the engine. Without it, no WebSocket connections are accepted.
+
+### `destroy()`
+
+Stops the session timeout worker, clears all AI debounce timers and typing simulation timeouts, releases AI locks in Redis, and closes the Socket.IO server. Call this during graceful shutdown.
+
+```ts
+process.on('SIGTERM', async () => {
+  await engine.destroy();
+  process.exit(0);
+});
+```
+
+## Collection Prefix
+
+```ts
+db: {
+  connection: mongoose.connection,
+  collectionPrefix: 'myapp_',  // collections: myapp_ChatSession, myapp_ChatMessage, etc.
+}
+```
+
+Useful when sharing a MongoDB database between multiple applications. All model names are prefixed, so collections stay isolated. Default: empty string (no prefix).
+
+## Redis Key Prefix
+
+```ts
+redis: {
+  connection: redisClient,
+  keyPrefix: 'myapp:chat:',  // keys: myapp:chat:visitor:*, myapp:chat:agent:*, etc.
+}
+```
+
+REQUIRED when sharing Redis with other applications or running multiple chat-engine instances. Without a unique prefix, session state, connection tracking, and AI locks will collide across instances. Default: `'chat:'`.
+
+## Error Handling During Setup
+
+```ts
+try {
+  const engine = createChatEngine(config);
+} catch (error) {
+  if (error instanceof InvalidConfigError) {
+    // Config validation failed -- check required fields
+  }
+  // Mongoose/Redis connection errors are NOT caught here -- they're async
+  // Monitor your connection event handlers separately
+}
+```
+
+`createChatEngine` validates the config synchronously and throws `InvalidConfigError` if required fields are missing or invalid. Database and Redis connectivity issues surface asynchronously through their respective connection event handlers -- they are not caught during engine creation.
 
 ## Example
 

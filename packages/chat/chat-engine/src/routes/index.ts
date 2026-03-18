@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response, NextFunction, RequestHandler } from 'express';
 import { sendSuccess, sendError } from '@astralibx/core';
+import { ChatSessionStatus } from '@astralibx/chat-types';
 import type { LogAdapter } from '@astralibx/core';
 import type { SessionService } from '../services/session.service';
 import type { MessageService } from '../services/message.service';
@@ -30,15 +31,30 @@ export interface RouteServices {
   widgetConfig: WidgetConfigService;
 }
 
+export interface ChatCapabilities {
+  agents: boolean;
+  ai: boolean;
+  visitorSelection: boolean;
+  labeling: boolean;
+  fileUpload: boolean;
+  memory: boolean;
+  prompts: boolean;
+  knowledge: boolean;
+}
+
 export interface RouteOptions {
   authenticateRequest?: (req: any) => Promise<{ userId: string; permissions?: string[] } | null>;
   onOfflineMessage?: (data: { visitorId: string; formData: Record<string, unknown> }) => void;
+  capabilities: ChatCapabilities;
+  uploadFile?: (file: { buffer: Buffer; mimetype: string; originalname: string }) => Promise<string>;
+  maxUploadSizeMb?: number;
+  enrichSessionContext?: (context: Record<string, unknown>) => Promise<Record<string, unknown>>;
   logger: LogAdapter;
 }
 
 export function createRoutes(services: RouteServices, options: RouteOptions): Router {
   const router = Router();
-  const { logger, authenticateRequest, onOfflineMessage } = options;
+  const { logger, authenticateRequest, onOfflineMessage, capabilities, uploadFile, maxUploadSizeMb, enrichSessionContext } = options;
 
   // Build auth middleware if adapter is provided
   let authMiddleware: RequestHandler | undefined;
@@ -58,6 +74,11 @@ export function createRoutes(services: RouteServices, options: RouteOptions): Ro
       }
     };
   }
+
+  // Capabilities — public, no auth, computed once at startup
+  router.get('/capabilities', (_req: Request, res: Response) => {
+    sendSuccess(res, capabilities);
+  });
 
   // Widget config — GET is public, PUT is protected
   router.use('/widget-config', createWidgetConfigRoutes(services.widgetConfig, logger, authMiddleware));
@@ -82,8 +103,8 @@ export function createRoutes(services: RouteServices, options: RouteOptions): Ro
   // All other routes are protected if authMiddleware exists
   const protectedRouter = Router();
 
-  protectedRouter.use('/sessions', createSessionRoutes(services.sessions, services.messages, logger));
-  protectedRouter.use('/agents', createAgentRoutes(services.agents, logger));
+  protectedRouter.use('/sessions', createSessionRoutes(services.sessions, services.messages, logger, { enrichSessionContext }));
+  protectedRouter.use('/agents', createAgentRoutes(services.agents, logger, { uploadFile, maxUploadSizeMb }));
   protectedRouter.use('/settings', createSettingsRoutes(services.settings, logger));
   protectedRouter.use('/faq', createFAQRoutes(services.faq, logger));
   protectedRouter.use('/guided-questions', createGuidedQuestionRoutes(services.guidedQuestions, logger));
@@ -95,7 +116,7 @@ export function createRoutes(services: RouteServices, options: RouteOptions): Ro
     try {
       const { dateFrom, dateTo, page, limit } = req.query;
       const filter: Record<string, unknown> = {
-        status: 'abandoned',
+        status: ChatSessionStatus.Abandoned,
         messageCount: 0,
       };
 

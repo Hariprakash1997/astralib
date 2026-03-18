@@ -20,6 +20,11 @@ export class AgentService {
     aiConfig?: Record<string, unknown>;
     promptTemplateId?: string;
     maxConcurrentChats?: number;
+    modeOverride?: 'ai' | 'manual' | null;
+    aiEnabled?: boolean;
+    autoAccept?: boolean;
+    visibility?: 'public' | 'internal';
+    isDefault?: boolean;
     metadata?: Record<string, unknown>;
   }): Promise<ChatAgentDocument> {
     const agent = await this.ChatAgent.create({
@@ -48,6 +53,11 @@ export class AgentService {
     aiConfig: Record<string, unknown>;
     promptTemplateId: string;
     maxConcurrentChats: number;
+    modeOverride: 'ai' | 'manual' | null;
+    aiEnabled: boolean;
+    autoAccept: boolean;
+    visibility: 'public' | 'internal';
+    isDefault: boolean;
     metadata: Record<string, unknown>;
   }>): Promise<ChatAgentDocument> {
     const agent = await this.findByIdOrFail(agentId);
@@ -106,6 +116,8 @@ export class AgentService {
 
   async hasCapacity(agentId: string): Promise<boolean> {
     const agent = await this.findByIdOrFail(agentId);
+    if (!agent.isActive) return false;
+    if (agent.status === AgentStatus.Busy || agent.status === AgentStatus.Away) return false;
     return agent.activeChats < agent.maxConcurrentChats;
   }
 
@@ -139,6 +151,27 @@ export class AgentService {
     return this.ChatAgent.countDocuments({ isActive: true });
   }
 
+  async findDefaultAiAgent(): Promise<ChatAgentDocument | null> {
+    // Step 1: isAI + isDefault + isActive
+    let agent = await this.ChatAgent.findOne({ isAI: true, isDefault: true, isActive: true });
+    if (agent) return agent;
+
+    // Step 2: first active AI agent
+    agent = await this.ChatAgent.findOne({ isAI: true, isActive: true });
+    if (agent) return agent;
+
+    // Step 3: null (caller uses global settings)
+    return null;
+  }
+
+  async listPublicAgents(): Promise<ChatAgentInfo[]> {
+    const agents = await this.ChatAgent.find({
+      isActive: true,
+      visibility: 'public',
+    }).lean();
+    return agents.map((a: any) => this.toAgentInfo(a));
+  }
+
   toAgentInfo(agent: ChatAgentDocument): ChatAgentInfo {
     return {
       agentId: agent._id.toString(),
@@ -147,6 +180,8 @@ export class AgentService {
       role: agent.role,
       status: agent.status,
       isAI: agent.isAI,
+      visibility: agent.visibility,
+      isDefault: agent.isDefault,
     };
   }
 }

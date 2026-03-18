@@ -19,6 +19,7 @@ import type {
 - `phone: string` -- Phone number
 - `name: string` -- Display name
 - `session: string` -- TDLib session string
+- `tags?: string[]` -- Optional tags for categorization and filtering
 
 **`UpdateTelegramAccountInput`** -- Partial input for updating an account. All fields optional.
 - `name?: string`
@@ -26,6 +27,7 @@ import type {
 - `currentDailyLimit?: number`
 - `currentDelayMin?: number`
 - `currentDelayMax?: number`
+- `tags?: string[]`
 
 **`AccountCapacity`** -- Snapshot of an account's daily send capacity.
 - `accountId: string`, `phone: string`
@@ -70,7 +72,8 @@ import type {
 - `options?.healthCheckIntervalMs` -- Health check interval (default: 300000)
 - `options?.autoReconnect` -- Auto-reconnect (default: true)
 - `options?.reconnectMaxRetries` -- Max retries (default: 5)
-- `options?.warmup` -- Warmup options (enabled, defaultSchedule)
+- `options?.warmup` -- Warmup options (enabled, defaultSchedule, autoAdvance)
+- `options?.idleTimeoutMs` -- Disconnect idle accounts after this duration (disabled by default)
 - `options?.quarantine` -- Quarantine options (monitorIntervalMs, defaultDurationMs)
 - `hooks?` -- Lifecycle event hooks (see [Configuration](./configuration.md#hooks))
 
@@ -113,7 +116,7 @@ Available hooks on `TelegramAccountManagerConfig.hooks`:
 All constants are exported as `const` objects with corresponding union types.
 
 ```ts
-import { ACCOUNT_STATUS, IDENTIFIER_STATUS } from '@astralibx/telegram-account-manager';
+import { ACCOUNT_STATUS, IDENTIFIER_STATUS, ROTATION_STRATEGIES } from '@astralibx/telegram-account-manager';
 ```
 
 **`ACCOUNT_STATUS`** / `AccountStatus`
@@ -192,6 +195,8 @@ import {
 
 Each schema factory accepts an optional `{ collectionName?: string }` options object.
 
+The `ITelegramAccount` interface includes a `tags: string[]` field for categorizing accounts (e.g., by purpose, region, or priority).
+
 **`TelegramAccountMethods`** -- Instance methods on `TelegramAccountDocument`:
 - `preflightCheck(): { ok: boolean; reason?: string }` -- Checks if account can send (not banned, not in error, not quarantined, health score >= 20)
 - `quarantine(reason: string, durationMs: number): void` -- Sets quarantine status, reason, and expiry on the document
@@ -215,6 +220,16 @@ import type { ConnectionService, CapacityManager } from '@astralibx/telegram-acc
 | `CapacityManager` | `.capacity` | Daily send capacity tracking |
 | `IdentifierService` | `.identifiers` | Telegram identifier CRUD |
 | `QuarantineService` | `.quarantine` | Quarantine lifecycle and monitoring |
+| `SessionGeneratorService` | `.sessions` | Phone auth flow and session string generation |
+| `AccountRotator` | `.rotator` | Account selection with rotation strategies |
+
+**`RotationStrategy`** -- Strategy for rotating between accounts when sending messages.
+- `'round-robin'` -- Cycle through accounts in order
+- `'least-used'` -- Pick the account with the lowest daily usage percentage
+- `'highest-health'` -- Pick the account with the highest health score and remaining capacity (default)
+
+**`AccountRotator`** -- Service class for rotating account selection based on a `RotationStrategy`. Available on the `TelegramAccountManager` instance via `.rotator`.
+- `selectAccount(strategy?: RotationStrategy): Promise<AccountCapacity | null>` -- Select the next account based on strategy (defaults to `'highest-health'`). Returns `null` if no accounts have remaining capacity.
 
 ---
 
@@ -232,6 +247,8 @@ interface TelegramAccountManager {
   capacity: CapacityManager;
   identifiers: IdentifierService;
   quarantine: QuarantineService;
+  sessions: SessionGeneratorService;
+  rotator: AccountRotator;
 
   models: {
     TelegramAccount: TelegramAccountModel;
@@ -241,6 +258,7 @@ interface TelegramAccountManager {
 
   getClient(accountId: string): TelegramClient | null;
   getConnectedAccounts(): ConnectedAccount[];
+  sendMessage(accountId: string, chatId: string, text: string): Promise<{ messageId: string }>;
   destroy(): Promise<void>;            // Graceful shutdown
 }
 ```
@@ -252,6 +270,7 @@ interface TelegramAccountManager {
 **`TelegramAccountManagerRouteDeps`** -- Dependency object for `createRoutes()` (advanced usage for custom route setup).
 - `accountController: ReturnType<typeof createAccountController>`
 - `identifierController: ReturnType<typeof createIdentifierController>`
+- `sessionController: ReturnType<typeof createSessionController>`
 - `logger?: LogAdapter`
 
 ---

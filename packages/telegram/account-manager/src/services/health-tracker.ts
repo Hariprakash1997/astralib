@@ -3,7 +3,11 @@ import { noopLogger } from '@astralibx/core';
 import type { LogAdapter, TelegramAccountManagerConfig } from '../types/config.types';
 import type { TelegramAccountModel } from '../schemas/telegram-account.schema';
 import type { TelegramDailyStatsModel } from '../schemas/telegram-daily-stats.schema';
-import { ACCOUNT_STATUS, CRITICAL_ERRORS, QUARANTINE_ERRORS, DEFAULT_HEALTH_CHECK_INTERVAL_MS } from '../constants';
+import {
+  ACCOUNT_STATUS, CRITICAL_ERRORS, QUARANTINE_ERRORS, DEFAULT_HEALTH_CHECK_INTERVAL_MS,
+  HEALTH_SCORE_INCREMENT, HEALTH_SCORE_DECREMENT, HEALTH_SCORE_FLOOD_DECREMENT, CRITICAL_HEALTH_THRESHOLD,
+} from '../constants';
+
 import type { QuarantineService } from './quarantine.service';
 
 export class HealthTracker {
@@ -42,7 +46,7 @@ export class HealthTracker {
       [
         {
           $set: {
-            healthScore: { $min: [100, { $add: ['$healthScore', 2] }] },
+            healthScore: { $min: [100, { $add: ['$healthScore', HEALTH_SCORE_INCREMENT] }] },
             consecutiveErrors: 0,
             lastSuccessfulSendAt: new Date(),
             totalMessagesSent: { $add: ['$totalMessagesSent', 1] },
@@ -64,9 +68,6 @@ export class HealthTracker {
         this.logger.error('Hook onHealthChange error', { accountId, error: e instanceof Error ? e.message : String(e) });
       }
     }
-
-    const dateStr = this.getTodayDateString();
-    await this.TelegramDailyStats.incrementStat(accountId, 'sent', 1, dateStr);
   }
 
   async recordError(accountId: string, errorCode: string): Promise<void> {
@@ -75,7 +76,7 @@ export class HealthTracker {
 
     const oldScore = (oldAccount as any).healthScore;
     const isFloodWait = errorCode === 'FLOOD_WAIT' || errorCode === 'SLOWMODE_WAIT';
-    const scoreDecrement = isFloodWait ? 20 : 10;
+    const scoreDecrement = isFloodWait ? HEALTH_SCORE_FLOOD_DECREMENT : HEALTH_SCORE_DECREMENT;
 
     const updatePipeline: any[] = [
       {
@@ -136,8 +137,6 @@ export class HealthTracker {
       }
     }
 
-    const dateStr = this.getTodayDateString();
-    await this.TelegramDailyStats.incrementStat(accountId, 'failed', 1, dateStr);
   }
 
   startMonitor(): void {
@@ -151,7 +150,7 @@ export class HealthTracker {
 
         for (const account of accounts) {
           const acct = account as any;
-          if (acct.healthScore < 20) {
+          if (acct.healthScore < CRITICAL_HEALTH_THRESHOLD) {
             this.logger.warn('Account health critically low', {
               accountId: acct._id.toString(),
               phone: acct.phone,
@@ -163,6 +162,7 @@ export class HealthTracker {
         this.logger.error('Health monitor error', { error: err instanceof Error ? err.message : String(err) });
       }
     }, intervalMs);
+    this.monitorInterval.unref();
 
     this.logger.info('Health monitor started', { intervalMs });
   }
@@ -187,7 +187,4 @@ export class HealthTracker {
     };
   }
 
-  private getTodayDateString(): string {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(new Date());
-  }
 }

@@ -53,6 +53,24 @@ export class SessionTimeoutWorker {
 
       for (const session of expiredSessions) {
         try {
+          // Call onSessionTimeout hook BEFORE marking abandoned —
+          // this fires specifically for disconnect window expiry (visitor disconnected, never came back)
+          if (this.deps.config.hooks?.onSessionTimeout) {
+            try {
+              await this.deps.config.hooks.onSessionTimeout({
+                sessionId: session.sessionId,
+                visitorId: session.visitorId,
+                channel: session.channel,
+                startedAt: session.startedAt,
+              });
+            } catch (hookErr) {
+              this.deps.logger.error('onSessionTimeout hook failed', {
+                sessionId: session.sessionId,
+                error: hookErr instanceof Error ? hookErr.message : 'Unknown error',
+              });
+            }
+          }
+
           await this.deps.sessionService.abandon(session.sessionId);
 
           if (session.agentId) {
@@ -63,7 +81,7 @@ export class SessionTimeoutWorker {
           await this.deps.redisService.removeSessionActivity(session.sessionId);
 
           this.deps.config.hooks?.onMetric?.({
-            name: 'session_abandoned',
+            name: 'session_timeout',
             value: 1,
             labels: { channel: session.channel, mode: session.mode },
           });

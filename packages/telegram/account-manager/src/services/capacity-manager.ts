@@ -4,8 +4,9 @@ import { noopLogger } from '@astralibx/core';
 import type { LogAdapter, TelegramAccountManagerConfig } from '../types/config.types';
 import { ACCOUNT_STATUS } from '../constants';
 import type { WarmupManager } from './warmup-manager';
-import type { TelegramAccountModel } from '../schemas/telegram-account.schema';
+import type { TelegramAccountModel, TelegramAccountDocument } from '../schemas/telegram-account.schema';
 import type { TelegramDailyStatsModel } from '../schemas/telegram-daily-stats.schema';
+import { getTodayDateString } from '../utils/date';
 
 export class CapacityManager {
   private logger: LogAdapter;
@@ -33,20 +34,19 @@ export class CapacityManager {
       };
     }
 
-    const acct = account as any;
     const sentToday = await this.getSentToday(accountId);
-    const dailyMax = await this.warmupManager.getDailyLimit(acct);
+    const dailyMax = await this.warmupManager.getDailyLimit(account);
     const remaining = Math.max(0, dailyMax - sentToday);
     const usagePercent = dailyMax > 0 ? Math.round((sentToday / dailyMax) * 100) : 0;
 
     return {
-      accountId: acct._id.toString(),
-      phone: acct.phone,
+      accountId: account._id.toString(),
+      phone: account.phone,
       dailyMax,
       sentToday,
       remaining,
       usagePercent,
-      status: acct.status,
+      status: account.status,
     };
   }
 
@@ -56,7 +56,7 @@ export class CapacityManager {
     });
 
     const capacities = await Promise.all(
-      accounts.map((a) => this.getAccountCapacity((a as any)._id.toString())),
+      accounts.map((a) => this.getAccountCapacity(a._id.toString())),
     );
 
     const totalRemaining = capacities.reduce((sum, c) => sum + c.remaining, 0);
@@ -70,8 +70,7 @@ export class CapacityManager {
     }).sort({ healthScore: -1 });
 
     for (const account of accounts) {
-      const acct = account as any;
-      const capacity = await this.getAccountCapacity(acct._id.toString());
+      const capacity = await this.getAccountCapacity(account._id.toString());
       if (capacity.remaining > 0) {
         return capacity;
       }
@@ -81,22 +80,19 @@ export class CapacityManager {
   }
 
   async incrementSent(accountId: string): Promise<void> {
-    const dateStr = this.getTodayDateString();
+    const dateStr = getTodayDateString();
     await this.TelegramDailyStats.incrementStat(accountId, 'sent', 1, dateStr);
   }
 
   async incrementFailed(accountId: string): Promise<void> {
-    const dateStr = this.getTodayDateString();
+    const dateStr = getTodayDateString();
     await this.TelegramDailyStats.incrementStat(accountId, 'failed', 1, dateStr);
   }
 
   async getSentToday(accountId: string): Promise<number> {
-    const dateStr = this.getTodayDateString();
+    const dateStr = getTodayDateString();
     const stat = await this.TelegramDailyStats.findOne({ accountId: new Types.ObjectId(accountId), date: dateStr });
-    return stat?.sent || 0;
+    return stat?.sent ?? 0;
   }
 
-  private getTodayDateString(): string {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: 'UTC' }).format(new Date());
-  }
 }

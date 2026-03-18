@@ -189,6 +189,26 @@ describe('MessageService', () => {
     });
   });
 
+  describe('updateLabel()', () => {
+    it('should update message training quality', async () => {
+      await service.updateLabel('msg-1', 'good');
+
+      expect(model.updateOne).toHaveBeenCalledWith(
+        { messageId: 'msg-1' },
+        { $set: { trainingQuality: 'good' } },
+      );
+    });
+
+    it('should update with needs_review quality', async () => {
+      await service.updateLabel('msg-2', 'needs_review');
+
+      expect(model.updateOne).toHaveBeenCalledWith(
+        { messageId: 'msg-2' },
+        { $set: { trainingQuality: 'needs_review' } },
+      );
+    });
+  });
+
   describe('toPayload()', () => {
     it('should map document to payload', () => {
       const msg = createMockMessage();

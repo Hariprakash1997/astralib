@@ -39,19 +39,20 @@ describe('ConversationService', () => {
 
   describe('list()', () => {
     it('should return items and total from aggregation pipeline', async () => {
-      const aggregateResults = [
-        {
-          _id: 'chat-1',
-          lastMessage: { content: 'hello', contentType: 'text', direction: 'inbound', createdAt: new Date() },
-          messageCount: 5,
-          unreadCount: 2,
-        },
-      ];
+      const facetResult = {
+        metadata: [{ total: 1 }],
+        data: [
+          {
+            _id: 'chat-1',
+            lastMessage: { content: 'hello', contentType: 'text', direction: 'inbound', createdAt: new Date() },
+            messageCount: 5,
+            unreadCount: 2,
+          },
+        ],
+      };
 
-      // First call is for count pipeline, second for items pipeline
       (TelegramMessage.aggregate as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce([{ total: 1 }])
-        .mockResolvedValueOnce(aggregateResults);
+        .mockResolvedValueOnce([facetResult]);
 
       const result = await service.list();
 
@@ -64,8 +65,7 @@ describe('ConversationService', () => {
 
     it('should return total 0 when count pipeline returns empty', async () => {
       (TelegramMessage.aggregate as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce([{ metadata: [], data: [] }]);
 
       const result = await service.list();
 
@@ -75,25 +75,23 @@ describe('ConversationService', () => {
 
     it('should apply direction filter in match stage', async () => {
       (TelegramMessage.aggregate as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce([{ metadata: [], data: [] }]);
 
       await service.list({ direction: 'inbound' });
 
-      const firstCallPipeline = (TelegramMessage.aggregate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const matchStage = firstCallPipeline.find((s: any) => s.$match);
+      const pipeline = (TelegramMessage.aggregate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const matchStage = pipeline.find((s: any) => s.$match);
       expect(matchStage.$match.direction).toBe('inbound');
     });
 
     it('should apply contentType filter', async () => {
       (TelegramMessage.aggregate as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce([{ metadata: [], data: [] }]);
 
       await service.list({ contentType: 'photo' });
 
-      const firstCallPipeline = (TelegramMessage.aggregate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const matchStage = firstCallPipeline.find((s: any) => s.$match);
+      const pipeline = (TelegramMessage.aggregate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const matchStage = pipeline.find((s: any) => s.$match);
       expect(matchStage.$match.contentType).toBe('photo');
     });
 
@@ -102,29 +100,26 @@ describe('ConversationService', () => {
       const endDate = new Date('2025-12-31');
 
       (TelegramMessage.aggregate as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce([{ metadata: [], data: [] }]);
 
       await service.list({ startDate, endDate });
 
-      const firstCallPipeline = (TelegramMessage.aggregate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const matchStage = firstCallPipeline.find((s: any) => s.$match);
+      const pipeline = (TelegramMessage.aggregate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const matchStage = pipeline.find((s: any) => s.$match);
       expect(matchStage.$match.createdAt.$gte).toBe(startDate);
       expect(matchStage.$match.createdAt.$lte).toBe(endDate);
     });
 
     it('should handle pagination with skip and limit', async () => {
       (TelegramMessage.aggregate as ReturnType<typeof vi.fn>)
-        .mockResolvedValueOnce([{ total: 100 }])
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce([{ metadata: [{ total: 100 }], data: [] }]);
 
       await service.list(undefined, 3, 20);
 
-      const itemsPipeline = (TelegramMessage.aggregate as ReturnType<typeof vi.fn>).mock.calls[1][0];
-      const skipStage = itemsPipeline.find((s: any) => s.$skip !== undefined);
-      const limitStage = itemsPipeline.find((s: any) => s.$limit !== undefined);
-      expect(skipStage.$skip).toBe(40); // (3-1) * 20
-      expect(limitStage.$limit).toBe(20);
+      const pipeline = (TelegramMessage.aggregate as ReturnType<typeof vi.fn>).mock.calls[0][0];
+      const facetStage = pipeline.find((s: any) => s.$facet);
+      expect(facetStage.$facet.data[0].$skip).toBe(40); // (3-1) * 20
+      expect(facetStage.$facet.data[1].$limit).toBe(20);
     });
   });
 
@@ -193,9 +188,11 @@ describe('ConversationService', () => {
 
       expect(result.items).toEqual(messages);
       expect(result.total).toBe(1);
-      expect(TelegramMessage.find).toHaveBeenCalledWith({
-        content: { $regex: 'hello', $options: 'i' },
-      });
+      expect(TelegramMessage.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          content: { $regex: expect.any(String), $options: 'i' },
+        }),
+      );
     });
 
     it('should apply pagination to search', async () => {

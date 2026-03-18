@@ -13,8 +13,11 @@ import { WarmupManager } from './services/warmup-manager';
 import { CapacityManager } from './services/capacity-manager';
 import { IdentifierService } from './services/identifier.service';
 import { QuarantineService } from './services/quarantine.service';
+import { SessionGeneratorService } from './services/session-generator.service';
+import { AccountRotator } from './services/account-rotator';
 import { createAccountController } from './controllers/account.controller';
 import { createIdentifierController } from './controllers/identifier.controller';
+import { createSessionController } from './controllers/session.controller';
 import { createRoutes } from './routes';
 
 export interface TelegramAccountManager {
@@ -25,6 +28,8 @@ export interface TelegramAccountManager {
   capacity: CapacityManager;
   identifiers: IdentifierService;
   quarantine: QuarantineService;
+  sessions: SessionGeneratorService;
+  rotator: AccountRotator;
   models: {
     TelegramAccount: TelegramAccountModel;
     TelegramDailyStats: TelegramDailyStatsModel;
@@ -32,6 +37,7 @@ export interface TelegramAccountManager {
   };
   getClient(accountId: string): TelegramClient | null;
   getConnectedAccounts(): ConnectedAccount[];
+  sendMessage(accountId: string, chatId: string, text: string): Promise<{ messageId: string }>;
   destroy(): Promise<void>;
 }
 
@@ -46,20 +52,23 @@ export function createTelegramAccountManager(
   const hooks = config.hooks;
 
   // 1. Create models
-  const TelegramAccount = conn.model<any>(
-    `${prefix}TelegramAccount`,
+  const accountModelName = `${prefix}TelegramAccount`;
+  const TelegramAccount = (conn.models[accountModelName] || conn.model<any>(
+    accountModelName,
     createTelegramAccountSchema(prefix ? { collectionName: `${prefix}telegram_accounts` } : undefined),
-  ) as TelegramAccountModel;
+  )) as TelegramAccountModel;
 
-  const TelegramDailyStats = conn.model<any>(
-    `${prefix}TelegramDailyStats`,
+  const statsModelName = `${prefix}TelegramDailyStats`;
+  const TelegramDailyStats = (conn.models[statsModelName] || conn.model<any>(
+    statsModelName,
     createTelegramDailyStatsSchema(prefix ? { collectionName: `${prefix}telegram_daily_stats` } : undefined),
-  ) as TelegramDailyStatsModel;
+  )) as TelegramDailyStatsModel;
 
-  const TelegramIdentifier = conn.model<any>(
-    `${prefix}TelegramIdentifier`,
+  const identifierModelName = `${prefix}TelegramIdentifier`;
+  const TelegramIdentifier = (conn.models[identifierModelName] || conn.model<any>(
+    identifierModelName,
     createTelegramIdentifierSchema(prefix ? { collectionName: `${prefix}telegram_identifiers` } : undefined),
-  ) as TelegramIdentifierModel;
+  )) as TelegramIdentifierModel;
 
   // 2. Create services (dependency order)
   const connectionService = new ConnectionService(TelegramAccount, config, hooks);
@@ -68,10 +77,37 @@ export function createTelegramAccountManager(
   const healthTracker = new HealthTracker(TelegramAccount, TelegramDailyStats, config, hooks, quarantineService);
   const capacityManager = new CapacityManager(TelegramAccount, TelegramDailyStats, warmupManager, config);
   const identifierService = new IdentifierService(TelegramIdentifier, config);
+  const sessionGenerator = new SessionGeneratorService(config.credentials.apiId, config.credentials.apiHash, logger);
+  const accountRotator = new AccountRotator(capacityManager, TelegramAccount, logger);
+
+  // Wire message tracking callbacks
+  connectionService.onMessageSent = async (accountId: string) => {
+    try {
+      await capacityManager.incrementSent(accountId);
+      await healthTracker.recordSuccess(accountId);
+    } catch (err) {
+      logger.error('Failed to track message success', { accountId, error: err instanceof Error ? err.message : String(err) });
+    }
+  };
+  connectionService.onMessageFailed = async (accountId: string) => {
+    try {
+      await capacityManager.incrementFailed(accountId);
+    } catch (err) {
+      logger.error('Failed to track message failure', { accountId, error: err instanceof Error ? err.message : String(err) });
+    }
+  };
 
   // 3. Auto-start monitors
   healthTracker.startMonitor();
   quarantineService.startMonitor();
+
+  if (config.options?.warmup?.autoAdvance) {
+    warmupManager.startAutoAdvance();
+  }
+
+  if (config.options?.idleTimeoutMs) {
+    connectionService.startIdleMonitor(config.options.idleTimeoutMs);
+  }
 
   // 4. Create controllers
   const accountController = createAccountController(
@@ -86,14 +122,18 @@ export function createTelegramAccountManager(
   );
 
   const identifierController = createIdentifierController(TelegramIdentifier, logger);
+  const sessionController = createSessionController(sessionGenerator, logger);
 
   // 5. Create routes
-  const routes = createRoutes({ accountController, identifierController, logger });
+  const routes = createRoutes({ accountController, identifierController, sessionController, logger });
 
   // 6. Return manager interface
   async function destroy(): Promise<void> {
     healthTracker.stopMonitor();
     quarantineService.stopMonitor();
+    warmupManager.stopAutoAdvance();
+    connectionService.stopIdleMonitor();
+    await sessionGenerator.destroy();
     await connectionService.disconnectAll();
     logger.info('TelegramAccountManager destroyed');
   }
@@ -106,9 +146,12 @@ export function createTelegramAccountManager(
     capacity: capacityManager,
     identifiers: identifierService,
     quarantine: quarantineService,
+    sessions: sessionGenerator,
+    rotator: accountRotator,
     models: { TelegramAccount, TelegramDailyStats, TelegramIdentifier },
     getClient: (id) => connectionService.getClient(id),
     getConnectedAccounts: () => connectionService.getConnectedAccounts(),
+    sendMessage: (accountId, chatId, text) => connectionService.sendMessage(accountId, chatId, text),
     destroy,
   };
 }
@@ -124,6 +167,9 @@ export { WarmupManager, type WarmupStatus } from './services/warmup-manager';
 export { CapacityManager } from './services/capacity-manager';
 export { IdentifierService } from './services/identifier.service';
 export { QuarantineService } from './services/quarantine.service';
+export { SessionGeneratorService } from './services/session-generator.service';
+export { AccountRotator } from './services/account-rotator';
 export { createAccountController } from './controllers/account.controller';
 export { createIdentifierController } from './controllers/identifier.controller';
+export { createSessionController } from './controllers/session.controller';
 export { createRoutes, type TelegramAccountManagerRouteDeps } from './routes';

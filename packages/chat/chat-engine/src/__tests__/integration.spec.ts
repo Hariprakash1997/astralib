@@ -166,15 +166,16 @@ describe('createChatEngine Integration', () => {
       ).toThrow(InvalidConfigError);
     });
 
-    it('should throw InvalidConfigError when adapters.assignAgent is missing', () => {
-      expect(() =>
-        createChatEngine({
-          db: { connection: createMockConnection() },
-          redis: { connection: createMockRedis() },
-          socket: {},
-          adapters: {} as any,
-        }),
-      ).toThrow(InvalidConfigError);
+    it('should accept config without assignAgent adapter (solo mode)', () => {
+      const engine = createChatEngine({
+        db: { connection: createMockConnection() },
+        redis: { connection: createMockRedis() },
+        socket: {},
+        adapters: {},
+      } as any);
+
+      expect(engine).toBeDefined();
+      expect(engine.sessions).toBeDefined();
     });
 
     it('should throw InvalidConfigError when redis.connection is missing', () => {
@@ -196,6 +197,267 @@ describe('createChatEngine Integration', () => {
 
       const engine = createChatEngine(config);
       expect(engine.routes).toBeDefined();
+    });
+  });
+
+  describe('solo mode (no assignAgent)', () => {
+    it('should create engine without assignAgent', () => {
+      const engine = createChatEngine({
+        db: { connection: createMockConnection() },
+        redis: { connection: createMockRedis() },
+        socket: { cors: { origin: '*' } },
+        adapters: {},
+      } as any);
+
+      expect(engine).toBeDefined();
+      expect(engine.agents).toBeDefined();
+      expect(engine.sessions).toBeDefined();
+      expect(engine.messages).toBeDefined();
+    });
+  });
+
+  describe('Factory CRUD operations', () => {
+    // --- Agent Service ---
+    it('should create an agent through engine.agents', async () => {
+      const engine = createChatEngine(createValidConfig());
+      const mockDoc = {
+        _id: 'agent1', name: 'Sarah', role: 'Support', isAI: false,
+        isActive: true, visibility: 'public', isDefault: false,
+        status: 'available', activeChats: 0, totalChatsHandled: 0,
+      };
+      engine.models.ChatAgent.create = vi.fn().mockResolvedValue(mockDoc);
+
+      const result = await engine.agents.create({ name: 'Sarah', role: 'Support' });
+      expect(result).toBeDefined();
+      expect(engine.models.ChatAgent.create).toHaveBeenCalled();
+    });
+
+    it('should list agents through engine.agents', async () => {
+      const engine = createChatEngine(createValidConfig());
+      engine.models.ChatAgent.find = vi.fn().mockReturnValue({
+        sort: vi.fn().mockResolvedValue([]),
+      });
+
+      const result = await engine.agents.list();
+      expect(Array.isArray(result)).toBe(true);
+    });
+
+    it('should find default AI agent through engine.agents', async () => {
+      const engine = createChatEngine(createValidConfig());
+      engine.models.ChatAgent.findOne = vi.fn().mockResolvedValue(null);
+
+      const result = await engine.agents.findDefaultAiAgent();
+      expect(result).toBeNull();
+    });
+
+    it('should list public agents through engine.agents', async () => {
+      const engine = createChatEngine(createValidConfig());
+      engine.models.ChatAgent.find = vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([]),
+      });
+
+      const result = await engine.agents.listPublicAgents();
+      expect(Array.isArray(result)).toBe(true);
+    });
+
+    // --- Session Service ---
+    it('should access sessions through engine.sessions', async () => {
+      const engine = createChatEngine(createValidConfig());
+      // findOne is called in singleSessionPerVisitor path with .sort() chain
+      engine.models.ChatSession.findOne = vi.fn().mockReturnValue({
+        sort: vi.fn().mockResolvedValue(null),
+      });
+      engine.models.ChatSession.create = vi.fn().mockResolvedValue({
+        _id: 'sess1', sessionId: 'sess1', visitorId: 'v1', status: 'new',
+        mode: 'ai', channel: 'web', messageCount: 0, startedAt: new Date(),
+      });
+
+      const result = await engine.sessions.findOrCreate({
+        visitorId: 'v1', channel: 'web',
+      });
+      expect(result).toBeDefined();
+    });
+
+    it('should get session context through engine.sessions', async () => {
+      const engine = createChatEngine(createValidConfig());
+      const mockSession = {
+        _id: 'sess1', sessionId: 'sess1', visitorId: 'v1', status: 'active',
+        mode: 'ai', channel: 'web', messageCount: 1, startedAt: new Date(),
+        preferences: {}, conversationSummary: '', feedback: null, metadata: {},
+        toObject: vi.fn().mockReturnThis(),
+      };
+      engine.models.ChatSession.findOne = vi.fn().mockResolvedValue(mockSession);
+      engine.models.ChatMessage.find = vi.fn().mockReturnValue({
+        sort: vi.fn().mockResolvedValue([]),
+      });
+
+      const ctx = await engine.sessions.getSessionContext('sess1');
+      expect(ctx).toBeDefined();
+      expect(ctx.visitorId).toBe('v1');
+    });
+
+    // --- Message Service ---
+    it('should create message through engine.messages', async () => {
+      const engine = createChatEngine(createValidConfig());
+      const mockMsg = {
+        _id: 'msg1', messageId: 'msg1', sessionId: 'sess1',
+        senderType: 'visitor', content: 'Hello', contentType: 'text',
+        status: 'sent', createdAt: new Date(),
+      };
+      engine.models.ChatMessage.create = vi.fn().mockResolvedValue(mockMsg);
+
+      const result = await engine.messages.create({
+        sessionId: 'sess1', senderType: 'visitor' as any, content: 'Hello', contentType: 'text' as any,
+      });
+      expect(result).toBeDefined();
+      expect(result.content).toBe('Hello');
+    });
+
+    it('should create system message through engine.messages', async () => {
+      const engine = createChatEngine(createValidConfig());
+      engine.models.ChatMessage.create = vi.fn().mockResolvedValue({
+        _id: 'msg2', messageId: 'msg2', sessionId: 'sess1',
+        senderType: 'system', content: 'Agent joined', contentType: 'system',
+        status: 'sent', createdAt: new Date(),
+      });
+
+      const result = await engine.messages.createSystemMessage('sess1', 'Agent joined');
+      expect(result).toBeDefined();
+      expect(result.senderType).toBe('system');
+    });
+
+    it('should update message label through engine.messages', async () => {
+      const engine = createChatEngine(createValidConfig());
+      engine.models.ChatMessage.updateOne = vi.fn().mockResolvedValue({ modifiedCount: 1 });
+
+      await engine.messages.updateLabel('msg1', 'good');
+      expect(engine.models.ChatMessage.updateOne).toHaveBeenCalledWith(
+        { messageId: 'msg1' },
+        { $set: { trainingQuality: 'good' } },
+      );
+    });
+
+    // --- Settings Service ---
+    it('should get and update settings through engine.settings', async () => {
+      const engine = createChatEngine(createValidConfig());
+      engine.models.ChatSettings.findOneAndUpdate = vi.fn().mockResolvedValue({
+        key: 'global', defaultSessionMode: 'ai', aiEnabled: true,
+        requireAgentForChat: false, visitorAgentSelection: true,
+      });
+
+      const result = await engine.settings.update({ aiEnabled: true, visitorAgentSelection: true });
+      expect(result).toBeDefined();
+    });
+
+    // --- FAQ Service ---
+    it('should create FAQ through engine.faq', async () => {
+      const engine = createChatEngine(createValidConfig());
+      engine.models.ChatFAQItem.create = vi.fn().mockResolvedValue({
+        _id: 'faq1', question: 'Test?', answer: 'Yes', category: 'general',
+        isActive: true, order: 0,
+      });
+
+      const result = await engine.faq.create({
+        question: 'Test?', answer: 'Yes', category: 'general', order: 0, isActive: true,
+      });
+      expect(result).toBeDefined();
+      expect(result.question).toBe('Test?');
+    });
+
+    // --- Canned Response Service ---
+    it('should create canned response through engine.cannedResponses', async () => {
+      const engine = createChatEngine(createValidConfig());
+      engine.models.ChatCannedResponse.create = vi.fn().mockResolvedValue({
+        _id: 'cr1', title: 'Greeting', content: 'Hi!', shortcut: '/hi',
+        isActive: true, order: 0,
+      });
+
+      const result = await engine.cannedResponses.create({
+        title: 'Greeting', content: 'Hi!', shortcut: '/hi', isActive: true, order: 0,
+      });
+      expect(result).toBeDefined();
+      expect(result.shortcut).toBe('/hi');
+    });
+
+    // --- Capabilities / Routes ---
+    it('should return capabilities reflecting config', () => {
+      const config = createValidConfig();
+      (config.adapters as any).generateAiResponse = vi.fn();
+      const engine = createChatEngine(config);
+      expect(engine.routes).toBeDefined();
+    });
+
+    it('should return capabilities without AI when no adapter', () => {
+      const engine = createChatEngine({
+        db: { connection: createMockConnection() },
+        redis: { connection: createMockRedis() },
+        socket: { cors: { origin: '*' } },
+        adapters: {},
+      } as any);
+      expect(engine.routes).toBeDefined();
+    });
+
+    // --- Solo mode full flow ---
+    it('should work in solo mode (no adapters, no agents needed)', async () => {
+      const engine = createChatEngine({
+        db: { connection: createMockConnection() },
+        redis: { connection: createMockRedis() },
+        socket: { cors: { origin: '*' } },
+        adapters: {},
+      } as any);
+
+      // All services should be accessible
+      expect(engine.agents).toBeDefined();
+      expect(engine.sessions).toBeDefined();
+      expect(engine.messages).toBeDefined();
+      expect(engine.settings).toBeDefined();
+      expect(engine.faq).toBeDefined();
+      expect(engine.guidedQuestions).toBeDefined();
+      expect(engine.cannedResponses).toBeDefined();
+      expect(engine.widgetConfig).toBeDefined();
+      expect(engine.routes).toBeDefined();
+      expect(typeof engine.attach).toBe('function');
+      expect(typeof engine.destroy).toBe('function');
+
+      // Should be able to call service methods
+      engine.models.ChatAgent.create = vi.fn().mockResolvedValue({ _id: 'a1', name: 'Solo' });
+      const agent = await engine.agents.create({ name: 'Solo' });
+      expect(agent).toBeDefined();
+
+      await engine.destroy();
+    });
+  });
+
+  describe('new config options', () => {
+    it('should accept aiSimulation config', () => {
+      const config = {
+        ...createValidConfig(),
+        options: {
+          aiSimulation: {
+            deliveryDelay: { min: 300, max: 1000 },
+            readDelay: { min: 1000, max: 3000 },
+            preTypingDelay: { min: 500, max: 1500 },
+            bubbleDelay: { min: 800, max: 2000 },
+            minTypingDuration: 2000,
+          },
+        },
+      };
+      const engine = createChatEngine(config);
+      expect(engine).toBeDefined();
+    });
+
+    it('should accept singleSessionPerVisitor, trackEventsAsMessages, labelingEnabled, maxUploadSizeMb options', () => {
+      const config = {
+        ...createValidConfig(),
+        options: {
+          singleSessionPerVisitor: false,
+          trackEventsAsMessages: true,
+          labelingEnabled: true,
+          maxUploadSizeMb: 10,
+        },
+      };
+      const engine = createChatEngine(config);
+      expect(engine).toBeDefined();
     });
   });
 });

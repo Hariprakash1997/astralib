@@ -1,7 +1,8 @@
 import { Schema, Model, HydratedDocument } from 'mongoose';
-import { SENDER_TYPES, MESSAGE_DIRECTIONS, CONTENT_TYPES } from '../constants';
+import { SENDER_TYPES, MESSAGE_DIRECTIONS, CONTENT_TYPES, CONTENT_TEXT } from '../constants';
 
 export interface ITelegramMessage {
+  accountId: string;
   conversationId: string;
   messageId: string;
   senderId: string;
@@ -24,6 +25,7 @@ export type TelegramMessageModel = Model<ITelegramMessage>;
 export function createTelegramMessageSchema(prefix?: string) {
   const schema = new Schema<ITelegramMessage, TelegramMessageModel>(
     {
+      accountId: { type: String, required: true },
       conversationId: { type: String, required: true },
       messageId: { type: String, required: true },
       senderId: { type: String, required: true },
@@ -40,7 +42,7 @@ export function createTelegramMessageSchema(prefix?: string) {
       contentType: {
         type: String,
         enum: CONTENT_TYPES,
-        default: 'text',
+        default: CONTENT_TEXT,
       },
       content: { type: String, default: '' },
       mediaType: String,
@@ -53,10 +55,10 @@ export function createTelegramMessageSchema(prefix?: string) {
     },
   );
 
+  schema.index({ accountId: 1, conversationId: 1, createdAt: -1 });
   schema.index({ conversationId: 1, createdAt: -1 });
   schema.index({ messageId: 1 }, { unique: true });
-  schema.index({ senderId: 1 });
-  schema.index({ direction: 1 });
+  schema.index({ accountId: 1, direction: 1, readAt: 1 });
 
   return schema;
 }

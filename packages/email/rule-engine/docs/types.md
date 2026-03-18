@@ -12,10 +12,11 @@ import type {
   EmailRuleEngineConfig, SendEmailParams, AgentSelection,
   RecipientIdentifier, BeforeSendParams, BeforeSendResult,
   LogAdapter, RenderResult, CompiledTemplate,
-  EmailRuleEngine,
+  EmailRuleEngine, EmailAttachment,
   // Constants (value + type)
   TemplateCategory, TemplateAudience, RuleOperator,
   EmailType, RunTrigger, ThrottleWindow, EmailSendStatus,
+  TargetMode, RunLogStatus,
 } from '@astralibx/email-rule-engine';
 
 import {
@@ -66,7 +67,8 @@ import {
 | Type | Description |
 |------|-------------|
 | `EmailRuleEngineConfig` | Top-level config passed to `createEmailRuleEngine()`. See adapter signatures below. |
-| `SendEmailParams` | Params passed to the `sendEmail` adapter. Fields: `identifierId`, `contactId`, `accountId`, `subject`, `htmlBody`, `textBody`, `ruleId`, `autoApprove`. |
+| `SendEmailParams` | Params passed to the `sendEmail` adapter. Fields: `identifierId`, `contactId`, `accountId`, `subject`, `htmlBody`, `textBody`, `ruleId`, `autoApprove`, `attachments?`. |
+| `EmailAttachment` | Attachment reference. Fields: `filename: string`, `url: string`, `contentType: string`. Used in templates and `SendEmailParams`. |
 | `AgentSelection` | Return type of the `selectAgent` adapter. Fields: `accountId: string`, `email: string`, `metadata: Record<string, unknown>`. |
 | `RecipientIdentifier` | Return type of the `findIdentifier` adapter. Fields: `id: string`, `contactId: string`. |
 | `BeforeSendParams` | Params passed to the `beforeSend` hook. Fields: `htmlBody`, `textBody`, `subject`, `account: { id, email, metadata }`, `user: { id, email, name }`. |
@@ -87,7 +89,7 @@ adapters: {
   ) => Promise<AgentSelection | null>;
   findIdentifier: (email: string) => Promise<RecipientIdentifier | null>;
   // Optional
-  sendTestEmail?: (to: string, subject: string, html: string, text: string) => Promise<void>;
+  sendTestEmail?: (to: string, subject: string, html: string, text: string, attachments?: EmailAttachment[]) => Promise<void>;
 }
 ```
 

@@ -42,6 +42,7 @@ import type {
 - `senderId: string`, `senderType: SenderType`
 - `direction: MessageDirection`, `contentType: ContentType`
 - `content: string`, `mediaUrl?: string`, `mediaType?: string`
+- `accountId: string` -- The account that received or sent this message
 - `createdAt: Date`
 
 ---
@@ -85,6 +86,12 @@ import type { ContentType, MessageDirection, SenderType, SessionStatus } from '@
 ---
 
 ## Service Types
+
+**`Dialog`** -- Returned by `DialogLoaderService.loadDialogs()`.
+- `chatId: string`, `title: string`
+- `type: 'user' | 'group' | 'channel'`
+- `unreadCount: number`
+- `lastMessage?: { text: string; date: Date }`
 
 **`ConversationListItem`** -- Returned by `ConversationService.list()`.
 - `conversationId: string`
@@ -165,7 +172,7 @@ import {
 
 | Interface | Document Type | Model Type | Schema Factory |
 |-----------|---------------|------------|----------------|
-| `ITelegramMessage` | `TelegramMessageDocument` | `TelegramMessageModel` | `createTelegramMessageSchema()` |
+| `ITelegramMessage` | `TelegramMessageDocument` | `TelegramMessageModel` | `createTelegramMessageSchema()` -- includes `accountId: string` field |
 | `ITelegramConversationSession` | `TelegramConversationSessionDocument` | `TelegramConversationSessionModel` | `createTelegramConversationSessionSchema()` |
 
 Each schema factory accepts an optional `prefix?: string` argument for collection naming.
@@ -182,6 +189,7 @@ import type { ConversationService, SessionService } from '@astralibx/telegram-in
 
 | Class | Access via | Purpose |
 |-------|-----------|---------|
+| `DialogLoaderService` | `.dialogs` | Load dialogs from Telegram for a connected account |
 | `MessageListenerService` | `.listener` | Attach/detach message listeners on TDLib clients |
 | `ConversationService` | `.conversations` | List conversations, get messages, mark as read, search |
 | `HistorySyncService` | `.history` | Pull historical messages from Telegram |
@@ -206,6 +214,7 @@ interface TelegramInbox {
   messages: MessageService;
   sessions: SessionService;
   typing: TypingBroadcasterService;
+  dialogs: DialogLoaderService;
   events: InboxEventGateway;
 
   models: {

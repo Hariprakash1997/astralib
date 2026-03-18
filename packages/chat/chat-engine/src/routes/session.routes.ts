@@ -5,10 +5,15 @@ import type { MessageService } from '../services/message.service';
 import { sendSuccess, sendError, getParam } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
 
+export interface SessionRouteOptions {
+  enrichSessionContext?: (context: Record<string, unknown>) => Promise<Record<string, unknown>>;
+}
+
 export function createSessionRoutes(
   sessionService: SessionService,
   messageService: MessageService,
   logger: LogAdapter,
+  options?: SessionRouteOptions,
 ): Router {
   const router = Router();
 
@@ -56,9 +61,10 @@ export function createSessionRoutes(
       if (channel) filter.channel = channel;
       if (mode) filter.mode = mode;
       if (search) {
+        const escaped = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         filter.$or = [
-          { visitorId: { $regex: search, $options: 'i' } },
-          { conversationSummary: { $regex: search, $options: 'i' } },
+          { visitorId: { $regex: escaped, $options: 'i' } },
+          { conversationSummary: { $regex: escaped, $options: 'i' } },
         ];
       }
       if (dateFrom || dateTo) {
@@ -113,6 +119,24 @@ export function createSessionRoutes(
     }
   });
 
+  // GET /:sessionId/context — rich session context for integrations
+  router.get('/:sessionId/context', async (req: Request, res: Response) => {
+    try {
+      let context = await sessionService.getSessionContext(getParam(req, 'sessionId'));
+
+      if (options?.enrichSessionContext) {
+        context = await options.enrichSessionContext(context);
+      }
+
+      sendSuccess(res, context);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const statusCode = (error as any).code === 'SESSION_NOT_FOUND' ? 404 : 500;
+      logger.error('Failed to get session context', { error });
+      sendError(res, message, statusCode);
+    }
+  });
+
   // POST /:sessionId/resolve
   router.post('/:sessionId/resolve', async (req: Request, res: Response) => {
     try {
@@ -130,6 +154,13 @@ export function createSessionRoutes(
   router.post('/:sessionId/feedback', async (req: Request, res: Response) => {
     try {
       const { rating, survey } = req.body;
+
+      if (rating != null) {
+        if (typeof rating !== 'number' || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+          return sendError(res, 'Rating must be an integer from 1 to 5', 400);
+        }
+      }
+
       await sessionService.submitFeedback(getParam(req, 'sessionId'), { rating, survey });
       sendSuccess(res, undefined);
     } catch (error: unknown) {

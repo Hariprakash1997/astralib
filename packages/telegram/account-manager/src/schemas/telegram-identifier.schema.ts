@@ -1,6 +1,7 @@
 import { Schema, Model, Types, HydratedDocument } from 'mongoose';
+import { IDENTIFIER_STATUS } from '../constants';
 
-const IDENTIFIER_STATUSES = ['active', 'blocked', 'privacy_blocked', 'inactive', 'invalid'] as const;
+const IDENTIFIER_STATUSES = Object.values(IDENTIFIER_STATUS);
 type IdentifierStatus = typeof IDENTIFIER_STATUSES[number];
 
 export interface ITelegramIdentifier {

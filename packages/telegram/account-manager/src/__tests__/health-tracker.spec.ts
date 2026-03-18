@@ -96,7 +96,7 @@ describe('HealthTracker', () => {
       );
     });
 
-    it('should increment daily sent stat', async () => {
+    it('should not increment daily sent stat (handled by capacityManager)', async () => {
       const oldAccount = makeAccountDoc();
       const updatedAccount = makeAccountDoc({ healthScore: 82 });
 
@@ -105,7 +105,7 @@ describe('HealthTracker', () => {
 
       await tracker.recordSuccess('acc-1');
 
-      expect(TelegramDailyStats.incrementStat).toHaveBeenCalledWith('acc-1', 'sent', 1, expect.any(String));
+      expect(TelegramDailyStats.incrementStat).not.toHaveBeenCalled();
     });
 
     it('should call onHealthChange hook when score changes', async () => {
@@ -290,7 +290,7 @@ describe('HealthTracker', () => {
       expect(pipeline[0].$set.healthScore).toEqual({ $max: [0, { $subtract: ['$healthScore', 10] }] });
     });
 
-    it('should increment daily failed stat', async () => {
+    it('should not increment daily failed stat (handled by capacityManager)', async () => {
       const oldAccount = makeAccountDoc({ healthScore: 80 });
       const updatedAccount = makeAccountDoc({ healthScore: 70, consecutiveErrors: 1 });
 
@@ -299,7 +299,7 @@ describe('HealthTracker', () => {
 
       await tracker.recordError('acc-1', 'TIMEOUT');
 
-      expect(TelegramDailyStats.incrementStat).toHaveBeenCalledWith('acc-1', 'failed', 1, expect.any(String));
+      expect(TelegramDailyStats.incrementStat).not.toHaveBeenCalled();
     });
   });
 

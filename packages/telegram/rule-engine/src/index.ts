@@ -7,6 +7,7 @@ import { createTelegramErrorLogSchema, type TelegramErrorLogModel } from './sche
 import { createTelegramThrottleConfigSchema, type TelegramThrottleConfigModel } from './schemas/throttle-config.schema';
 import { createRoutes } from './routes';
 import { validateConfig } from './validation/config.schema';
+import { noopLogger } from '@astralibx/core';
 import type { Router } from 'express';
 import type { TemplateServiceLike } from './controllers/template.controller';
 import type { RuleServiceLike } from './controllers/rule.controller';
@@ -31,6 +32,7 @@ export interface TelegramRuleEngine {
     TelegramErrorLog: TelegramErrorLogModel;
     TelegramThrottleConfig: TelegramThrottleConfigModel;
   };
+  destroy(): Promise<void>;
 }
 
 /**
@@ -57,35 +59,42 @@ export function createTelegramRuleEngine(config: TelegramRuleEngineConfig): Tele
   const prefix = config.db.collectionPrefix || '';
 
   // 1. Create all 6 models with prefix
-  const TelegramTemplate = conn.model<any>(
-    `${prefix}TelegramTemplate`,
+  // conn.model<any> is a standard Mongoose pattern for dynamic model registration
+  const templateModelName = `${prefix}TelegramTemplate`;
+  const TelegramTemplate = (conn.models[templateModelName] || conn.model<any>(
+    templateModelName,
     createTelegramTemplateSchema(config.platforms, config.audiences, config.categories, prefix)
-  ) as TelegramTemplateModel;
+  )) as TelegramTemplateModel;
 
-  const TelegramRule = conn.model<any>(
-    `${prefix}TelegramRule`,
+  const ruleModelName = `${prefix}TelegramRule`;
+  const TelegramRule = (conn.models[ruleModelName] || conn.model<any>(
+    ruleModelName,
     createTelegramRuleSchema(config.platforms, config.audiences, prefix)
-  ) as TelegramRuleModel;
+  )) as TelegramRuleModel;
 
-  const TelegramSendLog = conn.model<any>(
-    `${prefix}TelegramSendLog`,
+  const sendLogModelName = `${prefix}TelegramSendLog`;
+  const TelegramSendLog = (conn.models[sendLogModelName] || conn.model<any>(
+    sendLogModelName,
     createTelegramSendLogSchema(prefix)
-  ) as TelegramSendLogModel;
+  )) as TelegramSendLogModel;
 
-  const TelegramRunLog = conn.model<any>(
-    `${prefix}TelegramRunLog`,
+  const runLogModelName = `${prefix}TelegramRunLog`;
+  const TelegramRunLog = (conn.models[runLogModelName] || conn.model<any>(
+    runLogModelName,
     createTelegramRunLogSchema(prefix)
-  ) as TelegramRunLogModel;
+  )) as TelegramRunLogModel;
 
-  const TelegramErrorLog = conn.model<any>(
-    `${prefix}TelegramErrorLog`,
+  const errorLogModelName = `${prefix}TelegramErrorLog`;
+  const TelegramErrorLog = (conn.models[errorLogModelName] || conn.model<any>(
+    errorLogModelName,
     createTelegramErrorLogSchema(prefix)
-  ) as TelegramErrorLogModel;
+  )) as TelegramErrorLogModel;
 
-  const TelegramThrottleConfig = conn.model<any>(
-    `${prefix}TelegramThrottleConfig`,
+  const throttleModelName = `${prefix}TelegramThrottleConfig`;
+  const TelegramThrottleConfig = (conn.models[throttleModelName] || conn.model<any>(
+    throttleModelName,
     createTelegramThrottleConfigSchema(prefix)
-  ) as TelegramThrottleConfigModel;
+  )) as TelegramThrottleConfigModel;
 
   // 2. Create services
   const templateService = new TemplateService(TelegramTemplate, config);
@@ -109,12 +118,20 @@ export function createTelegramRuleEngine(config: TelegramRuleEngineConfig): Tele
     logger: config.logger,
   });
 
+  const logger = config.logger || noopLogger;
+
+  async function destroy(): Promise<void> {
+    await runnerService.destroy();
+    logger.info('TelegramRuleEngine destroyed');
+  }
+
   return {
     routes,
     runner: runnerService,
     templateService,
     ruleService,
     models: { TelegramTemplate, TelegramRule, TelegramSendLog, TelegramRunLog, TelegramErrorLog, TelegramThrottleConfig },
+    destroy,
   };
 }
 
@@ -160,6 +177,7 @@ export {
   DEFAULT_THINKING_PAUSE_PROBABILITY,
   DEFAULT_BATCH_PROGRESS_INTERVAL,
   DEFAULT_THROTTLE_CONFIG,
+  DEFAULT_THROTTLE_TTL_SECONDS,
   REDIS_KEY_PREFIX,
   RUN_PROGRESS_TTL_SECONDS,
   MESSAGE_PREVIEW_LENGTH,
@@ -168,4 +186,4 @@ export {
 export * from './schemas';
 
 export { RedisLock } from '@astralibx/core';
-export { calculateDelay, isWithinSendWindow, getHumanDelay } from './utils/delay';
+export { calculateDelay, isWithinSendWindow, getHumanDelay, getHealthAdjustedDelay } from './utils/delay';

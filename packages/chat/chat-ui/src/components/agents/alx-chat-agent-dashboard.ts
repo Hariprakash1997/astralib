@@ -1,7 +1,16 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import type { ChatMessage, ChatSessionSummary, DashboardStats, ChatAgentInfo } from '@astralibx/chat-types';
-import { ChatSenderType, AgentEvent, ServerToAgentEvent, ChatSessionStatus } from '@astralibx/chat-types';
+import {
+  ChatSenderType, AgentEvent, ServerToAgentEvent, ChatSessionStatus,
+  SessionMode, AgentStatus,
+} from '@astralibx/chat-types';
+import type {
+  EscalationNeededPayload,
+  SendAiMessagePayload,
+  UpdateStatusPayload,
+  LabelMessagePayload,
+} from '@astralibx/chat-types';
 import { safeRegister } from '../../utils/safe-register.js';
 import { HttpClient } from '../../api/http-client.js';
 import { AlxChatConfig } from '../../config.js';
@@ -295,6 +304,48 @@ export class AlxChatAgentDashboard extends LitElement {
 
       .detail-label { color: var(--alx-text-muted); font-size: 0.75rem; }
       .detail-value { font-weight: 500; }
+
+      /* Status controls */
+      .status-controls { display: flex; gap: 4px; }
+      .status-btn {
+        display: flex; align-items: center; gap: 6px;
+        padding: 4px 10px; border-radius: 6px;
+        border: 1px solid var(--alx-border, #2d3748);
+        background: transparent; color: var(--alx-text-muted, #9ca3af);
+        font-size: 12px; cursor: pointer; transition: all 0.15s;
+      }
+      .status-btn.active {
+        border-color: var(--alx-primary, #6366f1);
+        color: var(--alx-text, #e4e4e7);
+      }
+      .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+      .status-dot.available { background: #22c55e; }
+      .status-dot.away { background: #f59e0b; }
+      .status-dot.busy { background: #ef4444; }
+
+      /* AI generate button */
+      .action-btn {
+        display: flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px; border-radius: 6px;
+        border: 1px solid var(--alx-border, #2d3748);
+        background: transparent; color: var(--alx-text-muted, #9ca3af);
+        cursor: pointer; transition: all 0.15s;
+      }
+      .action-btn:hover {
+        border-color: var(--alx-primary, #6366f1);
+        color: var(--alx-primary, #6366f1);
+      }
+
+      /* Label buttons */
+      .label-actions { display: flex; gap: 4px; margin-top: 4px; }
+      .label-btn {
+        width: 24px; height: 24px; border-radius: 6px;
+        border: 1px solid var(--alx-border, #2d3748);
+        background: transparent; color: var(--alx-text-muted, #9ca3af);
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+        transition: all 0.15s;
+      }
+      .label-btn:hover { border-color: var(--alx-primary, #6366f1); color: var(--alx-primary, #6366f1); }
     `,
   ];
 
@@ -314,6 +365,7 @@ export class AlxChatAgentDashboard extends LitElement {
   @state() private cannedResponses: CannedResponse[] = [];
   @state() private showCanned = false;
   @state() private filteredCanned: CannedResponse[] = [];
+  @state() private agentStatus: string = AgentStatus.Available;
 
   private http!: HttpClient;
 
@@ -330,6 +382,9 @@ export class AlxChatAgentDashboard extends LitElement {
   }
 
   private async connectSocket() {
+    // Clean up any existing socket before creating a new one
+    this.disconnectSocket();
+
     const socketUrl = AlxChatConfig.getSocketUrl();
     const namespace = AlxChatConfig.getAgentNamespace();
     if (!socketUrl) return;
@@ -414,6 +469,16 @@ export class AlxChatAgentDashboard extends LitElement {
         }
       });
 
+      sock.on(ServerToAgentEvent.EscalationNeeded, (payload: EscalationNeededPayload) => {
+        if (payload.session) {
+          const exists = this.waitingChats.find(c => c.sessionId === payload.session.sessionId);
+          if (!exists) {
+            this.waitingChats = [...this.waitingChats, payload.session];
+          }
+        }
+        this.requestUpdate();
+      });
+
       this.socket = sock;
     } catch {
       // socket.io-client not available
@@ -422,8 +487,10 @@ export class AlxChatAgentDashboard extends LitElement {
 
   private disconnectSocket() {
     if (this.socket) {
+      (this.socket as any).removeAllListeners();
       (this.socket as any).disconnect();
       this.socket = null;
+      this.connected = false;
     }
   }
 
@@ -491,7 +558,7 @@ export class AlxChatAgentDashboard extends LitElement {
     if (!this.selectedSessionId || !this.socket) return;
     const selected = this.getSelectedSession();
     if (!selected) return;
-    const newMode = selected.mode === 'ai' ? 'manual' : 'ai';
+    const newMode = selected.mode === SessionMode.AI ? SessionMode.Manual : SessionMode.AI;
     (this.socket as any).emit(AgentEvent.SetMode, {
       sessionId: this.selectedSessionId,
       mode: newMode,
@@ -559,6 +626,28 @@ export class AlxChatAgentDashboard extends LitElement {
     this.showCanned = false;
   }
 
+  private async sendAiMessage(): Promise<void> {
+    if (!this.selectedSessionId || !this.socket) return;
+    (this.socket as any).emit(AgentEvent.SendAiMessage, {
+      sessionId: this.selectedSessionId,
+    } as SendAiMessagePayload);
+  }
+
+  private updateStatus(status: string): void {
+    if (!this.socket) return;
+    (this.socket as any).emit(AgentEvent.UpdateStatus, { status } as UpdateStatusPayload);
+    this.agentStatus = status;
+  }
+
+  private labelMessage(messageId: string, quality: string): void {
+    if (!this.socket || !this.selectedSessionId) return;
+    (this.socket as any).emit(AgentEvent.LabelMessage, {
+      sessionId: this.selectedSessionId,
+      messageId,
+      trainingQuality: quality,
+    } as LabelMessagePayload);
+  }
+
   private getSelectedSession(): ChatSessionSummary | undefined {
     return [...this.assignedChats, ...this.waitingChats].find(
       s => s.sessionId === this.selectedSessionId
@@ -593,9 +682,25 @@ export class AlxChatAgentDashboard extends LitElement {
         <div class="panel-left">
           <div class="panel-left-header">
             <span>Chats</span>
-            <span class="alx-badge ${this.connected ? 'alx-badge-success' : 'alx-badge-danger'}">
-              ${this.connected ? 'Online' : 'Offline'}
-            </span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div class="status-controls">
+                <button class="status-btn ${this.agentStatus === AgentStatus.Available ? 'active' : ''}"
+                  @click=${() => this.updateStatus(AgentStatus.Available)}>
+                  <span class="status-dot available"></span> Available
+                </button>
+                <button class="status-btn ${this.agentStatus === AgentStatus.Away ? 'active' : ''}"
+                  @click=${() => this.updateStatus(AgentStatus.Away)}>
+                  <span class="status-dot away"></span> Away
+                </button>
+                <button class="status-btn ${this.agentStatus === AgentStatus.Busy ? 'active' : ''}"
+                  @click=${() => this.updateStatus(AgentStatus.Busy)}>
+                  <span class="status-dot busy"></span> Busy
+                </button>
+              </div>
+              <span class="alx-badge ${this.connected ? 'alx-badge-success' : 'alx-badge-danger'}">
+                ${this.connected ? 'Online' : 'Offline'}
+              </span>
+            </div>
           </div>
           <div class="session-sections">
             ${this.waitingChats.length > 0 ? html`
@@ -643,9 +748,19 @@ export class AlxChatAgentDashboard extends LitElement {
               </div>
               <div class="chat-actions">
                 <button class="alx-btn-sm" @click=${this.toggleMode}
-                  title="Switch to ${selected?.mode === 'ai' ? 'manual' : 'AI'} mode">
-                  ${selected?.mode === 'ai' ? 'Manual' : 'AI'} Mode
+                  title="Switch to ${selected?.mode === SessionMode.AI ? 'manual' : 'AI'} mode">
+                  ${selected?.mode === SessionMode.AI ? 'Manual' : 'AI'} Mode
                 </button>
+                ${AlxChatConfig.capabilities.ai ? html`
+                  <button class="action-btn" @click=${() => this.sendAiMessage()} title="Generate AI Response">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                      <path d="M8 1v6M5 4l3-3 3 3M2 8c0 3.3 2.7 6 6 6s6-2.7 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      <circle cx="5" cy="10" r="1" fill="currentColor"/>
+                      <circle cx="8" cy="10" r="1" fill="currentColor"/>
+                      <circle cx="11" cy="10" r="1" fill="currentColor"/>
+                    </svg>
+                  </button>
+                ` : nothing}
                 <button class="alx-btn-sm" @click=${this.transferChat}>Transfer</button>
                 <button class="alx-btn-sm alx-btn-success" @click=${this.resolveChat}>Resolve</button>
               </div>
@@ -663,6 +778,20 @@ export class AlxChatAgentDashboard extends LitElement {
                     ` : nothing}
                     <div>${msg.content}</div>
                     <div class="msg-time">${this.formatTime(msg.createdAt)}</div>
+                    ${msg.senderType === ChatSenderType.AI && AlxChatConfig.capabilities.labeling ? html`
+                      <div class="label-actions">
+                        <button class="label-btn" @click=${() => this.labelMessage(msg.messageId, 'good')} title="Good response">
+                          <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                            <path d="M4 6.5V12.5H2.5C1.95 12.5 1.5 12.05 1.5 11.5V7.5C1.5 6.95 1.95 6.5 2.5 6.5H4ZM5 6.5L7.5 1.5C8.05 1.5 8.5 1.95 8.5 2.5V5H11.5C12.05 5 12.5 5.45 12.5 6V7L10.5 12.5H5V6.5Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </button>
+                        <button class="label-btn" @click=${() => this.labelMessage(msg.messageId, 'bad')} title="Bad response">
+                          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" style="transform: scaleY(-1)">
+                            <path d="M4 6.5V12.5H2.5C1.95 12.5 1.5 12.05 1.5 11.5V7.5C1.5 6.95 1.95 6.5 2.5 6.5H4ZM5 6.5L7.5 1.5C8.05 1.5 8.5 1.95 8.5 2.5V5H11.5C12.05 5 12.5 5.45 12.5 6V7L10.5 12.5H5V6.5Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    ` : nothing}
                   </div>
                 `;
               })}

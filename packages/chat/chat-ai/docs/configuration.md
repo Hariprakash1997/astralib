@@ -62,7 +62,29 @@ const ai = createChatAI({
 
 ## No Provider Mode
 
-When `chat` is omitted, all services (memories, prompts, knowledge) work normally. Only `ai.generateResponse()` throws. This is useful when you want to manage AI context without wiring up generation.
+When `chat` is omitted, all CRUD services work normally. Only `ai.generateResponse()` throws `NoProviderConfiguredError`.
+
+```ts
+// Management only -- no AI generation
+const ai = createChatAI({
+  db: { connection },
+  // No chat.generate -- AI generation is disabled
+});
+
+// These work:
+await ai.memories.create({ ... });
+await ai.prompts.create({ ... });
+await ai.knowledge.create({ ... });
+ai.routes; // REST API for CRUD
+
+// This throws NoProviderConfiguredError:
+await ai.generateResponse(input);
+```
+
+Use cases:
+- You want memory/prompt/knowledge management without wiring up an AI provider yet
+- You are building the admin UI first and will add AI later
+- You want to use the REST API for content management only
 
 ## Memory Backend Config
 

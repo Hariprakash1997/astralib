@@ -20,11 +20,13 @@ const configSchema = z.object({
     maxAccounts: z.number().int().positive().optional(),
     connectionTimeoutMs: z.number().int().positive().optional(),
     healthCheckIntervalMs: z.number().int().positive().optional(),
+    idleTimeoutMs: z.number().int().positive().optional(),
     autoReconnect: z.boolean().optional(),
     reconnectMaxRetries: z.number().int().min(0).optional(),
     warmup: z.object({
       enabled: z.boolean().optional(),
       defaultSchedule: z.array(warmupPhaseSchema).min(1).optional(),
+      autoAdvance: z.boolean().optional(),
     }).optional(),
     quarantine: z.object({
       monitorIntervalMs: z.number().int().positive().optional(),

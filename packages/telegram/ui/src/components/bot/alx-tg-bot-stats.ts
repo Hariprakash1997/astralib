@@ -13,6 +13,7 @@ import {
   alxToolbarStyles,
 } from '../../styles/shared.js';
 import { TelegramBotAPI } from '../../api/bot.api.js';
+import { iconRefresh } from '../../utils/icons.js';
 
 interface BotUser {
   _id: string;
@@ -50,7 +51,7 @@ export class AlxTgBotStats extends LitElement {
         text-align: center;
       }
       .stat-value {
-        font-size: 1.5rem;
+        font-size: var(--alx-stat-value-size, 1.25rem);
         font-weight: 700;
         color: var(--alx-text);
         font-variant-numeric: tabular-nums;
@@ -64,6 +65,7 @@ export class AlxTgBotStats extends LitElement {
       }
       .stat-running .stat-value { color: var(--alx-success); }
       .stat-stopped .stat-value { color: var(--alx-danger); }
+      .alx-table-wrap { overflow-x: auto; }
     `,
   ];
 
@@ -177,13 +179,13 @@ export class AlxTgBotStats extends LitElement {
 
         <div class="toolbar">
           <span class="spacer"></span>
-          <button @click=${() => this.load()}>Refresh</button>
+          <button @click=${() => this.load()}>${iconRefresh(14)} Refresh</button>
         </div>
 
         ${this.users.length === 0
           ? html`<div class="alx-empty"><p>No bot users yet.</p></div>`
           : html`
-              <table>
+              <div class="alx-table-wrap"><table>
                 <thead>
                   <tr>
                     <th>ID</th>
@@ -208,7 +210,7 @@ export class AlxTgBotStats extends LitElement {
                     </tr>
                   `)}
                 </tbody>
-              </table>
+              </table></div>
 
               <div class="pagination">
                 <button class="alx-btn-sm" ?disabled=${this.page <= 1} @click=${this.onPrev}>Prev</button>

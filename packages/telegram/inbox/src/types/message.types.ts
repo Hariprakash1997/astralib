@@ -1,6 +1,7 @@
 import type { SenderType, MessageDirection, ContentType } from './config.types';
 
 export interface CreateMessageInput {
+  accountId: string;
   conversationId: string;
   messageId: string;
   senderId: string;

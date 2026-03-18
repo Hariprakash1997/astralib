@@ -106,6 +106,34 @@ export class MessageService {
     );
   }
 
+  async markSessionMessagesDelivered(sessionId: string, senderType: ChatSenderType): Promise<string[]> {
+    const messages = await this.ChatMessage.find({
+      sessionId,
+      senderType,
+      status: ChatMessageStatus.Sent,
+    });
+    const ids = messages.map((m) => m.messageId);
+    if (ids.length === 0) return [];
+
+    await this.ChatMessage.updateMany(
+      { messageId: { $in: ids } },
+      {
+        $set: {
+          status: ChatMessageStatus.Delivered,
+          deliveredAt: new Date(),
+        },
+      },
+    );
+    return ids;
+  }
+
+  async updateLabel(messageId: string, quality: 'good' | 'bad' | 'needs_review'): Promise<void> {
+    await this.ChatMessage.updateOne(
+      { messageId },
+      { $set: { trainingQuality: quality } },
+    );
+  }
+
   async markSessionMessagesRead(sessionId: string, senderType: ChatSenderType): Promise<void> {
     await this.ChatMessage.updateMany(
       {

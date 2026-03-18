@@ -95,3 +95,25 @@ export const SES_NOTIFICATION_TYPE = {
 } as const;
 
 export type SesNotificationType = (typeof SES_NOTIFICATION_TYPE)[keyof typeof SES_NOTIFICATION_TYPE];
+
+export const IMAP_SEARCH_SINCE = {
+  LastCheck: 'last_check',
+  Last24h: 'last_24h',
+  Last7d: 'last_7d',
+} as const;
+
+export type ImapSearchSince = (typeof IMAP_SEARCH_SINCE)[keyof typeof IMAP_SEARCH_SINCE];
+
+export const APPROVAL_MODE = {
+  Manual: 'manual',
+  Auto: 'auto',
+} as const;
+
+export type ApprovalMode = (typeof APPROVAL_MODE)[keyof typeof APPROVAL_MODE];
+
+export const SPREAD_STRATEGY = {
+  Random: 'random',
+  Even: 'even',
+} as const;
+
+export type SpreadStrategy = (typeof SPREAD_STRATEGY)[keyof typeof SPREAD_STRATEGY];

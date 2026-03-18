@@ -17,6 +17,7 @@ function createMockRedis() {
     expire: vi.fn().mockResolvedValue(1),
     rpush: vi.fn().mockResolvedValue(1),
     lrange: vi.fn().mockResolvedValue([]),
+    llen: vi.fn().mockResolvedValue(0),
     pexpire: vi.fn().mockResolvedValue(1),
     eval: vi.fn().mockResolvedValue(1),
   } as unknown as Redis;
@@ -207,6 +208,35 @@ describe('RedisService', () => {
 
       const result = await service.getPendingMessages('sess-1');
       expect(result).toEqual([{}]);
+    });
+  });
+
+  describe('Disconnect tracking (reconnect detection)', () => {
+    it('should set disconnect marker with TTL', async () => {
+      await service.markDisconnected('sess-1');
+
+      expect(redis.set).toHaveBeenCalledWith(
+        'chat:disconnect:sess-1',
+        '1',
+        'PX',
+        DEFAULT_OPTIONS.reconnectWindowMs,
+      );
+    });
+
+    it('should return true and delete key when recent disconnect exists', async () => {
+      (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue('1');
+
+      const result = await service.hadRecentDisconnect('sess-1');
+      expect(result).toBe(true);
+      expect(redis.del).toHaveBeenCalledWith('chat:disconnect:sess-1');
+    });
+
+    it('should return false when no recent disconnect', async () => {
+      (redis.get as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      const result = await service.hadRecentDisconnect('sess-1');
+      expect(result).toBe(false);
+      expect(redis.del).not.toHaveBeenCalled();
     });
   });
 

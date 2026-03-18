@@ -1,15 +1,16 @@
 import type { LogAdapter } from '@astralibx/core';
 import type { ChatMessage as ChatMessageType } from '@astralibx/chat-types';
-import { AgentStatus, ChatSenderType, ChatContentType, SessionMode } from '@astralibx/chat-types';
+import { AgentStatus, ChatSenderType, ChatContentType, ChatMessageStatus, SessionMode } from '@astralibx/chat-types';
 import type { SessionService } from '../services/session.service';
 import type { MessageService } from '../services/message.service';
 import type { RedisService } from '../services/redis.service';
 import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
 import type { EmitDeps } from './emit';
 import { emitToVisitor } from './emit';
-import { notifyAgentsNewMessage } from './notifications';
+import { notifyAgentsNewMessage, notifyAgentsEscalation } from './notifications';
 import type { NotificationDeps } from './notifications';
-import { ServerToVisitorEvent } from '@astralibx/chat-types';
+import { ServerToVisitorEvent, ServerToAgentEvent } from '@astralibx/chat-types';
+import type { AiSimulationConfig } from '../types/config.types';
 
 export interface AiDebounceDeps {
   sessionService: SessionService;
@@ -20,6 +21,18 @@ export interface AiDebounceDeps {
   emitDeps: EmitDeps;
   notificationDeps: NotificationDeps;
   logger: LogAdapter;
+}
+
+const AI_TIMEOUT_MS = 30000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    promise.then(
+      (val) => { clearTimeout(timer); resolve(val); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
 }
 
 const debounceTimers = new Map<string, NodeJS.Timeout>();
@@ -59,6 +72,13 @@ export function clearAiDebounce(sessionId: string): void {
   resetAiDebounce(sessionId);
 }
 
+export function clearAllDebounceTimers(): void {
+  for (const [, timer] of debounceTimers) {
+    clearTimeout(timer);
+  }
+  debounceTimers.clear();
+}
+
 async function executeAiResponse(
   deps: AiDebounceDeps,
   sessionId: string,
@@ -76,12 +96,55 @@ async function executeAiResponse(
     return;
   }
 
+  let aiStartTime = Date.now();
   try {
     const messages = await deps.messageService.findBySession(sessionId, deps.options.maxSessionHistory);
+    const simConfig: AiSimulationConfig = deps.config.options?.aiSimulation ?? {};
+    const simulate = deps.options.aiTypingSimulation;
 
-    const aiStartTime = Date.now();
+    // --- Step 1-4: Delivery and read status simulation ---
+    if (simulate) {
+      // Compute total incoming message length for read delay scaling
+      const visitorMessages = messages.filter((m) => m.senderType === ChatSenderType.Visitor);
+      const totalMsgLength = visitorMessages.reduce((sum, m) => sum + (m.content?.length || 0), 0);
 
-    if (deps.options.aiTypingSimulation) {
+      // Mark visitor messages as delivered
+      const deliveredIds = await deps.messageService.markSessionMessagesDelivered(
+        sessionId,
+        ChatSenderType.Visitor,
+      );
+      if (deliveredIds.length > 0) {
+        for (const msgId of deliveredIds) {
+          await emitToVisitor(deps.emitDeps, sessionId, ServerToVisitorEvent.MessageStatus, {
+            messageId: msgId,
+            status: ChatMessageStatus.Delivered,
+          });
+        }
+      }
+
+      await sleep(calculateDeliveryDelay(simConfig));
+
+      // Mark visitor messages as read
+      await deps.messageService.markSessionMessagesRead(sessionId, ChatSenderType.Visitor);
+      if (deliveredIds.length > 0) {
+        for (const msgId of deliveredIds) {
+          await emitToVisitor(deps.emitDeps, sessionId, ServerToVisitorEvent.MessageStatus, {
+            messageId: msgId,
+            status: ChatMessageStatus.Read,
+          });
+        }
+      }
+
+      await sleep(calculateReadDelay(simConfig, totalMsgLength));
+      await sleep(calculatePreTypingDelay(simConfig));
+    }
+
+    // Gap 24: AI request logging hook -- received
+    await deps.config.hooks?.onAiRequest?.({ sessionId, stage: 'received' }).catch(() => {});
+
+    aiStartTime = Date.now();
+
+    if (simulate) {
       await emitToVisitor(deps.emitDeps, sessionId, ServerToVisitorEvent.Typing, {
         isTyping: true,
       });
@@ -105,15 +168,19 @@ async function executeAiResponse(
       metadata: session.metadata,
     };
 
-    const output = await generateAiResponse(input);
+    const output = await withTimeout(generateAiResponse(input), AI_TIMEOUT_MS, 'AI response generation');
 
-    if (deps.options.aiTypingSimulation) {
+    if (simulate) {
       await emitToVisitor(deps.emitDeps, sessionId, ServerToVisitorEvent.Typing, {
         isTyping: false,
       });
     }
 
     const aiResponseTimeMs = Date.now() - aiStartTime;
+
+    // Gap 24: AI request logging hook -- completed
+    await deps.config.hooks?.onAiRequest?.({ sessionId, stage: 'completed', durationMs: aiResponseTimeMs }).catch(() => {});
+
     deps.config.hooks?.onMetric?.({
       name: 'ai_response_time_ms',
       value: aiResponseTimeMs,
@@ -122,15 +189,33 @@ async function executeAiResponse(
 
     if (output.shouldEscalate) {
       await deps.sessionService.escalate(sessionId, output.escalationReason);
+
+      await deps.messageService.createSystemMessage(sessionId, 'Escalated to human agent');
+
+      const sessionSummary = deps.sessionService.toSummary(session);
+      notifyAgentsEscalation(deps.notificationDeps, {
+        sessionId,
+        visitorId: session.visitorId,
+        reason: output.escalationReason,
+        session: sessionSummary,
+      });
+
+      deps.config.hooks?.onEscalation?.(sessionId, output.escalationReason);
       return;
     }
 
-    for (const text of output.messages) {
-      if (deps.options.aiTypingSimulation) {
-        const delayMs = Math.ceil((text.length / deps.options.aiTypingSpeedCpm) * 60_000);
+    for (let i = 0; i < output.messages.length; i++) {
+      const text = output.messages[i];
+
+      if (simulate && i > 0) {
+        await sleep(calculateBubbleDelay(simConfig, text.length));
+      }
+
+      if (simulate) {
         await emitToVisitor(deps.emitDeps, sessionId, ServerToVisitorEvent.Typing, {
           isTyping: true,
         });
+        const delayMs = Math.ceil((text.length / deps.options.aiTypingSpeedCpm) * 60_000);
         await sleep(Math.min(delayMs, 5000));
         await emitToVisitor(deps.emitDeps, sessionId, ServerToVisitorEvent.Typing, {
           isTyping: false,
@@ -156,7 +241,7 @@ async function executeAiResponse(
       deps.config.hooks?.onMetric?.({
         name: 'message_sent',
         value: 1,
-        labels: { channel: session.channel, senderType: 'ai', contentType: 'text' },
+        labels: { channel: session.channel, senderType: ChatSenderType.AI, contentType: ChatContentType.Text },
       });
     }
 
@@ -166,6 +251,10 @@ async function executeAiResponse(
 
     await deps.redisService.setSessionActivity(sessionId);
   } catch (err) {
+    // Gap 24: AI request logging hook -- failed
+    const failedDuration = Date.now() - aiStartTime;
+    await deps.config.hooks?.onAiRequest?.({ sessionId, stage: 'failed', durationMs: failedDuration }).catch(() => {});
+
     deps.logger.error('AI response generation failed', {
       sessionId,
       error: err instanceof Error ? err.message : 'Unknown error',
@@ -181,4 +270,30 @@ async function executeAiResponse(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// --- AI simulation delay helpers ---
+
+export function randomBetween(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+export function calculateDeliveryDelay(config: AiSimulationConfig): number {
+  return randomBetween(config.deliveryDelay?.min ?? 300, config.deliveryDelay?.max ?? 1000);
+}
+
+export function calculateReadDelay(config: AiSimulationConfig, messageLength: number): number {
+  const base = randomBetween(config.readDelay?.min ?? 1000, config.readDelay?.max ?? 3000);
+  const scale = Math.min(messageLength / 200, 1.5);
+  return Math.round(base * (0.5 + scale * 0.5));
+}
+
+export function calculatePreTypingDelay(config: AiSimulationConfig): number {
+  return randomBetween(config.preTypingDelay?.min ?? 500, config.preTypingDelay?.max ?? 1500);
+}
+
+export function calculateBubbleDelay(config: AiSimulationConfig, responseLength: number): number {
+  const base = randomBetween(config.bubbleDelay?.min ?? 800, config.bubbleDelay?.max ?? 2000);
+  const scale = Math.min(responseLength / 100, 1.5);
+  return Math.round(base * (0.5 + scale * 0.5));
 }

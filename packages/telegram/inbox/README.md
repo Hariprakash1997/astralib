@@ -2,6 +2,8 @@
 
 Real-time Telegram inbox infrastructure for Node.js. Listens for incoming messages via GramJS, stores conversations and message history in MongoDB, supports media downloads with pluggable upload adapters, session tracking, history sync, and typing indicators. Builds on top of `@astralibx/telegram-account-manager` and mounts as a single Express router.
 
+> **Getting started?** See the [Quick Start Tutorial](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/quick-start-tutorial.md) for a step-by-step walkthrough, [Integration Guide](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/integration-guide.md) for multi-package setup, or the [Glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/glossary.md) for ID terminology.
+
 ## Install
 
 ```bash
@@ -82,7 +84,10 @@ app.listen(3000);
 - **Session tracking** -- Track account-to-contact conversation sessions with pause/resume/close lifecycle. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/api-routes.md#session-routes)
 - **Event gateway** -- EventEmitter-based gateway for `new_message`, `typing`, and `message_read` events. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/types.md#exported-service-classes)
 - **Typing indicators** -- Broadcast typing status to Telegram chats. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/configuration.md#optionstypingtimeoutms)
-- **Express routes out of the box** -- 11 REST endpoints for conversations and sessions. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/api-routes.md)
+- **accountId filtering** -- Filter conversations, messages, and unread counts by account. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/api-routes.md#list-conversations)
+- **Dialog sync** -- Load and sync Telegram dialogs into the database for connected accounts. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/api-routes.md#sync-dialogs-to-db)
+- **Search** -- Full-text search across messages with pagination and account filtering. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/api-routes.md#search-messages)
+- **Express routes out of the box** -- 14 REST endpoints for conversations and sessions. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/api-routes.md)
 
 ## Architecture
 
@@ -97,7 +102,7 @@ All services are also available programmatically via the returned `inbox` object
 ## Getting Started Guide
 
 1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/configuration.md) -- Set up accountManager, database, media adapter, options, and hooks
-2. [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/api-routes.md) -- 11 REST endpoints for conversations and sessions
+2. [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/api-routes.md) -- 14 REST endpoints for conversations and sessions
 3. [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/inbox/docs/types.md) -- All importable types, constants, errors, and service classes
 
 > **Important:** This package requires a configured `@astralibx/telegram-account-manager` instance. Set up the account manager first, then pass it into the inbox factory.

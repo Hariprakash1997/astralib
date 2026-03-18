@@ -37,12 +37,15 @@ All paths below are relative to the mount point.
 | `POST` | `/accounts/:id/reconnect` | Reconnect TDLib client |
 | `POST` | `/accounts/:id/quarantine` | Manually quarantine account |
 | `POST` | `/accounts/:id/release` | Release from quarantine |
+| `POST` | `/accounts/connect-all` | Connect all disconnected accounts |
+| `POST` | `/accounts/disconnect-all` | Disconnect all connected accounts |
+| `POST` | `/accounts/:id/send` | Send a message from connected account |
 
 ### List accounts
 
-`GET /accounts?status=connected&page=1&limit=20`
+`GET /accounts?status=connected&tag=vip&page=1&limit=20`
 
-**Query params:** `status` (filter), `page` (default 1), `limit` (default 20)
+**Query params:** `status` (filter), `tag` (filter -- only return accounts with this tag), `page` (default 1), `limit` (default 20)
 
 **Response:**
 ```json
@@ -64,6 +67,7 @@ All paths below are relative to the mount point.
 | `phone` | string | yes | Phone number |
 | `name` | string | yes | Display name |
 | `session` | string | yes | TDLib session string |
+| `tags` | string[] | no | Tags for categorization and filtering |
 
 **Response:** `201` with `{ success: true, data: { account } }` (session redacted)
 
@@ -83,12 +87,35 @@ New accounts start with:
 | `currentDailyLimit` | number | Override daily limit |
 | `currentDelayMin` | number | Min delay between messages (ms) |
 | `currentDelayMax` | number | Max delay between messages (ms) |
+| `tags` | string[] | Tags for categorization and filtering |
 
 ### Delete account
 
 `DELETE /accounts/:id`
 
 Account must be disconnected first. Returns `400` if still connected.
+
+### Connect all accounts
+
+`POST /accounts/connect-all`
+
+No request body required. Connects all accounts with status `disconnected`. Skips accounts that are already connected, banned, or quarantined.
+
+**Response:**
+```json
+{ "success": true, "data": { "connected": 3, "skipped": 2, "errors": 0 } }
+```
+
+### Disconnect all accounts
+
+`POST /accounts/disconnect-all`
+
+No request body required. Disconnects all currently connected accounts.
+
+**Response:**
+```json
+{ "success": true, "data": { "disconnected": 5 } }
+```
 
 ### Connect / Disconnect / Reconnect
 
@@ -119,6 +146,22 @@ Delegates to `QuarantineService.quarantine()` which atomically updates status an
 `POST /accounts/:id/release`
 
 No request body. Delegates to `QuarantineService.release()` which atomically clears quarantine fields and sets status to `disconnected`.
+
+### Send message
+
+`POST /accounts/:id/send`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `chatId` | string | yes | Telegram chat/user ID to send to |
+| `text` | string | yes | Message text |
+
+**Response:**
+```json
+{ "success": true, "data": { "messageId": "12345" } }
+```
+
+Account must be connected. Returns `500` if account is not connected.
 
 ### Get all capacity
 
@@ -218,6 +261,48 @@ Returns `400` if `telegramUserId` is already registered.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `status` | string | yes | New status (`active`, `blocked`, `privacy_blocked`, `inactive`, `invalid`) -- validated against `IDENTIFIER_STATUS` values, returns `400` if invalid |
+
+---
+
+## Session Routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/sessions/request-code` | Send auth code to phone number |
+| `POST` | `/sessions/verify-code` | Verify code and get session string |
+
+### Request code
+
+`POST /sessions/request-code`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `phone` | string | yes | Phone number in international format (e.g., `+919876543210`) |
+
+**Response:**
+```json
+{ "success": true, "data": { "phoneCodeHash": "abc123..." } }
+```
+
+Sends an OTP to the user's Telegram app. Store the returned `phoneCodeHash` for the verify step.
+
+### Verify code
+
+`POST /sessions/verify-code`
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `phone` | string | yes | Same phone number used in request-code |
+| `code` | string | yes | OTP code received on Telegram |
+| `phoneCodeHash` | string | yes | Hash from request-code response |
+| `password` | string | no | 2FA password (if account has two-step verification enabled) |
+
+**Response:**
+```json
+{ "success": true, "data": { "session": "1AgAO..." } }
+```
+
+Returns a session string that can be used to create a new account via `POST /accounts`. If 2FA is enabled and no password is provided, returns an error asking for the password.
 
 ---
 

@@ -4,6 +4,7 @@ export interface CreateTelegramAccountInput {
   phone: string;
   name: string;
   session: string;
+  tags?: string[];
 }
 
 export interface UpdateTelegramAccountInput {
@@ -12,6 +13,7 @@ export interface UpdateTelegramAccountInput {
   currentDailyLimit?: number;
   currentDelayMin?: number;
   currentDelayMax?: number;
+  tags?: string[];
 }
 
 export interface AccountCapacity {

@@ -7,13 +7,14 @@ Call `AlxChatConfig.setup()` once at application startup, before importing or re
 ```typescript
 import { AlxChatConfig } from '@astralibx/chat-ui';
 
+// MUST be called before importing any chat-ui components
 AlxChatConfig.setup({
-  chatEngineApi: '/api/chat',
-  chatAiApi: '/api/chat-ai',
-  socketUrl: 'wss://chat.example.com',
-  agentNamespace: '/agent',
-  authToken: 'Bearer ...',
-  theme: 'dark',
+  chatEngineApi: '/api/chat',      // base URL for chat-engine REST routes
+  chatAiApi: '/api/chat-ai',       // base URL for chat-ai REST routes (optional)
+  socketUrl: 'wss://chat.example.com',  // Socket.IO server URL
+  agentNamespace: '/agent',        // agent namespace (must match engine config)
+  authToken: 'Bearer eyJ...',      // auth token for API requests
+  theme: 'dark',                   // 'dark' | 'light'
 });
 
 // Then import/use components
@@ -49,7 +50,20 @@ npm install @astralibx/chat-ui
 You can update the auth token at runtime without calling `setup()` again:
 
 ```typescript
-AlxChatConfig.setAuthToken('Bearer new-token');
+// When auth token expires and is refreshed
+AlxChatConfig.setAuthToken('Bearer newToken...');
+```
+
+This updates the token in the config singleton. All subsequent API requests made by any component will use the new token. There is no need to re-render or re-initialize components.
+
+## Auth Error Handling
+
+All components emit an `alx-auth-error` event on the window when an API request returns a 401 status. Listen for this event to handle session expiry:
+
+```typescript
+window.addEventListener('alx-auth-error', () => {
+  // Redirect to login, refresh token, etc.
+});
 ```
 
 ## API URL Resolution

@@ -4,9 +4,13 @@ import type { CreateEmailTemplateInput, UpdateEmailTemplateInput } from '../type
 import type { EmailRuleEngineConfig } from '../types/config.types';
 import { DuplicateSlugError, TemplateSyntaxError, TemplateNotFoundError } from '../errors';
 
+function stripScriptTags(text: string): string {
+  return text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+}
+
 const UPDATEABLE_FIELDS = new Set([
   'name', 'description', 'category', 'audience', 'platform',
-  'textBody', 'subjects', 'bodies', 'preheaders', 'variables', 'isActive', 'fields'
+  'textBody', 'subjects', 'bodies', 'preheaders', 'variables', 'isActive', 'fields', 'attachments'
 ]);
 
 function slugify(name: string): string {
@@ -57,7 +61,8 @@ export class TemplateService {
       throw new DuplicateSlugError(slug);
     }
 
-    const { subjects, bodies } = input;
+    const subjects = input.subjects.map(s => stripScriptTags(s));
+    const bodies = input.bodies.map(b => stripScriptTags(b));
     if (subjects.length === 0) throw new TemplateSyntaxError('At least one subject is required', ['At least one subject is required']);
     if (bodies.length === 0) throw new TemplateSyntaxError('At least one body is required', ['At least one body is required']);
 
@@ -83,6 +88,13 @@ export class TemplateService {
   async update(id: string, input: UpdateEmailTemplateInput): Promise<EmailTemplateDocument | null> {
     const template = await this.EmailTemplate.findById(id);
     if (!template) return null;
+
+    if (input.subjects) {
+      input.subjects = input.subjects.map(s => stripScriptTags(s));
+    }
+    if (input.bodies) {
+      input.bodies = input.bodies.map(b => stripScriptTags(b));
+    }
 
     if (input.subjects && input.subjects.length === 0) {
       throw new TemplateSyntaxError('At least one subject is required', ['At least one subject is required']);
@@ -231,7 +243,8 @@ export class TemplateService {
         testEmail,
         `[TEST] ${rendered.subject}`,
         rendered.html,
-        rendered.text
+        rendered.text,
+        (template as any).attachments || [],
       );
       return { success: true };
     } catch (error) {

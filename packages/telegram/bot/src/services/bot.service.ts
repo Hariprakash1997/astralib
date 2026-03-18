@@ -13,7 +13,7 @@ import type { TelegramBotContactModel } from '../schemas/telegram-bot-contact.sc
 import { KeyboardBuilder } from '../utils/keyboard-builder';
 import { UserTrackerService } from './user-tracker.service';
 import { BotAlreadyRunningError, BotNotRunningError, CommandNotFoundError } from '../errors';
-import { DEFAULT_WEBHOOK_PATH } from '../constants';
+import { DEFAULT_WEBHOOK_PATH, DEFAULT_WEBHOOK_PORT } from '../constants';
 
 export class BotService {
   private bot: TelegramBotApi | null = null;
@@ -50,7 +50,7 @@ export class BotService {
       botOptions.polling = true;
     } else {
       botOptions.webHook = {
-        port: this.config.webhook?.port || 8443,
+        port: this.config.webhook?.port || DEFAULT_WEBHOOK_PORT,
       };
     }
 
@@ -60,6 +60,7 @@ export class BotService {
     if (this.config.mode === 'webhook' && this.config.webhook) {
       const webhookPath = this.config.webhook.path || DEFAULT_WEBHOOK_PATH;
       const webhookUrl = `${this.config.webhook.domain}${webhookPath}`;
+      // node-telegram-bot-api types don't include secret_token yet
       await this.bot.setWebHook(webhookUrl, {
         secret_token: this.config.webhook.secretToken,
       } as any);
@@ -110,6 +111,7 @@ export class BotService {
       await this.bot.deleteWebHook();
     }
 
+    this.bot.removeAllListeners();
     this.logger.info('Bot stopped', { username: this.botInfo?.username });
     this.running = false;
     this.bot = null;
@@ -137,7 +139,9 @@ export class BotService {
 
     return {
       sendMessage: (chatId, text, options) => bot.sendMessage(chatId, text, options),
+      // node-telegram-bot-api types expect Stream | Buffer | string, but our interface narrows to Buffer | string
       sendPhoto: (chatId, photo, options) => bot.sendPhoto(chatId, photo as any, options),
+      // node-telegram-bot-api types expect Stream | Buffer | string, but our interface narrows to Buffer | string
       sendDocument: (chatId, doc, options) => bot.sendDocument(chatId, doc as any, options),
       answerCallbackQuery: (id, options) => bot.answerCallbackQuery(id, options),
       answerInlineQuery: (id, results, options) => bot.answerInlineQuery(id, results, options),
@@ -158,6 +162,10 @@ export class BotService {
 
     // Register handler on bot if running
     if (this.bot) {
+      // Remove old handler for this command pattern to prevent duplicate listeners
+      const pattern = new RegExp(`^/${cmd.command}(?:@\\S+)?(?:\\s|$)`);
+      // removeTextListener is a real method on node-telegram-bot-api (not in @types)
+      (this.bot as any).removeTextListener(pattern);
       this.registerSingleCommand(cmd);
     }
 
@@ -196,7 +204,11 @@ export class BotService {
 
       // Track user interaction
       if (msg.from && this.botInfo) {
-        await this.userTracker.trackInteraction(msg.from, this.botInfo.username, this.botInfo.id.toString(), msg.chat.id);
+        try {
+          await this.userTracker.trackInteraction(msg.from, this.botInfo.username, this.botInfo.id.toString(), msg.chat.id);
+        } catch (err) {
+          this.logger.error('Failed to track interaction', { error: err instanceof Error ? err.message : String(err) });
+        }
       }
 
       // Fire onCommand hook
@@ -236,7 +248,11 @@ export class BotService {
 
       // Track interaction from callback
       if (query.from && this.botInfo) {
-        await this.userTracker.trackInteraction(query.from, this.botInfo.username, this.botInfo.id.toString(), query.message?.chat.id ?? query.from.id);
+        try {
+          await this.userTracker.trackInteraction(query.from, this.botInfo.username, this.botInfo.id.toString(), query.message?.chat.id ?? query.from.id);
+        } catch (err) {
+          this.logger.error('Failed to track interaction', { error: err instanceof Error ? err.message : String(err) });
+        }
       }
 
       // Find matching callback handler
@@ -266,7 +282,11 @@ export class BotService {
     this.bot.on('inline_query', async (query) => {
       // Track interaction from inline query
       if (query.from && this.botInfo) {
-        await this.userTracker.trackInteraction(query.from, this.botInfo.username, this.botInfo.id.toString(), query.from.id);
+        try {
+          await this.userTracker.trackInteraction(query.from, this.botInfo.username, this.botInfo.id.toString(), query.from.id);
+        } catch (err) {
+          this.logger.error('Failed to track interaction', { error: err instanceof Error ? err.message : String(err) });
+        }
       }
 
       // Find matching inline query handler
@@ -320,21 +340,23 @@ export class BotService {
     let index = 0;
     let completed = false;
 
-    const next = async (): Promise<void> => {
-      index++;
-      if (index >= this.middlewares.length) {
-        completed = true;
-        return;
-      }
-      await this.middlewares[index](msg, next);
+    const createNext = (currentIndex: number): (() => Promise<void>) => {
+      let called = false;
+      return async (): Promise<void> => {
+        if (called) return;
+        called = true;
+        const nextIndex = currentIndex + 1;
+        if (nextIndex >= this.middlewares.length) {
+          completed = true;
+          return;
+        }
+        index = nextIndex;
+        await this.middlewares[nextIndex](msg, createNext(nextIndex));
+      };
     };
 
     try {
-      await this.middlewares[0](msg, next);
-      // If only one middleware and it called next, completed is true
-      if (this.middlewares.length === 1) {
-        return index > 0 || completed;
-      }
+      await this.middlewares[0](msg, createNext(0));
       return completed;
     } catch (err) {
       this.logger.error('Middleware error', { error: err instanceof Error ? err.message : String(err) });

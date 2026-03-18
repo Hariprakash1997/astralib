@@ -43,6 +43,10 @@ export class TelegramInboxAPI {
     return this.http.post(`/conversations/${conversationId}/sync`);
   }
 
+  syncDialogs(accountId: string, limit = 50): Promise<any> {
+    return this.http.post(`/conversations/sync-dialogs?accountId=${encodeURIComponent(accountId)}&limit=${limit}`);
+  }
+
   // Sessions
 
   listSessions(params?: PaginationParams & Record<string, unknown>): Promise<any> {

@@ -1,19 +1,20 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
-import { chatResetStyles, chatBaseStyles } from '../styles/shared.js';
+import { chatResetStyles, chatBaseStyles, chatAnimations } from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 
 /**
  * <alx-chat-welcome> -- Welcome screen, first step of the pre-chat flow.
  *
- * Shows a title, subtitle, optional agent avatar + name,
- * online status indicator, and a CTA button.
+ * Shows a decorative wave, avatar with online status, title, subtitle,
+ * CTA button, optional conversation starters, and a skip link.
  */
 export class AlxChatWelcome extends LitElement {
   static styles = [
     chatResetStyles,
     chatBaseStyles,
+    chatAnimations,
     css`
       :host {
         display: block;
@@ -28,51 +29,61 @@ export class AlxChatWelcome extends LitElement {
         text-align: center;
         padding: 40px 24px;
         height: 100%;
-        animation: fadeInUp 0.4s ease;
+        position: relative;
+        overflow: hidden;
       }
 
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(12px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
+      .wave {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 80px;
+        color: var(--alx-chat-primary);
+        opacity: 0.08;
+        z-index: 0;
       }
 
       .avatar-wrapper {
-        position: relative;
-        margin-bottom: 20px;
-      }
-
-      .avatar {
         width: 72px;
         height: 72px;
         border-radius: 50%;
         background: var(--alx-chat-surface);
         border: 3px solid var(--alx-chat-border);
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+        margin-bottom: 20px;
+        animation: alx-scaleIn 0.4s var(--alx-chat-spring-bounce);
+        animation-delay: 0.1s;
+        animation-fill-mode: both;
         display: flex;
         align-items: center;
         justify-content: center;
-        overflow: hidden;
       }
 
-      .avatar img {
+      .avatar-wrapper img {
         width: 100%;
         height: 100%;
         object-fit: cover;
         border-radius: 50%;
       }
 
-      .avatar svg {
+      .avatar-wrapper svg {
         width: 36px;
         height: 36px;
         fill: var(--alx-chat-text-muted);
       }
 
-      .status-dot {
+      .avatar-initial {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--alx-chat-text);
+        line-height: 1;
+        user-select: none;
+      }
+
+      .online-dot {
         position: absolute;
         bottom: 2px;
         right: 2px;
@@ -80,21 +91,30 @@ export class AlxChatWelcome extends LitElement {
         height: 14px;
         border-radius: 50%;
         border: 3px solid var(--alx-chat-bg);
+        z-index: 2;
       }
 
-      .status-dot.online {
-        background: var(--alx-chat-success);
+      .online-dot.online {
+        background: #22c55e;
       }
 
-      .status-dot.offline {
+      .online-dot.offline {
         background: var(--alx-chat-text-muted);
+      }
+
+      .avatar-status-wrapper {
+        position: relative;
+        z-index: 1;
       }
 
       .agent-name {
         font-size: 13px;
+        font-weight: 500;
         color: var(--alx-chat-text-muted);
         margin-bottom: 8px;
-        font-weight: 500;
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
+        animation-delay: 0.15s;
+        animation-fill-mode: both;
       }
 
       .title {
@@ -103,50 +123,88 @@ export class AlxChatWelcome extends LitElement {
         color: var(--alx-chat-text);
         margin-bottom: 8px;
         line-height: 1.3;
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
+        animation-delay: 0.2s;
+        animation-fill-mode: both;
       }
 
       .subtitle {
         font-size: 14px;
         color: var(--alx-chat-text-muted);
         margin-bottom: 32px;
-        line-height: 1.5;
         max-width: 280px;
+        line-height: 1.5;
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
+        animation-delay: 0.25s;
+        animation-fill-mode: both;
       }
 
-      .cta-button {
+      .cta {
         display: inline-flex;
         align-items: center;
         gap: 8px;
         padding: 14px 32px;
         border: none;
-        border-radius: var(--alx-chat-radius);
+        border-radius: 12px;
         background: var(--alx-chat-primary);
         color: var(--alx-chat-primary-text);
         font-family: var(--alx-chat-font);
         font-size: 15px;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s ease;
         box-shadow: var(--alx-chat-shadow-sm);
+        transition: background 0.2s, transform 0.2s var(--alx-chat-spring-bounce),
+          box-shadow 0.2s;
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
+        animation-delay: 0.3s;
+        animation-fill-mode: both;
       }
 
-      .cta-button:hover {
+      .cta:hover {
         background: var(--alx-chat-primary-hover);
         transform: translateY(-1px);
         box-shadow: var(--alx-chat-shadow);
       }
 
-      .cta-button:active {
+      .cta:active {
         transform: translateY(0);
       }
 
-      .cta-button svg {
-        width: 18px;
-        height: 18px;
-        fill: currentColor;
+      .starters {
+        margin-top: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        max-width: 300px;
       }
 
-      .skip-link {
+      .starter-chip {
+        background: var(--alx-chat-surface);
+        border: 1px solid var(--alx-chat-border);
+        border-radius: 12px;
+        padding: 10px 16px;
+        font-family: var(--alx-chat-font);
+        font-size: 13px;
+        color: var(--alx-chat-text);
+        cursor: pointer;
+        text-align: left;
+        transition: border-color 0.2s,
+          transform 0.15s var(--alx-chat-spring-snappy);
+        animation: alx-fadeInUp 0.2s var(--alx-chat-spring-smooth);
+        animation-fill-mode: both;
+      }
+
+      .starter-chip:hover {
+        border-color: var(--alx-chat-primary);
+        transform: translateX(4px);
+      }
+
+      .starter-chip:active {
+        transform: translateX(2px) scale(0.98);
+      }
+
+      .skip {
         margin-top: 16px;
         background: none;
         border: none;
@@ -154,13 +212,12 @@ export class AlxChatWelcome extends LitElement {
         font-family: var(--alx-chat-font);
         font-size: 13px;
         cursor: pointer;
-        padding: 4px 8px;
-        transition: color 0.2s ease;
         text-decoration: underline;
         text-underline-offset: 2px;
+        transition: color 0.2s;
       }
 
-      .skip-link:hover {
+      .skip:hover {
         color: var(--alx-chat-text);
       }
     `,
@@ -174,26 +231,27 @@ export class AlxChatWelcome extends LitElement {
   @property({ type: Boolean }) isOnline = true;
   @property() ctaText = 'Start Chat';
   @property({ type: Boolean }) canSkipToChat = false;
+  @property({ type: Array }) starters: string[] = [];
 
   render() {
     const dotClasses = {
-      'status-dot': true,
+      'online-dot': true,
       online: this.isOnline,
       offline: !this.isOnline,
     };
 
     return html`
       <div class="welcome-container">
-        <div class="avatar-wrapper">
-          <div class="avatar">
-            ${this.agentAvatar
-              ? html`<img src=${this.agentAvatar} alt=${this.agentName || 'Agent'} />`
-              : html`
-                  <svg viewBox="0 0 24 24">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                    <circle cx="12" cy="7" r="4"/>
-                  </svg>
-                `}
+        <svg class="wave" viewBox="0 0 400 80" preserveAspectRatio="none">
+          <path
+            d="M0 40 C100 80 200 0 300 40 C350 60 380 30 400 40 L400 0 L0 0 Z"
+            fill="currentColor"
+          />
+        </svg>
+
+        <div class="avatar-status-wrapper">
+          <div class="avatar-wrapper">
+            ${this._renderAvatarContent()}
           </div>
           ${this.showOnlineStatus
             ? html`<span class=${classMap(dotClasses)}></span>`
@@ -210,16 +268,37 @@ export class AlxChatWelcome extends LitElement {
           ? html`<p class="subtitle">${this.subtitle}</p>`
           : nothing}
 
-        <button class="cta-button" @click=${this.handleCta}>
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+        <button class="cta" @click=${this._handleCta}>
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path
+              d="M9 2C5.134 2 2 4.686 2 8c0 1.886 1.07 3.567 2.748 4.663-.102 1-.546 1.936-1.213 2.687a.35.35 0 00.263.6c1.537-.103 2.87-.718 3.79-1.47.41.055.82.089 1.247.089C12.866 14.57 16 11.883 16 8.57 16 4.686 12.866 2 9 2z"
+              fill="currentColor"
+            />
           </svg>
           ${this.ctaText}
         </button>
 
+        ${this.starters.length > 0
+          ? html`
+              <div class="starters">
+                ${this.starters.slice(0, 4).map(
+                  (text, i) => html`
+                    <button
+                      class="starter-chip"
+                      style="animation-delay: ${0.4 + i * 0.1}s"
+                      @click=${() => this._onStarterClick(text)}
+                    >
+                      ${text}
+                    </button>
+                  `,
+                )}
+              </div>
+            `
+          : nothing}
+
         ${this.canSkipToChat
           ? html`
-              <button class="skip-link" @click=${this.handleSkip}>
+              <button class="skip" @click=${this._handleSkip}>
                 Skip to chat
               </button>
             `
@@ -228,15 +307,47 @@ export class AlxChatWelcome extends LitElement {
     `;
   }
 
-  private handleCta() {
+  private _renderAvatarContent() {
+    if (this.agentAvatar) {
+      return html`<img
+        src=${this.agentAvatar}
+        alt=${this.agentName || 'Agent'}
+      />`;
+    }
+
+    if (this.agentName) {
+      return html`<span class="avatar-initial"
+        >${this.agentName.charAt(0).toUpperCase()}</span
+      >`;
+    }
+
+    return html`
+      <svg viewBox="0 0 24 24">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+      </svg>
+    `;
+  }
+
+  private _handleCta() {
     this.dispatchEvent(
       new CustomEvent('step-complete', { bubbles: true, composed: true }),
     );
   }
 
-  private handleSkip() {
+  private _handleSkip() {
     this.dispatchEvent(
       new CustomEvent('skip-to-chat', { bubbles: true, composed: true }),
+    );
+  }
+
+  private _onStarterClick(text: string) {
+    this.dispatchEvent(
+      new CustomEvent('starter-selected', {
+        bubbles: true,
+        composed: true,
+        detail: { text },
+      }),
     );
   }
 }

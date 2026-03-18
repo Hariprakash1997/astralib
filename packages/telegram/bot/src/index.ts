@@ -35,6 +35,7 @@ export function createTelegramBot(config: TelegramBotConfig): TelegramBot {
   const hooks = config.hooks;
 
   // 1. Create models
+  // conn.model<any> is a standard Mongoose pattern for dynamic model registration
   const modelName = `${prefix}TelegramBotContact`;
   const TelegramBotContact = (conn.models[modelName] || conn.model<any>(
     modelName,
@@ -76,3 +77,4 @@ export { UserTrackerService, type TrackingResult, type UserFilters, type Paginat
 export { KeyboardBuilder } from './utils/keyboard-builder';
 export { createBotController } from './controllers/bot.controller';
 export { createRoutes, type TelegramBotRouteDeps } from './routes';
+export { createAccountManagerBridge, type AccountManagerBridge, type AccountManagerLike } from './utils/account-manager-bridge';

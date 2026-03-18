@@ -55,6 +55,7 @@ export class AlxTgAccountForm extends LitElement {
   @state() private delayMax = 90;
   @state() private loading = false;
   @state() private saving = false;
+  @state() private tags = '';
   @state() private error = '';
 
   private _api?: TelegramAccountAPI;
@@ -80,6 +81,7 @@ export class AlxTgAccountForm extends LitElement {
     this.dailyLimit = 50;
     this.delayMin = 30;
     this.delayMax = 90;
+    this.tags = '';
     this.error = '';
   }
 
@@ -94,6 +96,7 @@ export class AlxTgAccountForm extends LitElement {
       this.dailyLimit = (account['dailyLimit'] as number) ?? 50;
       this.delayMin = (account['delayMin'] as number) ?? 30;
       this.delayMax = (account['delayMax'] as number) ?? 90;
+      this.tags = Array.isArray(account['tags']) ? (account['tags'] as string[]).join(', ') : '';
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to load account';
     } finally {
@@ -118,6 +121,7 @@ export class AlxTgAccountForm extends LitElement {
       dailyLimit: this.dailyLimit,
       delayMin: this.delayMin,
       delayMax: this.delayMax,
+      tags: this.tags.split(',').map(t => t.trim()).filter(Boolean),
     };
 
     try {
@@ -201,6 +205,15 @@ export class AlxTgAccountForm extends LitElement {
                 .value=${this.name}
                 @input=${(e: Event) => (this.name = (e.target as HTMLInputElement).value)}
                 placeholder="Account name"
+              />
+            </div>
+            <div class="form-group">
+              <label>Tags</label>
+              <input
+                type="text"
+                .value=${this.tags}
+                @input=${(e: Event) => (this.tags = (e.target as HTMLInputElement).value)}
+                placeholder="sales, outreach"
               />
             </div>
 

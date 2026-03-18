@@ -61,3 +61,18 @@ export const EMAIL_SEND_STATUS = {
 } as const;
 
 export type EmailSendStatus = (typeof EMAIL_SEND_STATUS)[keyof typeof EMAIL_SEND_STATUS];
+
+export const TARGET_MODE = {
+  Query: 'query',
+  List: 'list',
+} as const;
+
+export type TargetMode = (typeof TARGET_MODE)[keyof typeof TARGET_MODE];
+
+export const RUN_LOG_STATUS = {
+  Completed: 'completed',
+  Cancelled: 'cancelled',
+  Failed: 'failed',
+} as const;
+
+export type RunLogStatus = (typeof RUN_LOG_STATUS)[keyof typeof RUN_LOG_STATUS];

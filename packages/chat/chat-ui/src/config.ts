@@ -8,6 +8,17 @@ export interface AlxChatConfigOptions {
   locale?: string;
 }
 
+export interface ChatCapabilities {
+  agents: boolean;
+  ai: boolean;
+  visitorSelection: boolean;
+  labeling: boolean;
+  fileUpload: boolean;
+  memory: boolean;
+  prompts: boolean;
+  knowledge: boolean;
+}
+
 const API_KEY_MAP = {
   chatEngine: 'chatEngineApi',
   chatAi: 'chatAiApi',
@@ -33,9 +44,42 @@ const API_KEY_MAP = {
  */
 export class AlxChatConfig {
   private static instance: AlxChatConfigOptions = {};
+  private static _capabilities: ChatCapabilities | null = null;
+
+  private static readonly DEFAULT_CAPABILITIES: ChatCapabilities = {
+    agents: true,
+    ai: false,
+    visitorSelection: false,
+    labeling: false,
+    fileUpload: false,
+    memory: false,
+    prompts: false,
+    knowledge: false,
+  };
+
+  static get capabilities(): ChatCapabilities {
+    return this._capabilities || this.DEFAULT_CAPABILITIES;
+  }
+
+  static async fetchCapabilities(): Promise<void> {
+    try {
+      const baseUrl = AlxChatConfig.getApiUrl('chatEngine');
+      if (!baseUrl) return;
+      const res = await fetch(`${baseUrl}/capabilities`, {
+        headers: AlxChatConfig.getHeaders(),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        AlxChatConfig._capabilities = json.data;
+      }
+    } catch {
+      // Silently fail — use defaults
+    }
+  }
 
   static setup(options: AlxChatConfigOptions): void {
     AlxChatConfig.instance = { ...options };
+    AlxChatConfig.fetchCapabilities();
   }
 
   static get(): AlxChatConfigOptions {

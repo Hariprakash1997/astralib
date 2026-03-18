@@ -4,7 +4,17 @@ import type { TelegramConversationSessionModel } from '../schemas/telegram-conve
 import { noopLogger } from '@astralibx/core';
 import type { LogAdapter, TelegramInboxConfig } from '../types/config.types';
 import type { CreateMessageInput } from '../types/message.types';
-import { MessageNotFoundError } from '../errors';
+import type { ContentType } from '../types/config.types';
+import {
+  SENDER_ACCOUNT,
+  DIRECTION_OUTBOUND,
+  CONTENT_TEXT,
+  CONTENT_PHOTO,
+  CONTENT_VIDEO,
+  CONTENT_AUDIO,
+  CONTENT_DOCUMENT,
+  STATUS_ACTIVE,
+} from '../constants';
 
 export class MessageService {
   private logger: LogAdapter;
@@ -46,35 +56,40 @@ export class MessageService {
       throw new Error(`Account ${accountId} is not connected`);
     }
 
-    let sentMessage: any;
+    const sentMessage = media
+      ? await client.sendMessage(chatId, { message: text, file: media.buffer })
+      : await client.sendMessage(chatId, { message: text });
 
-    if (media) {
-      sentMessage = await client.sendMessage(chatId, {
-        message: text,
-        file: media.buffer,
-      });
-    } else {
-      sentMessage = await client.sendMessage(chatId, {
-        message: text,
-      });
+    if (!sentMessage?.id) {
+      throw new Error('Telegram sendMessage returned no message ID');
     }
+    const telegramMessageId = String(sentMessage.id);
 
-    const telegramMessageId = sentMessage?.id ? String(sentMessage.id) : `out_${Date.now()}`;
+    // Determine content type from media mimeType
+    let contentType: ContentType = CONTENT_TEXT;
+    if (media) {
+      if (media.mimeType.startsWith('image/')) contentType = CONTENT_PHOTO;
+      else if (media.mimeType.startsWith('video/')) contentType = CONTENT_VIDEO;
+      else if (media.mimeType.startsWith('audio/')) contentType = CONTENT_AUDIO;
+      else contentType = CONTENT_DOCUMENT;
+    }
 
     // Save outbound message to DB
     const savedMessage = await this.TelegramMessage.create({
+      accountId,
       conversationId: chatId,
       messageId: telegramMessageId,
       senderId: accountId,
-      senderType: 'account',
-      direction: 'outbound',
-      contentType: media ? 'document' : 'text',
+      senderType: SENDER_ACCOUNT,
+      direction: DIRECTION_OUTBOUND,
+      contentType,
       content: text,
+      mediaType: media?.mimeType,
     });
 
     // Update conversation session
     await this.TelegramConversationSession.findOneAndUpdate(
-      { conversationId: chatId, accountId, status: 'active' },
+      { conversationId: chatId, accountId, status: STATUS_ACTIVE },
       {
         $inc: { messageCount: 1 },
         $set: { lastMessageAt: new Date() },

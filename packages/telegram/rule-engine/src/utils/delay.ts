@@ -29,6 +29,16 @@ export function isWithinSendWindow(config: { startHour: number; endHour: number;
 }
 
 /**
+ * Adjust a base delay based on account health score.
+ * Health 100 = 1x, Health 50 = ~2.5x, Health 0 = (1 + multiplier)x.
+ * Returns milliseconds.
+ */
+export function getHealthAdjustedDelay(baseMs: number, healthScore: number, multiplier = 3): number {
+  const factor = 1 + (multiplier * (1 - Math.max(0, Math.min(100, healthScore)) / 100));
+  return Math.round(baseMs * factor);
+}
+
+/**
  * Calculate a human-like delay with optional "thinking pause".
  * Returns milliseconds.
  */

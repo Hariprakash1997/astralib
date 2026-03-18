@@ -2,6 +2,7 @@ import type { FilterQuery } from 'mongoose';
 import type { EmailEventModel } from '../schemas/email-event.schema';
 import type { LogAdapter } from '@astralibx/core';
 import type { EmailEvent, CreateEventInput } from '../types/event.types';
+import { AlxAnalyticsError } from '../errors';
 
 export interface EventQueryFilters {
   dateFrom: Date;
@@ -24,6 +25,9 @@ export class EventRecorderService {
   ) {}
 
   async record(event: CreateEventInput): Promise<void> {
+    if (!event.accountId) {
+      throw new AlxAnalyticsError('accountId is required for event recording', 'MISSING_ACCOUNT_ID');
+    }
     await this.EmailEvent.record(event);
     this.logger.info('Event recorded', { type: event.type, accountId: event.accountId });
   }

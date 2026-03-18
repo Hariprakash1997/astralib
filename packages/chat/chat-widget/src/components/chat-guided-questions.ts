@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import type { GuidedQuestion, GuidedOption } from '@astralibx/chat-types';
-import { chatResetStyles, chatBaseStyles } from '../styles/shared.js';
+import { chatResetStyles, chatBaseStyles, chatAnimations } from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 import './chat-options.js';
 
@@ -23,6 +23,7 @@ export class AlxChatGuidedQuestions extends LitElement {
   static styles = [
     chatResetStyles,
     chatBaseStyles,
+    chatAnimations,
     css`
       :host {
         display: block;
@@ -45,12 +46,7 @@ export class AlxChatGuidedQuestions extends LitElement {
         align-items: center;
         justify-content: center;
         padding: 32px 20px;
-        animation: fadeIn 0.3s ease;
-      }
-
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
       }
 
       .step-indicator {
@@ -64,7 +60,7 @@ export class AlxChatGuidedQuestions extends LitElement {
         height: 8px;
         border-radius: 50%;
         background: var(--alx-chat-border);
-        transition: all 0.2s ease;
+        transition: all 0.2s var(--alx-chat-spring-smooth);
       }
 
       .step-dot.active {
@@ -108,7 +104,7 @@ export class AlxChatGuidedQuestions extends LitElement {
         font-family: var(--alx-chat-font);
         font-size: 13px;
         outline: none;
-        transition: border-color 0.2s ease;
+        transition: border-color 0.2s var(--alx-chat-spring-smooth);
       }
 
       .free-text-input::placeholder {
@@ -132,7 +128,7 @@ export class AlxChatGuidedQuestions extends LitElement {
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s ease;
+        transition: background 0.2s var(--alx-chat-spring-smooth);
       }
 
       .free-text-submit:hover {
@@ -157,12 +153,7 @@ export class AlxChatGuidedQuestions extends LitElement {
 
       .conv-message {
         display: flex;
-        animation: messageIn 0.3s ease;
-      }
-
-      @keyframes messageIn {
-        from { opacity: 0; transform: translateY(6px); }
-        to { opacity: 1; transform: translateY(0); }
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
       }
 
       .conv-message.question {
@@ -196,7 +187,7 @@ export class AlxChatGuidedQuestions extends LitElement {
       .typing-indicator {
         display: flex;
         justify-content: flex-start;
-        animation: messageIn 0.3s ease;
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
       }
 
       .typing-bubble {
@@ -243,7 +234,7 @@ export class AlxChatGuidedQuestions extends LitElement {
         cursor: pointer;
         text-decoration: underline;
         text-underline-offset: 2px;
-        transition: color 0.2s ease;
+        transition: color 0.2s var(--alx-chat-spring-smooth);
       }
 
       .skip-link:hover {

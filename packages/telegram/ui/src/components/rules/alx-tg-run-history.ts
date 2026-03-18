@@ -13,6 +13,7 @@ import {
   alxToolbarStyles,
 } from '../../styles/shared.js';
 import { TelegramRuleAPI } from '../../api/rule.api.js';
+import { iconPlay, iconRefresh } from '../../utils/icons.js';
 
 interface RunLog {
   _id: string;
@@ -47,6 +48,7 @@ export class AlxTgRunHistory extends LitElement {
       .stat-sent { color: var(--alx-success); }
       .stat-failed { color: var(--alx-danger); }
       .stat-skipped { color: var(--alx-text-muted); }
+      .alx-table-wrap { overflow-x: auto; }
     `,
   ];
 
@@ -154,9 +156,9 @@ export class AlxTgRunHistory extends LitElement {
 
         <div class="toolbar">
           <span class="spacer"></span>
-          <button @click=${() => this.load()}>Refresh</button>
+          <button @click=${() => this.load()}>${iconRefresh(14)}</button>
           <button class="alx-btn-primary" ?disabled=${this.triggering} @click=${this.onRunNow}>
-            ${this.triggering ? 'Triggering...' : 'Run Now'}
+            ${this.triggering ? 'Triggering...' : html`${iconPlay(14)} Trigger Run`}
           </button>
         </div>
 
@@ -166,7 +168,7 @@ export class AlxTgRunHistory extends LitElement {
           : this.runs.length === 0
             ? html`<div class="alx-empty"><p>No run history yet.</p></div>`
             : html`
-                <table>
+                <div class="alx-table-wrap"><table>
                   <thead>
                     <tr>
                       <th>RUN ID</th>
@@ -195,7 +197,7 @@ export class AlxTgRunHistory extends LitElement {
                       </tr>
                     `)}
                   </tbody>
-                </table>
+                </table></div>
 
                 <div class="pagination">
                   <button class="alx-btn-sm" ?disabled=${this.page <= 1} @click=${this.onPrev}>Prev</button>

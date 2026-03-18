@@ -113,6 +113,12 @@ app.listen(3000);
 
 ## Getting Started
 
+**New here?** Start with the [Quick Start Tutorial](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/docs/quick-start-tutorial.md) -- 11 steps from zero to your first campaign, with curl commands.
+
+**Confused by a term?** See the [Glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/docs/glossary.md) -- all ID types, concepts, constants, and gotchas.
+
+**Package docs:**
+
 1. [`@astralibx/email-account-manager` README](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/README.md) -- Set up SMTP accounts and sending infrastructure
 2. [`@astralibx/email-rule-engine` README](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/README.md) -- Define templates, rules, and adapters
 3. [`@astralibx/email-analytics` README](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/README.md) -- Record and query email events

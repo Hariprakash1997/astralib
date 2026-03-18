@@ -12,6 +12,11 @@ export interface MessageReadEvent {
 }
 
 export class InboxEventGateway extends EventEmitter {
+  constructor() {
+    super();
+    this.setMaxListeners(50);
+  }
+
   emitNewMessage(message: InboxMessage): void {
     this.emit('inbox:new_message', message);
   }

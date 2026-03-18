@@ -47,7 +47,7 @@ const widget = document.querySelector('alx-chat-widget') as AlxChatWidget;
 widget.configure({
   socketUrl: 'https://chat.example.com',
   channel: 'website',
-  theme: 'dark',
+  theme: 'auto',  // 'dark' | 'light' | 'auto' (follows OS preference)
   position: 'bottom-right',
   user: { userId: '123', name: 'John', email: 'john@example.com' },
   branding: { primaryColor: '#D4AF37', companyName: 'Acme', logoUrl: '/logo.png' },
@@ -66,7 +66,7 @@ widget.configure({
     skipToChat: true,
     completionAction: 'chat',
     steps: [
-      { type: 'welcome', title: 'Hi there!', subtitle: 'How can we help?', showOnlineStatus: true },
+      { type: 'welcome', title: 'Hi there!', subtitle: 'How can we help?', showOnlineStatus: true, starters: ['Reset password', 'Business hours', 'Billing help', 'Track order'] },
       {
         type: 'faq',
         searchEnabled: true,
@@ -136,7 +136,11 @@ widget.addEventListener('chat:faq-viewed', (e) => {
 
 - **Configurable pre-chat flow** -- Welcome screen, FAQ, guided questions, contact form, and agent selector steps in any order. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/pre-chat-flow.md)
 - **FAQ-only mode** -- Use the widget as a standalone help center without live chat. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/pre-chat-flow.md#faq-only-mode-no-live-chat)
-- **Theming** -- Dark and light themes with full CSS custom property override support. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/theming.md)
+- **Conversation starters** -- Clickable starter chips on the welcome screen to kick off common topics. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/configuration.md#conversation-starters)
+- **Message status indicators** -- Visual sending/sent/delivered/read/failed lifecycle with retry support. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/configuration.md#message-status-indicators)
+- **Message grouping** -- iMessage-style consecutive message grouping with date separators. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/configuration.md#message-grouping)
+- **Launcher tooltip** -- Preview tooltip for unread messages when the widget is closed. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/configuration.md#launcher-preview-tooltip)
+- **Theming** -- Dark, light, and auto themes with full CSS custom property override support. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/theming.md)
 - **Offline handling** -- Configurable offline form, message, or auto-hide behavior. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/configuration.md#offline-configuration)
 - **Post-chat feedback** -- Rating or survey collection after chat ends. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/configuration.md#post-chat-configuration)
 - **Real-time events** -- CustomEvents for widget open/close, messages, sessions, FAQ interactions, escalation, and feedback. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-widget/docs/events.md)

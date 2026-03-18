@@ -10,8 +10,14 @@ export class IdentifierService {
     private hooks?: EmailAccountManagerConfig['hooks'],
   ) {}
 
+  private static EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   async findOrCreate(email: string): Promise<EmailIdentifierDocument> {
     const normalized = email.toLowerCase().trim();
+
+    if (!IdentifierService.EMAIL_REGEX.test(normalized)) {
+      throw new Error(`Invalid email format: "${normalized}"`);
+    }
 
     const doc = await this.EmailIdentifier.findOneAndUpdate(
       { email: normalized },

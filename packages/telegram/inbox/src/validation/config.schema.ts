@@ -21,6 +21,7 @@ const configSchema = z.object({
   hooks: z.object({
     onNewMessage: z.function().optional(),
     onMessageRead: z.function().optional(),
+    onNewContact: z.function().optional(),
     onTyping: z.function().optional(),
   }).optional(),
 });

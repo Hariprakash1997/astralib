@@ -57,6 +57,11 @@ function createMockAccountManager() {
 function createMockMessageModel() {
   return {
     findOne: vi.fn().mockResolvedValue(null),
+    find: vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([]),
+      }),
+    }),
     create: vi.fn().mockImplementation((data: any) => Promise.resolve({ _id: 'msg-1', ...data })),
   };
 }
@@ -156,10 +161,12 @@ describe('HistorySyncService', () => {
       const { service, accountManager, messageModel } = createService();
       accountManager.getClient.mockReturnValue(mockClient);
 
-      // First message already exists
-      messageModel.findOne
-        .mockResolvedValueOnce({ _id: 'existing' }) // msg 1 exists
-        .mockResolvedValueOnce(null); // msg 2 is new
+      // Batch dedup: message 1 already exists
+      messageModel.find = vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          lean: vi.fn().mockResolvedValue([{ messageId: '1' }]),
+        }),
+      });
 
       const result = await service.syncChat('acc-1', 'chat-1');
 

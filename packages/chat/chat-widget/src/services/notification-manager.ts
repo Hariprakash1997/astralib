@@ -67,7 +67,8 @@ export class ChatNotificationManager {
    * Flash the browser title with a "New message" indicator.
    */
   startTitleFlash(message = 'New message!'): void {
-    if (this.isFlashing) return;
+    // Clear any existing flash interval to prevent leaks
+    this.stopTitleFlash();
     this.isFlashing = true;
     this.originalTitle = document.title;
 

@@ -1,4 +1,5 @@
 import { Schema, Model, HydratedDocument } from 'mongoose';
+import { IMAP_SEARCH_SINCE, APPROVAL_MODE, SPREAD_STRATEGY } from '../constants';
 import type { GlobalSettings } from '../types/settings.types';
 
 export interface IGlobalSettings extends Omit<GlobalSettings, '_id'> {
@@ -23,7 +24,7 @@ const DEFAULT_SETTINGS: Omit<GlobalSettings, '_id' | 'updatedAt'> = {
   imap: {
     enabled: false,
     pollIntervalMs: 300000,
-    searchSince: 'last_check',
+    searchSince: IMAP_SEARCH_SINCE.LastCheck,
     bounceSenders: ['mailer-daemon@googlemail.com'],
   },
   ses: {
@@ -33,14 +34,14 @@ const DEFAULT_SETTINGS: Omit<GlobalSettings, '_id' | 'updatedAt'> = {
   },
   approval: {
     enabled: false,
-    defaultMode: 'manual',
+    defaultMode: APPROVAL_MODE.Manual,
     autoApproveDelayMs: 0,
     sendWindow: {
       timezone: 'UTC',
       startHour: 9,
       endHour: 21,
     },
-    spreadStrategy: 'random',
+    spreadStrategy: SPREAD_STRATEGY.Random,
     maxSpreadMinutes: 120,
   },
   unsubscribePage: {
@@ -82,7 +83,7 @@ export function createGlobalSettingsSchema(options?: CreateGlobalSettingsSchemaO
         type: {
           enabled: { type: Boolean, default: false },
           pollIntervalMs: { type: Number, default: 300000 },
-          searchSince: { type: String, enum: ['last_check', 'last_24h', 'last_7d'], default: 'last_check' },
+          searchSince: { type: String, enum: Object.values(IMAP_SEARCH_SINCE), default: IMAP_SEARCH_SINCE.LastCheck },
           bounceSenders: [{ type: String }],
         },
         default: () => ({ ...DEFAULT_SETTINGS.imap }),
@@ -102,7 +103,7 @@ export function createGlobalSettingsSchema(options?: CreateGlobalSettingsSchemaO
       approval: {
         type: {
           enabled: { type: Boolean, default: false },
-          defaultMode: { type: String, enum: ['manual', 'auto'], default: 'manual' },
+          defaultMode: { type: String, enum: Object.values(APPROVAL_MODE), default: APPROVAL_MODE.Manual },
           autoApproveDelayMs: { type: Number, default: 0 },
           sendWindow: {
             type: {
@@ -112,7 +113,7 @@ export function createGlobalSettingsSchema(options?: CreateGlobalSettingsSchemaO
             },
             _id: false,
           },
-          spreadStrategy: { type: String, enum: ['random', 'even'], default: 'random' },
+          spreadStrategy: { type: String, enum: Object.values(SPREAD_STRATEGY), default: SPREAD_STRATEGY.Random },
           maxSpreadMinutes: { type: Number, default: 120 },
         },
         default: () => ({ ...DEFAULT_SETTINGS.approval, sendWindow: { ...DEFAULT_SETTINGS.approval.sendWindow } }),

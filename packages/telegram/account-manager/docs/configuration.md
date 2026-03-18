@@ -42,7 +42,10 @@ const config: TelegramAccountManagerConfig = {
         { days: [15, 0],  dailyLimit: 100, delayMinMs: 15000,  delayMaxMs: 45000  },
         // days: [15, 0] means "day 15 onwards" (0 = no upper bound)
       ],
+      autoAdvance: true,                 // Automatically advance warmup day counter daily (default: true)
     },
+
+    idleTimeoutMs: 600000,               // Disconnect idle accounts after this duration (default: disabled)
 
     quarantine: {
       monitorIntervalMs: 300000,       // Quarantine release check interval (default: 300000 / 5 min)
@@ -103,6 +106,7 @@ Provide an object with `info`, `warn`, and `error` methods. Each receives `(mess
 |-------|------|---------|-------------|
 | `enabled` | `boolean` | `true` | Enable warmup phase for new accounts |
 | `defaultSchedule` | `WarmupPhase[]` | 4-phase schedule | Default warmup schedule for new accounts |
+| `autoAdvance` | `boolean` | `true` | When `true`, the library automatically calls `advanceAllAccounts()` every 24 hours via an internal `setInterval` -- no cron job needed. When `false`, you must call `warmup.advanceDay(accountId)` manually for each account. |
 
 Default warmup schedule:
 
@@ -112,6 +116,25 @@ Default warmup schedule:
 | 2 | 4--7 | 25 | 45s--90s |
 | 3 | 8--14 | 50 | 30s--60s |
 | 4 | 15+ | 100 | 15s--45s |
+
+### `options.idleTimeoutMs`
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `idleTimeoutMs` | `number` | `undefined` (disabled) | Disconnect accounts that have been idle (no sends) for this duration in milliseconds. When set, the connection service starts an idle monitor that periodically checks each connected account's last activity timestamp and automatically disconnects idle ones to free resources. |
+
+**Usage example:**
+
+```ts
+const tam = createTelegramAccountManager({
+  // ...
+  options: {
+    idleTimeoutMs: 600000, // 10 minutes -- auto-disconnect accounts with no sends for 10 minutes
+  },
+});
+```
+
+When `idleTimeoutMs` is set, the library calls `connectionService.startIdleMonitor()` on startup. Accounts that haven't sent a message within the specified duration are automatically disconnected. This is useful for freeing TDLib client resources when accounts are not actively in use.
 
 ### `options.quarantine`
 

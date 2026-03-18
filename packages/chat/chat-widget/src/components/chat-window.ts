@@ -2,7 +2,7 @@ import { LitElement, html, css } from 'lit';
 import { property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import type { ChatMessage } from '@astralibx/chat-types';
-import { chatResetStyles, chatBaseStyles } from '../styles/shared.js';
+import { chatResetStyles, chatBaseStyles, chatAnimations } from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 import './chat-header.js';
 import './chat-messages.js';
@@ -12,63 +12,127 @@ export class AlxChatWindow extends LitElement {
   static styles = [
     chatResetStyles,
     chatBaseStyles,
+    chatAnimations,
     css`
       :host {
         display: block;
       }
 
+      /* --- Window Open / Close Keyframes --- */
+
+      @keyframes alx-windowOpen {
+        0% {
+          opacity: 0;
+          transform: scale(0.85) translateY(20px);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+
+      @keyframes alx-windowClose {
+        0% {
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+        100% {
+          opacity: 0;
+          transform: scale(0.9) translateY(10px);
+        }
+      }
+
+      /* --- Window Container --- */
+
       .window-container {
         position: fixed;
-        bottom: 80px;
-        width: 380px;
-        height: 560px;
-        max-height: calc(100vh - 100px);
+        z-index: 9999;
+        width: 400px;
+        height: 600px;
         max-width: calc(100vw - 32px);
-        border-radius: var(--alx-chat-radius);
+        max-height: calc(100vh - 100px);
+        border-radius: 16px;
         background: var(--alx-chat-bg);
+        border: 1px solid color-mix(in srgb, var(--alx-chat-border) 50%, transparent);
         box-shadow: var(--alx-chat-shadow);
-        border: 1px solid var(--alx-chat-border);
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
-        z-index: 9999;
 
-        /* Animation */
+        /* Hidden by default */
+        visibility: hidden;
         opacity: 0;
-        transform: translateY(16px) scale(0.96);
-        transition: opacity 0.25s ease, transform 0.25s ease;
         pointer-events: none;
       }
 
       .window-container.open {
+        visibility: visible;
         opacity: 1;
-        transform: translateY(0) scale(1);
         pointer-events: auto;
+        animation: alx-windowOpen 0.35s var(--alx-chat-spring-smooth) forwards;
       }
 
+      .window-container.closing {
+        visibility: visible;
+        pointer-events: none;
+        animation: alx-windowClose 0.2s ease-in forwards;
+      }
+
+      .messages-area {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      /* --- Staggered Content Reveal --- */
+
+      .window-container.open > :nth-child(1) {
+        animation: alx-fadeInUp 0.25s var(--alx-chat-spring-smooth) both;
+        animation-delay: 0.1s;
+      }
+
+      .window-container.open > :nth-child(2) {
+        animation: alx-fadeInUp 0.25s var(--alx-chat-spring-smooth) both;
+        animation-delay: 0.15s;
+      }
+
+      .window-container.open > :nth-child(3) {
+        animation: alx-fadeInUp 0.25s var(--alx-chat-spring-smooth) both;
+        animation-delay: 0.2s;
+      }
+
+      /* --- Position Variants --- */
+
       .window-container.bottom-right {
+        bottom: 80px;
         right: 16px;
       }
 
       .window-container.bottom-left {
+        bottom: 80px;
         left: 16px;
       }
+
+      /* --- Content --- */
 
       .messages-area {
         flex: 1;
         overflow: hidden;
       }
 
-      /* Mobile responsive */
+      /* --- Mobile Responsive --- */
+
       @media (max-width: 480px) {
         .window-container {
-          bottom: 0;
-          right: 0 !important;
+          width: 100vw;
+          height: 100vh;
+          max-width: none;
+          max-height: none;
+          bottom: 0 !important;
           left: 0 !important;
-          width: 100%;
-          height: 100%;
-          max-height: 100vh;
-          max-width: 100vw;
+          right: 0 !important;
           border-radius: 0;
         }
       }
@@ -86,16 +150,38 @@ export class AlxChatWindow extends LitElement {
   @property() inputPlaceholder = 'Type a message...';
   @property({ type: Boolean }) inputDisabled = false;
 
+  private _closing = false;
+
+  updated(changed: Map<PropertyKey, unknown>) {
+    super.updated(changed);
+
+    if (changed.has('open')) {
+      const wasOpen = changed.get('open') as boolean | undefined;
+      // Trigger close animation when going from open to closed
+      if (wasOpen === true && !this.open) {
+        this._closing = true;
+        this.requestUpdate();
+
+        // Remove closing state after animation completes
+        setTimeout(() => {
+          this._closing = false;
+          this.requestUpdate();
+        }, 200);
+      }
+    }
+  }
+
   render() {
     const containerClasses = {
       'window-container': true,
       open: this.open,
+      closing: this._closing,
       'bottom-right': this.position === 'bottom-right',
       'bottom-left': this.position === 'bottom-left',
     };
 
     return html`
-      <div class=${classMap(containerClasses)}>
+      <div class=${classMap(containerClasses)} role="dialog" aria-label="Chat window">
         <alx-chat-header
           .agentName=${this.agentName}
           .agentAvatar=${this.agentAvatar}
@@ -120,19 +206,22 @@ export class AlxChatWindow extends LitElement {
     `;
   }
 
-  private handleMinimize() {
+  private handleMinimize(e: Event) {
+    e.stopPropagation();
     this.dispatchEvent(
       new CustomEvent('minimize', { bubbles: true, composed: true }),
     );
   }
 
-  private handleEndChat() {
+  private handleEndChat(e: Event) {
+    e.stopPropagation();
     this.dispatchEvent(
       new CustomEvent('end-chat', { bubbles: true, composed: true }),
     );
   }
 
   private handleSend(e: CustomEvent<{ content: string }>) {
+    e.stopPropagation();
     this.dispatchEvent(
       new CustomEvent('send', {
         detail: e.detail,
@@ -143,6 +232,7 @@ export class AlxChatWindow extends LitElement {
   }
 
   private handleTyping(e: CustomEvent<{ isTyping: boolean }>) {
+    e.stopPropagation();
     this.dispatchEvent(
       new CustomEvent('typing', {
         detail: e.detail,

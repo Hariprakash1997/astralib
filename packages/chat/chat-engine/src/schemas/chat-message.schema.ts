@@ -13,6 +13,8 @@ export interface IChatMessage {
   content: string;
   contentType: ChatContentType;
   status: ChatMessageStatus;
+  trainingQuality?: 'good' | 'bad' | 'needs_review' | null;
+  aiGenerated?: boolean;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   deliveredAt?: Date;
@@ -46,6 +48,12 @@ export function createChatMessageSchema() {
         default: ChatMessageStatus.Sent,
         index: true,
       },
+      trainingQuality: {
+        type: String,
+        enum: ['good', 'bad', 'needs_review', null],
+        default: null,
+      },
+      aiGenerated: { type: Boolean, default: false },
       metadata: { type: Schema.Types.Mixed, default: {} },
       createdAt: { type: Date, default: Date.now },
       deliveredAt: { type: Date },

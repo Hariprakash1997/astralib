@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import type { FormField } from '@astralibx/chat-types';
-import { chatResetStyles, chatBaseStyles } from '../styles/shared.js';
+import { chatResetStyles, chatBaseStyles, chatAnimations } from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 
 /**
@@ -15,6 +15,7 @@ export class AlxChatOffline extends LitElement {
   static styles = [
     chatResetStyles,
     chatBaseStyles,
+    chatAnimations,
     css`
       :host {
         display: block;
@@ -26,12 +27,7 @@ export class AlxChatOffline extends LitElement {
         flex-direction: column;
         height: 100%;
         overflow: hidden;
-        animation: fadeIn 0.3s ease;
-      }
-
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
       }
 
       /* -- Message mode -- */
@@ -162,7 +158,7 @@ export class AlxChatOffline extends LitElement {
         font-family: var(--alx-chat-font);
         font-size: 13px;
         outline: none;
-        transition: border-color 0.2s ease;
+        transition: border-color 0.2s var(--alx-chat-spring-smooth);
       }
 
       .field-input::placeholder,
@@ -209,7 +205,7 @@ export class AlxChatOffline extends LitElement {
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s ease;
+        transition: background 0.2s var(--alx-chat-spring-smooth);
       }
 
       .submit-btn:hover {
@@ -231,12 +227,7 @@ export class AlxChatOffline extends LitElement {
         text-align: center;
         padding: 48px 24px;
         height: 100%;
-        animation: scaleIn 0.4s ease;
-      }
-
-      @keyframes scaleIn {
-        from { opacity: 0; transform: scale(0.9); }
-        to { opacity: 1; transform: scale(1); }
+        animation: alx-scaleIn 0.4s var(--alx-chat-spring-bounce);
       }
 
       .success-icon {

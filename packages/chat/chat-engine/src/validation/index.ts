@@ -29,22 +29,36 @@ const optionsSchema = z.object({
   aiDebounceMs: z.number().int().positive().optional(),
   aiTypingSimulation: z.boolean().optional(),
   aiTypingSpeedCpm: z.number().int().positive().optional(),
+  singleSessionPerVisitor: z.boolean().optional(),
+  trackEventsAsMessages: z.boolean().optional(),
+  labelingEnabled: z.boolean().optional(),
+  maxUploadSizeMb: z.number().optional(),
+  aiSimulation: z.object({
+    deliveryDelay: z.object({ min: z.number(), max: z.number() }).optional(),
+    readDelay: z.object({ min: z.number(), max: z.number() }).optional(),
+    preTypingDelay: z.object({ min: z.number(), max: z.number() }).optional(),
+    bubbleDelay: z.object({ min: z.number(), max: z.number() }).optional(),
+    minTypingDuration: z.number().optional(),
+  }).optional(),
 }).optional();
 
 const adaptersSchema = z.object({
-  assignAgent: z.function(),
+  assignAgent: z.function().optional(),
   generateAiResponse: z.function().optional(),
   identifyVisitor: z.function().optional(),
   trackEvent: z.function().optional(),
   authenticateAgent: z.function().optional(),
   authenticateVisitor: z.function().optional(),
   authenticateRequest: z.function().optional(),
+  uploadFile: z.function().optional(),
+  enrichSessionContext: z.function().optional(),
 });
 
 const hooksSchema = z.object({
   onSessionCreated: z.function().optional(),
   onSessionResolved: z.function().optional(),
   onSessionAbandoned: z.function().optional(),
+  onSessionTimeout: z.function().optional(),
   onMessageSent: z.function().optional(),
   onAgentTakeOver: z.function().optional(),
   onAgentHandBack: z.function().optional(),
@@ -56,6 +70,10 @@ const hooksSchema = z.object({
   onQueuePositionChanged: z.function().optional(),
   onFeedbackReceived: z.function().optional(),
   onOfflineMessage: z.function().optional(),
+  onSaveMemory: z.function().optional(),
+  onDeleteMemory: z.function().optional(),
+  onSessionArchive: z.function().optional(),
+  onAiRequest: z.function().optional(),
   onMetric: z.function().optional(),
   onError: z.function().optional(),
 }).optional();
@@ -65,8 +83,8 @@ const configSchema = z.object({
   redis: baseRedisSchema,
   socket: socketSchema,
   options: optionsSchema,
-  adapters: adaptersSchema,
-  hooks: hooksSchema,
+  adapters: adaptersSchema.optional().default({}),
+  hooks: hooksSchema.optional().default({}),
   logger: loggerSchema.optional(),
 });
 

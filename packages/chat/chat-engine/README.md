@@ -24,6 +24,18 @@ npm install @astralibx/chat-engine
 npm install express mongoose socket.io ioredis
 ```
 
+## Requirements
+
+Redis is **mandatory** for chat-engine. It handles:
+- Visitor/agent connection tracking
+- Rate limiting
+- Session activity tracking
+- AI response locking
+- Pending message storage
+- Typing indicator debounce
+
+There is no in-memory fallback. Provide a Redis connection via `redis.connection`.
+
 ## Quick Start
 
 ```ts

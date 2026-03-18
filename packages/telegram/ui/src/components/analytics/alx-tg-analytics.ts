@@ -13,6 +13,7 @@ import {
   alxToolbarStyles,
 } from '../../styles/shared.js';
 import { TelegramRuleAPI } from '../../api/rule.api.js';
+import { iconRefresh } from '../../utils/icons.js';
 
 interface SendLog {
   _id: string;
@@ -59,7 +60,7 @@ export class AlxTgAnalytics extends LitElement {
         text-align: center;
       }
       .stat-value {
-        font-size: 1.5rem;
+        font-size: var(--alx-stat-value-size, 1.25rem);
         font-weight: 700;
         font-variant-numeric: tabular-nums;
       }
@@ -79,11 +80,11 @@ export class AlxTgAnalytics extends LitElement {
       .error-text {
         font-size: 0.7rem;
         color: var(--alx-danger);
-        max-width: 300px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+      .alx-table-wrap { overflow-x: auto; }
     `,
   ];
 
@@ -200,13 +201,13 @@ export class AlxTgAnalytics extends LitElement {
             <input type="date" .value=${this.dateFrom} @change=${(e: Event) => { this.dateFrom = (e.target as HTMLInputElement).value; this.load(); }} />
             <input type="date" .value=${this.dateTo} @change=${(e: Event) => { this.dateTo = (e.target as HTMLInputElement).value; this.load(); }} />
             <span class="spacer"></span>
-            <button @click=${() => this.load()}>Refresh</button>
+            <button @click=${() => this.load()}>${iconRefresh(14)} Refresh</button>
           </div>
 
           ${this.sendLogs.length === 0
             ? html`<div class="alx-empty"><p>No send logs yet.</p></div>`
             : html`
-                <table>
+                <div class="alx-table-wrap"><table>
                   <thead>
                     <tr>
                       <th>RULE</th>
@@ -225,7 +226,7 @@ export class AlxTgAnalytics extends LitElement {
                       </tr>
                     `)}
                   </tbody>
-                </table>
+                </table></div>
               `}
         </div>
       </div>
@@ -239,7 +240,7 @@ export class AlxTgAnalytics extends LitElement {
           ${this.errorLogs.length === 0
             ? html`<div class="alx-empty"><p>No errors logged.</p></div>`
             : html`
-                <table>
+                <div class="alx-table-wrap"><table>
                   <thead>
                     <tr>
                       <th>RULE</th>
@@ -258,7 +259,7 @@ export class AlxTgAnalytics extends LitElement {
                       </tr>
                     `)}
                   </tbody>
-                </table>
+                </table></div>
               `}
         </div>
       </div>

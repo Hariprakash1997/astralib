@@ -27,6 +27,8 @@ import { RedisService } from './services/redis.service';
 import { createGateway, type GatewayResult } from './gateway';
 import { createRoutes } from './routes';
 import { SessionTimeoutWorker } from './workers/session-timeout.worker';
+import { clearAllDebounceTimers } from './gateway/ai-debounce';
+import { clearAllTypingTimeouts, clearAllTypingThrottles, clearAllConnectionLimits } from './gateway/helpers';
 
 export interface ChatEngine {
   attach(httpServer: HttpServer): void;
@@ -176,6 +178,19 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
     logger,
   });
 
+  // Compute capabilities once at startup (cached for GET /capabilities)
+
+  const capabilities = {
+    agents: !!config.adapters?.assignAgent,
+    ai: !!config.adapters?.generateAiResponse,
+    visitorSelection: false,
+    labeling: !!resolvedOptions.labelingEnabled,
+    fileUpload: !!config.adapters?.uploadFile,
+    memory: false,
+    prompts: false,
+    knowledge: false,
+  };
+
   // Create REST routes
 
   const routes = createRoutes(
@@ -192,6 +207,10 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
     {
       authenticateRequest: config.adapters.authenticateRequest,
       onOfflineMessage: hooks?.onOfflineMessage,
+      capabilities,
+      uploadFile: config.adapters?.uploadFile,
+      maxUploadSizeMb: resolvedOptions.maxUploadSizeMb,
+      enrichSessionContext: config.adapters?.enrichSessionContext,
       logger,
     },
   );
@@ -217,6 +236,11 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
 
   async function destroy(): Promise<void> {
     timeoutWorker.stop();
+    clearAllDebounceTimers();
+    clearAllTypingTimeouts();
+    clearAllTypingThrottles();
+    clearAllConnectionLimits();
+    await redisService.clearAllAiLocks();
     if (gateway.io) {
       await new Promise<void>((resolve) => {
         gateway.io.close(() => resolve());

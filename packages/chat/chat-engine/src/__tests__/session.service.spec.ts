@@ -218,6 +218,59 @@ describe('SessionService', () => {
 
       expect(result.isNew).toBe(false);
     });
+
+    it('should prevent concurrent sessions by returning existing active session for same visitorId (Gap 18)', async () => {
+      const existingSession = createMockSession({ visitorId: 'vis-1', status: ChatSessionStatus.Active });
+
+      // No existingSessionId provided, so it searches by visitorId for active sessions
+      (sessionModel.findOne as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce({
+          sort: vi.fn().mockResolvedValue(existingSession),
+        });
+
+      (messageModel.find as ReturnType<typeof vi.fn>).mockReturnValue({
+        sort: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({
+            sort: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+
+      const context = { visitorId: 'vis-1', channel: 'web' };
+      const result = await service.findOrCreate(context);
+
+      expect(result.isNew).toBe(false);
+      expect(result.session.visitorId).toBe('vis-1');
+      expect(sessionModel.create).not.toHaveBeenCalled();
+    });
+
+    it('should return the same session for concurrent connections from the same visitor (Gap 18)', async () => {
+      const existingSession = createMockSession({ sessionId: 'sess-shared', visitorId: 'vis-1', status: ChatSessionStatus.WithAgent });
+
+      // Both calls should find the same active session
+      (sessionModel.findOne as ReturnType<typeof vi.fn>)
+        .mockReturnValueOnce({ sort: vi.fn().mockResolvedValue(existingSession) })
+        .mockReturnValueOnce({ sort: vi.fn().mockResolvedValue(existingSession) });
+
+      (messageModel.find as ReturnType<typeof vi.fn>).mockReturnValue({
+        sort: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({
+            sort: vi.fn().mockResolvedValue([]),
+          }),
+        }),
+      });
+
+      const context = { visitorId: 'vis-1', channel: 'web' };
+      const [result1, result2] = await Promise.all([
+        service.findOrCreate(context),
+        service.findOrCreate(context),
+      ]);
+
+      expect(result1.session.sessionId).toBe('sess-shared');
+      expect(result2.session.sessionId).toBe('sess-shared');
+      expect(result1.isNew).toBe(false);
+      expect(result2.isNew).toBe(false);
+    });
   });
 
   describe('findPaginated()', () => {
@@ -260,6 +313,51 @@ describe('SessionService', () => {
     });
   });
 
+  describe('updateMetadata()', () => {
+    it('should merge metadata on session', async () => {
+      const mockSession = createMockSession({ metadata: { existing: 'value' } });
+      (sessionModel.findOne as ReturnType<typeof vi.fn>).mockResolvedValue(mockSession);
+
+      await service.updateMetadata('sess-1', { trainingQuality: 'good' });
+
+      expect(mockSession.metadata).toEqual({ existing: 'value', trainingQuality: 'good' });
+      expect(mockSession.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('recalculateQueuePositions()', () => {
+    it('should update positions for sessions after fromPosition', async () => {
+      const waitingSessions = [
+        { _id: 'id-2', sessionId: 'sess-2', queuePosition: 3 },
+        { _id: 'id-3', sessionId: 'sess-3', queuePosition: 4 },
+      ];
+      (sessionModel.find as ReturnType<typeof vi.fn>).mockReturnValue({
+        sort: vi.fn().mockResolvedValue(waitingSessions),
+      });
+
+      const result = await service.recalculateQueuePositions(2);
+
+      expect(sessionModel.find).toHaveBeenCalledWith({
+        status: ChatSessionStatus.WaitingAgent,
+        queuePosition: { $gt: 2 },
+      });
+      expect(sessionModel.updateOne).toHaveBeenCalledTimes(2);
+      expect(result).toEqual([
+        { sessionId: 'sess-2', queuePosition: 2 },
+        { sessionId: 'sess-3', queuePosition: 3 },
+      ]);
+    });
+
+    it('should return empty array when no sessions to update', async () => {
+      (sessionModel.find as ReturnType<typeof vi.fn>).mockReturnValue({
+        sort: vi.fn().mockResolvedValue([]),
+      });
+
+      const result = await service.recalculateQueuePositions(1);
+      expect(result).toEqual([]);
+    });
+  });
+
   describe('toSummary()', () => {
     it('should map session document to summary', () => {
       const session = createMockSession({
@@ -277,6 +375,40 @@ describe('SessionService', () => {
       expect(summary.status).toBe(ChatSessionStatus.Active);
       expect(summary.visitorId).toBe('vis-1');
       expect(summary.messageCount).toBe(5);
+    });
+  });
+
+  describe('getSessionContext()', () => {
+    it('should return session context with messages and metadata', async () => {
+      const mockSession = createMockSession({
+        visitorId: 'vis-1',
+        preferences: { lang: 'en' },
+        conversationSummary: 'User asked about billing',
+        feedback: { rating: 5 },
+        metadata: { source: 'web' },
+      });
+      (sessionModel.findOne as ReturnType<typeof vi.fn>).mockResolvedValue(mockSession);
+
+      const mockMessages = [{ messageId: 'msg-1', content: 'Hello' }];
+      (messageModel.find as ReturnType<typeof vi.fn>).mockReturnValue({
+        sort: vi.fn().mockResolvedValue(mockMessages),
+      });
+
+      const context = await service.getSessionContext('sess-1');
+
+      expect(context.visitorId).toBe('vis-1');
+      expect(context.messages).toEqual(mockMessages);
+      expect(context.preferences).toEqual({ lang: 'en' });
+      expect(context.conversationSummary).toBe('User asked about billing');
+      expect(context.feedback).toEqual({ rating: 5 });
+      expect(context.metadata).toEqual({ source: 'web' });
+      expect(context.session).toBeDefined();
+    });
+
+    it('should throw when session not found', async () => {
+      (sessionModel.findOne as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      await expect(service.getSessionContext('nonexistent')).rejects.toThrow('Session not found');
     });
   });
 });

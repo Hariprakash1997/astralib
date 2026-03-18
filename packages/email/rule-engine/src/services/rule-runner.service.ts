@@ -462,7 +462,8 @@ export class RuleRunnerService {
           htmlBody: finalHtml,
           textBody: finalText,
           ruleId,
-          autoApprove: rule.autoApprove ?? true
+          autoApprove: rule.autoApprove ?? true,
+          attachments: template.attachments || [],
         });
 
         await this.EmailRuleSend.logSend(
@@ -728,7 +729,8 @@ export class RuleRunnerService {
           htmlBody: finalHtml,
           textBody: finalText,
           ruleId,
-          autoApprove: rule.autoApprove ?? true
+          autoApprove: rule.autoApprove ?? true,
+          attachments: template.attachments || [],
         });
 
         await this.EmailRuleSend.logSend(

@@ -156,6 +156,17 @@ export const alxButtonStyles = css`
     color: var(--alx-danger);
     background: color-mix(in srgb, var(--alx-danger) 10%, transparent);
   }
+
+  .alx-icon {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
+
+  .alx-btn-icon svg {
+    display: block;
+  }
 `;
 
 export const alxInputStyles = css`
@@ -276,6 +287,11 @@ export const alxTableStyles = css`
   tr[data-clickable] {
     cursor: pointer;
   }
+
+  .alx-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 `;
 
 export const alxCardStyles = css`
@@ -346,7 +362,7 @@ export const alxLoadingStyles = css`
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2rem;
+    padding: 1rem;
     color: var(--alx-text-muted);
     gap: 0.5rem;
     font-size: 0.8125rem;
@@ -367,7 +383,7 @@ export const alxLoadingStyles = css`
 
   .alx-empty {
     text-align: center;
-    padding: 2.5rem 1rem;
+    padding: 1.25rem 1rem;
     color: var(--alx-text-muted);
     font-size: 0.8125rem;
   }
@@ -375,14 +391,12 @@ export const alxLoadingStyles = css`
   .alx-empty::before {
     content: '';
     display: block;
-    width: 2.5rem;
-    height: 2.5rem;
-    margin: 0 auto 0.75rem;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: 0 auto 0.5rem;
+    border: 1.5px solid var(--alx-text-muted);
     border-radius: 50%;
-    background: color-mix(in srgb, var(--alx-text-muted) 8%, transparent);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Cpath d='M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z'%3E%3C/path%3E%3Cpolyline points='13 2 13 9 20 9'%3E%3C/polyline%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: center;
+    opacity: 0.4;
   }
 
   .alx-error {
@@ -403,6 +417,16 @@ export const alxLoadingStyles = css`
     color: var(--alx-success);
     font-size: 0.8125rem;
     margin-bottom: 0.75rem;
+  }
+
+  .alx-toast {
+    background: var(--alx-surface);
+    color: var(--alx-text);
+    border: 1px solid var(--alx-border);
+    border-radius: var(--alx-radius);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    box-shadow: var(--alx-shadow);
   }
 `;
 

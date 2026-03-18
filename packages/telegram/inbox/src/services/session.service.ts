@@ -5,6 +5,7 @@ import type {
   TelegramConversationSessionDocument,
 } from '../schemas/telegram-conversation-session.schema';
 import type { CreateSessionInput, SessionFilters } from '../types/session.types';
+import { STATUS_ACTIVE, STATUS_PAUSED, STATUS_CLOSED } from '../constants';
 
 export class SessionService {
   private logger: LogAdapter;
@@ -22,7 +23,7 @@ export class SessionService {
       contactId: input.contactId,
       identifierId: input.identifierId,
       conversationId: input.conversationId,
-      status: 'active',
+      status: STATUS_ACTIVE,
       startedAt: new Date(),
       messageCount: 0,
     });
@@ -57,7 +58,7 @@ export class SessionService {
   }
 
   async getActiveByContact(contactId: string): Promise<TelegramConversationSessionDocument | null> {
-    return this.TelegramConversationSession.findOne({ contactId, status: 'active' });
+    return this.TelegramConversationSession.findOne({ contactId, status: STATUS_ACTIVE });
   }
 
   async getByConversation(conversationId: string): Promise<TelegramConversationSessionDocument | null> {
@@ -67,7 +68,7 @@ export class SessionService {
   async pause(id: string): Promise<TelegramConversationSessionDocument | null> {
     const doc = await this.TelegramConversationSession.findByIdAndUpdate(
       id,
-      { $set: { status: 'paused' } },
+      { $set: { status: STATUS_PAUSED } },
       { new: true },
     );
 
@@ -81,7 +82,7 @@ export class SessionService {
   async close(id: string): Promise<TelegramConversationSessionDocument | null> {
     const doc = await this.TelegramConversationSession.findByIdAndUpdate(
       id,
-      { $set: { status: 'closed', endedAt: new Date() } },
+      { $set: { status: STATUS_CLOSED, endedAt: new Date() } },
       { new: true },
     );
 
@@ -95,7 +96,7 @@ export class SessionService {
   async resume(id: string): Promise<TelegramConversationSessionDocument | null> {
     const doc = await this.TelegramConversationSession.findByIdAndUpdate(
       id,
-      { $set: { status: 'active' }, $unset: { endedAt: 1 } },
+      { $set: { status: STATUS_ACTIVE }, $unset: { endedAt: 1 } },
       { new: true },
     );
 
@@ -108,7 +109,7 @@ export class SessionService {
 
   async incrementMessageCount(conversationId: string): Promise<TelegramConversationSessionDocument | null> {
     return this.TelegramConversationSession.findOneAndUpdate(
-      { conversationId, status: 'active' },
+      { conversationId, status: STATUS_ACTIVE },
       {
         $inc: { messageCount: 1 },
         $set: { lastMessageAt: new Date() },

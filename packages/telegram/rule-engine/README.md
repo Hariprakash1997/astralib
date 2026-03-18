@@ -5,6 +5,8 @@
 
 Rule-based Telegram message automation engine for Node.js. Define targeting rules with conditions, compose messages with Handlebars templates and media attachments, and let the engine handle per-user throttling, send deduplication, distributed locking, and delivery scheduling. Ships with Express REST routes for admin UIs and a programmatic API for direct service access.
 
+> **Getting started?** See the [Quick Start Tutorial](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/quick-start-tutorial.md) for a step-by-step walkthrough, [Integration Guide](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/integration-guide.md) for multi-package setup, or the [Glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/glossary.md) for ID terminology.
+
 ## Install
 
 ```bash
@@ -75,6 +77,7 @@ The factory returns a `TelegramRuleEngine` instance with:
 - `templateService` -- `TemplateService` for CRUD and preview
 - `ruleService` -- `RuleService` for CRUD and dry runs
 - `models` -- Direct Mongoose model access (`TelegramTemplate`, `TelegramRule`, `TelegramSendLog`, `TelegramRunLog`, `TelegramErrorLog`, `TelegramThrottleConfig`)
+- `destroy()` -- Graceful shutdown (stops the runner service)
 
 ## Configuration
 
@@ -88,7 +91,7 @@ The `createTelegramRuleEngine(config)` factory accepts a `TelegramRuleEngineConf
 | `platforms` | No | Valid platform values for schema validation |
 | `audiences` | No | Valid audience/role values for schema validation |
 | `categories` | No | Valid template categories for schema validation |
-| `options` | No | Lock TTL, max per run, send window, delays, human-like timing |
+| `options` | No | Lock TTL, max per run, send window, delays, human-like timing, Redis throttle |
 | `hooks` | No | Callbacks at key execution points |
 | `logger` | No | Logger with `info`, `warn`, `error` methods |
 

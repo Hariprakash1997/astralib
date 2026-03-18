@@ -72,6 +72,8 @@ export class AlxChatStats extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    // Defensive: clear any existing interval in case of re-mount
+    if (this.refreshTimer) clearInterval(this.refreshTimer);
     this.http = new HttpClient(AlxChatConfig.getApiUrl('chatEngine'));
     this.loadStats();
     this.refreshTimer = setInterval(() => this.loadStats(), 30000);

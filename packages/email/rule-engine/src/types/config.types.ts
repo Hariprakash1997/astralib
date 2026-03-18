@@ -14,6 +14,7 @@ export interface SendEmailParams {
   textBody: string;
   ruleId: string;
   autoApprove: boolean;
+  attachments?: Array<{ filename: string; url: string; contentType: string }>;
 }
 
 export interface AgentSelection {
@@ -83,7 +84,7 @@ export interface EmailRuleEngineConfig {
     sendEmail: (params: SendEmailParams) => Promise<void>;
     selectAgent: (identifierId: string, context?: { ruleId: string; templateId: string }) => Promise<AgentSelection | null>;
     findIdentifier: (email: string) => Promise<RecipientIdentifier | null>;
-    sendTestEmail?: (to: string, subject: string, html: string, text: string) => Promise<void>;
+    sendTestEmail?: (to: string, subject: string, html: string, text: string, attachments?: Array<{ filename: string; url: string; contentType: string }>) => Promise<void>;
   };
 
   platforms?: string[];

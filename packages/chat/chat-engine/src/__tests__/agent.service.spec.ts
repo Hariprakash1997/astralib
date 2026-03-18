@@ -14,6 +14,7 @@ function createMockAgentModel() {
     create: vi.fn(),
     findById: vi.fn(),
     findByIdAndDelete: vi.fn(),
+    findOne: vi.fn(),
     find: vi.fn().mockReturnValue({ sort: vi.fn().mockResolvedValue([]) }),
     updateOne: vi.fn().mockResolvedValue({ modifiedCount: 1 }),
     countDocuments: vi.fn().mockResolvedValue(0),
@@ -170,6 +171,30 @@ describe('AgentService', () => {
       const result = await service.hasCapacity('agent-1');
       expect(result).toBe(false);
     });
+
+    it('should return false when agent status is Busy', async () => {
+      const mockAgent = createMockAgent({ status: AgentStatus.Busy, activeChats: 0, maxConcurrentChats: 5 });
+      (model.findById as ReturnType<typeof vi.fn>).mockResolvedValue(mockAgent);
+
+      const result = await service.hasCapacity('agent-1');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when agent status is Away', async () => {
+      const mockAgent = createMockAgent({ status: AgentStatus.Away, activeChats: 0, maxConcurrentChats: 5 });
+      (model.findById as ReturnType<typeof vi.fn>).mockResolvedValue(mockAgent);
+
+      const result = await service.hasCapacity('agent-1');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when agent is inactive', async () => {
+      const mockAgent = createMockAgent({ isActive: false, activeChats: 0, maxConcurrentChats: 5 });
+      (model.findById as ReturnType<typeof vi.fn>).mockResolvedValue(mockAgent);
+
+      const result = await service.hasCapacity('agent-1');
+      expect(result).toBe(false);
+    });
   });
 
   describe('incrementChats() / decrementChats()', () => {
@@ -198,6 +223,113 @@ describe('AgentService', () => {
       expect(info.agentId).toBe('agent-1');
       expect(info.name).toBe('Test Agent');
       expect(info.isAI).toBe(false);
+    });
+
+    it('should include visibility and isDefault in AgentInfo', () => {
+      const mockAgent = createMockAgent({ visibility: 'public', isDefault: true });
+      const info = service.toAgentInfo(mockAgent as any);
+
+      expect(info.visibility).toBe('public');
+      expect(info.isDefault).toBe(true);
+    });
+  });
+
+  describe('create() with new fields', () => {
+    it('should create agent with modeOverride, visibility, and isDefault', async () => {
+      const mockAgent = createMockAgent({
+        modeOverride: 'ai',
+        visibility: 'public',
+        isDefault: true,
+      });
+      (model.create as ReturnType<typeof vi.fn>).mockResolvedValue(mockAgent);
+
+      const result = await service.create({
+        name: 'AI Agent',
+        isAI: true,
+        modeOverride: 'ai',
+        visibility: 'public',
+        isDefault: true,
+      });
+
+      expect(model.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'AI Agent',
+          modeOverride: 'ai',
+          visibility: 'public',
+          isDefault: true,
+        }),
+      );
+      expect(result).toBe(mockAgent);
+    });
+  });
+
+  describe('findDefaultAiAgent()', () => {
+    it('should return default AI agent when one exists', async () => {
+      const defaultAiAgent = createMockAgent({ isAI: true, isDefault: true, isActive: true });
+      (model.findOne as ReturnType<typeof vi.fn>).mockResolvedValueOnce(defaultAiAgent);
+
+      const result = await service.findDefaultAiAgent();
+      expect(result).toBe(defaultAiAgent);
+      expect(model.findOne).toHaveBeenCalledWith({ isAI: true, isDefault: true, isActive: true });
+    });
+
+    it('should fall back to first active AI agent when no default', async () => {
+      const activeAiAgent = createMockAgent({ isAI: true, isActive: true });
+      (model.findOne as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(activeAiAgent);
+
+      const result = await service.findDefaultAiAgent();
+      expect(result).toBe(activeAiAgent);
+      expect(model.findOne).toHaveBeenCalledTimes(2);
+      expect(model.findOne).toHaveBeenNthCalledWith(2, { isAI: true, isActive: true });
+    });
+
+    it('should return null when no AI agents exist', async () => {
+      (model.findOne as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+
+      const result = await service.findDefaultAiAgent();
+      expect(result).toBeNull();
+      expect(model.findOne).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('listPublicAgents()', () => {
+    it('should return only active public agents', async () => {
+      const publicAgent = createMockAgent({ visibility: 'public', isActive: true });
+      const mockFind = vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([publicAgent]),
+      });
+      (model.find as ReturnType<typeof vi.fn>).mockImplementation(mockFind);
+
+      const result = await service.listPublicAgents();
+      expect(mockFind).toHaveBeenCalledWith({ isActive: true, visibility: 'public' });
+      expect(result).toHaveLength(1);
+      expect(result[0].agentId).toBe('agent-1');
+      expect(result[0].name).toBe('Test Agent');
+    });
+
+    it('should return empty array when no public agents exist', async () => {
+      const mockFind = vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([]),
+      });
+      (model.find as ReturnType<typeof vi.fn>).mockImplementation(mockFind);
+
+      const result = await service.listPublicAgents();
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('update() with new fields', () => {
+    it('should update agent visibility', async () => {
+      const mockAgent = createMockAgent({ visibility: 'internal' });
+      (model.findById as ReturnType<typeof vi.fn>).mockResolvedValue(mockAgent);
+
+      const result = await service.update('agent-1', { visibility: 'public' });
+      expect(result.visibility).toBe('public');
+      expect(mockAgent.save).toHaveBeenCalled();
     });
   });
 });

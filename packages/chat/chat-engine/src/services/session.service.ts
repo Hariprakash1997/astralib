@@ -57,7 +57,7 @@ export class SessionService {
   }> {
     if (existingSessionId) {
       const existing = await this.findById(existingSessionId);
-      if (existing && this.canResume(existing)) {
+      if (existing && this.canResume(existing) && existing.visitorId === context.visitorId) {
         const messages = await this.ChatMessage
           .find({ sessionId: existing.sessionId })
           .sort({ createdAt: -1 })
@@ -75,19 +75,22 @@ export class SessionService {
       }
     }
 
-    const recentSession = await this.ChatSession.findOne({
-      visitorId: context.visitorId,
-      status: { $in: [ChatSessionStatus.New, ChatSessionStatus.Active, ChatSessionStatus.WaitingAgent, ChatSessionStatus.WithAgent] },
-    }).sort({ startedAt: -1 });
+    // Gap 18: Only reuse existing active sessions when singleSessionPerVisitor is enabled
+    if (this.options.singleSessionPerVisitor) {
+      const recentSession = await this.ChatSession.findOne({
+        visitorId: context.visitorId,
+        status: { $in: [ChatSessionStatus.New, ChatSessionStatus.Active, ChatSessionStatus.WaitingAgent, ChatSessionStatus.WithAgent] },
+      }).sort({ startedAt: -1 });
 
-    if (recentSession) {
-      const messages = await this.ChatMessage
-        .find({ sessionId: recentSession.sessionId })
-        .sort({ createdAt: -1 })
-        .limit(this.options.maxSessionHistory)
-        .sort({ createdAt: 1 });
+      if (recentSession) {
+        const messages = await this.ChatMessage
+          .find({ sessionId: recentSession.sessionId })
+          .sort({ createdAt: -1 })
+          .limit(this.options.maxSessionHistory)
+          .sort({ createdAt: 1 });
 
-      return { session: recentSession, isNew: false, messages };
+        return { session: recentSession, isNew: false, messages };
+      }
     }
 
     const mode = defaultMode || SessionMode.AI;
@@ -237,6 +240,30 @@ export class SessionService {
     );
   }
 
+  async updateMetadata(sessionId: string, metadata: Record<string, unknown>): Promise<void> {
+    const session = await this.findByIdOrFail(sessionId);
+    session.metadata = { ...session.metadata, ...metadata };
+    await session.save();
+  }
+
+  async recalculateQueuePositions(fromPosition: number): Promise<{ sessionId: string; queuePosition: number }[]> {
+    const waitingSessions = await this.ChatSession.find({
+      status: ChatSessionStatus.WaitingAgent,
+      queuePosition: { $gt: fromPosition },
+    }).sort({ queuePosition: 1 });
+
+    const updates: { sessionId: string; queuePosition: number }[] = [];
+    for (let i = 0; i < waitingSessions.length; i++) {
+      const newPosition = fromPosition + i;
+      await this.ChatSession.updateOne(
+        { _id: waitingSessions[i]._id },
+        { $set: { queuePosition: newPosition } },
+      );
+      updates.push({ sessionId: waitingSessions[i].sessionId, queuePosition: newPosition });
+    }
+    return updates;
+  }
+
   async setStatus(sessionId: string, status: ChatSessionStatus): Promise<void> {
     await this.ChatSession.updateOne(
       { sessionId },
@@ -336,6 +363,23 @@ export class SessionService {
       resolvedToday,
       totalAgents: 0,
       activeAgents: 0,
+    };
+  }
+
+  async getSessionContext(sessionId: string): Promise<Record<string, unknown>> {
+    const session = await this.findByIdOrFail(sessionId);
+    const messages = await this.ChatMessage
+      .find({ sessionId })
+      .sort({ createdAt: 1 });
+
+    return {
+      session: this.toSummary(session),
+      messages,
+      visitorId: session.visitorId,
+      preferences: session.preferences,
+      conversationSummary: session.conversationSummary,
+      feedback: session.feedback,
+      metadata: session.metadata,
     };
   }
 

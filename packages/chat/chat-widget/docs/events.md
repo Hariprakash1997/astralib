@@ -26,6 +26,9 @@ widget.addEventListener('chat:message-sent', (e) => {
 | `chat:session-ended` | `sessionId` | Chat session ended |
 | `chat:feedback-submitted` | (full detail object) | Post-chat feedback was submitted |
 | `chat:offline-message` | (full detail object) | Visitor submitted an offline contact form |
+| `chat:starter-selected` | `text` | Visitor clicked a conversation starter chip |
+| `chat:connection-failed` | -- | Reconnection gave up after `maxReconnectAttempts` |
+| `message-retry` | `messageId` | Visitor clicked "Retry" on a failed message (internal, bubbles from `<alx-chat-bubble>`) |
 
 ## Usage Example
 
@@ -74,5 +77,17 @@ widget.addEventListener('chat:feedback-submitted', (e) => {
 
 widget.addEventListener('chat:offline-message', (e) => {
   console.log('Offline message:', e.detail);
+});
+
+widget.addEventListener('chat:starter-selected', (e) => {
+  console.log('Starter selected:', e.detail.text);
+});
+
+widget.addEventListener('chat:connection-failed', () => {
+  console.log('Connection failed after max retries');
+});
+
+widget.addEventListener('message-retry', (e) => {
+  console.log('Retrying message:', e.detail.messageId);
 });
 ```

@@ -1,5 +1,5 @@
 import { Schema, Model, Types, HydratedDocument } from 'mongoose';
-import { RULE_OPERATOR, EMAIL_TYPE, TEMPLATE_AUDIENCE } from '../constants';
+import { RULE_OPERATOR, EMAIL_TYPE, TEMPLATE_AUDIENCE, TARGET_MODE } from '../constants';
 import type { EmailRule, CreateEmailRuleInput } from '../types/rule.types';
 
 export interface IEmailRule extends Omit<EmailRule, '_id' | 'templateId'> {
@@ -24,7 +24,7 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
   }, { _id: false });
 
   const RuleTargetSchema = new Schema({
-    mode: { type: String, enum: ['query', 'list'], required: true },
+    mode: { type: String, enum: Object.values(TARGET_MODE), required: true },
     role: { type: String, enum: audienceValues || Object.values(TEMPLATE_AUDIENCE) },
     platform: {
       type: String,

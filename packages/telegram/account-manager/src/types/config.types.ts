@@ -30,7 +30,9 @@ export interface TelegramAccountManagerConfig {
     warmup?: {
       enabled?: boolean;
       defaultSchedule?: WarmupPhase[];
+      autoAdvance?: boolean;
     };
+    idleTimeoutMs?: number;
     quarantine?: {
       monitorIntervalMs?: number;
       defaultDurationMs?: number;

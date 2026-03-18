@@ -150,6 +150,33 @@ export const templateEditorStyles = css`
     color: var(--alx-text-secondary, var(--alx-text-muted));
   }
 
+  .attachment-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr auto;
+    gap: 0.375rem;
+    align-items: center;
+    margin-bottom: 0.375rem;
+  }
+
+  .attachment-row input {
+    min-width: 0;
+  }
+
+  .attachment-row .remove-btn {
+    background: none;
+    border: none;
+    color: var(--alx-text-muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0.25rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .attachment-row .remove-btn:hover {
+    color: var(--alx-danger, #e53e3e);
+  }
+
   .info-banner {
     font-size: 0.75rem;
     color: var(--alx-text-muted);

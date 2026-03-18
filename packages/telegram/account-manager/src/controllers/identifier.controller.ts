@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import type { CreateTelegramIdentifierInput, UpdateTelegramIdentifierInput } from '../types/identifier.types';
 import type { TelegramIdentifierModel } from '../schemas/telegram-identifier.schema';
 import type { LogAdapter } from '../types/config.types';
-import { IDENTIFIER_STATUS } from '../constants';
+import { IDENTIFIER_STATUS, MAX_PAGE_LIMIT } from '../constants';
 
 export function createIdentifierController(
   TelegramIdentifier: TelegramIdentifierModel,
@@ -17,7 +17,7 @@ export function createIdentifierController(
         if (contactId) filter.contactId = contactId;
 
         const pageNum = Number(page) || 1;
-        const limitNum = Number(limit) || 20;
+        const limitNum = Math.min(Number(limit) || 20, MAX_PAGE_LIMIT);
         const skip = (pageNum - 1) * limitNum;
 
         const total = await TelegramIdentifier.countDocuments(filter);
@@ -80,6 +80,11 @@ export function createIdentifierController(
     async update(req: Request, res: Response) {
       try {
         const input: UpdateTelegramIdentifierInput = req.body;
+
+        if (input.status !== undefined && !Object.values(IDENTIFIER_STATUS).includes(input.status as any)) {
+          return res.status(400).json({ success: false, error: `Invalid status. Must be one of: ${Object.values(IDENTIFIER_STATUS).join(', ')}` });
+        }
+
         const updates: Record<string, unknown> = {};
 
         if (input.username !== undefined) updates.username = input.username;

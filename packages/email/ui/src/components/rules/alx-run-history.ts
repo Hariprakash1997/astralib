@@ -114,6 +114,7 @@ export class AlxRunHistory extends LitElement {
   }
   private readonly _limit = 20;
   private _loadGeneration = 0;
+  private _reloadTimer?: ReturnType<typeof setTimeout>;
 
   override connectedCallback(): void {
     super.connectedCallback();
@@ -178,7 +179,8 @@ export class AlxRunHistory extends LitElement {
       const runId = res['runId'] ?? res['_id'] ?? 'ok';
       this._successMsg = `Run triggered (${runId})`;
       // Auto-reload history after a short delay to let the run register
-      setTimeout(() => this._loadLogs(), 1500);
+      if (this._reloadTimer) clearTimeout(this._reloadTimer);
+      this._reloadTimer = setTimeout(() => this._loadLogs(), 1500);
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to trigger run';
     } finally {

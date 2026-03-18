@@ -58,22 +58,36 @@ export interface ChatEngineConfig {
     aiDebounceMs?: number;
     aiTypingSimulation?: boolean;
     aiTypingSpeedCpm?: number;
+    singleSessionPerVisitor?: boolean;
+    trackEventsAsMessages?: boolean;
+    labelingEnabled?: boolean;
+    maxUploadSizeMb?: number;
+    aiSimulation?: {
+      deliveryDelay?: { min: number; max: number };
+      readDelay?: { min: number; max: number };
+      preTypingDelay?: { min: number; max: number };
+      bubbleDelay?: { min: number; max: number };
+      minTypingDuration?: number;
+    };
   };
 
   adapters: {
-    assignAgent: (context: AssignAgentContext) => Promise<ChatAgentInfo | null>;
+    assignAgent?: (context: AssignAgentContext) => Promise<ChatAgentInfo | null>;
     generateAiResponse?: (input: AiResponseInput) => Promise<AiResponseOutput>;
     identifyVisitor?: (visitorId: string, identifyData: Record<string, unknown>) => Promise<VisitorIdentity | null>;
     trackEvent?: (event: ChatTrackingEvent) => Promise<void>;
     authenticateAgent?: (token: string) => Promise<AgentIdentity | null>;
     authenticateVisitor?: (context: VisitorContext) => Promise<boolean>;
     authenticateRequest?: (req: any) => Promise<{ userId: string; permissions?: string[] } | null>;
+    uploadFile?: (file: { buffer: Buffer; mimetype: string; originalname: string }) => Promise<string>;
+    enrichSessionContext?: (context: Record<string, unknown>) => Promise<Record<string, unknown>>;
   };
 
   hooks?: {
     onSessionCreated?: (session: ChatSessionSummary) => void;
     onSessionResolved?: (session: ChatSessionSummary, stats: SessionStats) => void;
     onSessionAbandoned?: (session: ChatSessionSummary) => void;
+    onSessionTimeout?: (session: { sessionId: string; visitorId: string; channel: string; startedAt: Date }) => Promise<void>;
     onMessageSent?: (message: ChatMessage) => void;
     onAgentTakeOver?: (sessionId: string, agentId: string) => void;
     onAgentHandBack?: (sessionId: string) => void;
@@ -85,6 +99,10 @@ export interface ChatEngineConfig {
     onQueuePositionChanged?: (sessionId: string, position: number) => void;
     onFeedbackReceived?: (sessionId: string, feedback: ChatFeedback) => void;
     onOfflineMessage?: (data: { visitorId: string; formData: Record<string, unknown> }) => void;
+    onSaveMemory?: (payload: { sessionId: string; visitorId: string; content: string; key?: string; category?: string }) => Promise<void>;
+    onDeleteMemory?: (payload: { sessionId: string; memoryId: string }) => Promise<void>;
+    onSessionArchive?: (session: { sessionId: string; visitorId: string; messages: unknown[]; metadata?: Record<string, unknown> }) => Promise<void>;
+    onAiRequest?: (payload: { sessionId: string; stage: 'received' | 'processing' | 'completed' | 'failed'; durationMs?: number; metadata?: Record<string, unknown> }) => Promise<void>;
     onMetric?: (metric: ChatMetric) => void;
     onError?: (error: Error, context: ErrorContext) => void;
   };
@@ -106,6 +124,18 @@ export interface ResolvedOptions {
   aiDebounceMs: number;
   aiTypingSimulation: boolean;
   aiTypingSpeedCpm: number;
+  singleSessionPerVisitor: boolean;
+  trackEventsAsMessages: boolean;
+  labelingEnabled: boolean;
+  maxUploadSizeMb: number;
+}
+
+export interface AiSimulationConfig {
+  deliveryDelay?: { min: number; max: number };
+  readDelay?: { min: number; max: number };
+  preTypingDelay?: { min: number; max: number };
+  bubbleDelay?: { min: number; max: number };
+  minTypingDuration?: number;
 }
 
 export const DEFAULT_OPTIONS: ResolvedOptions = {
@@ -122,4 +152,8 @@ export const DEFAULT_OPTIONS: ResolvedOptions = {
   aiDebounceMs: 15_000,
   aiTypingSimulation: true,
   aiTypingSpeedCpm: 600,
+  singleSessionPerVisitor: true,
+  trackEventsAsMessages: false,
+  labelingEnabled: false,
+  maxUploadSizeMb: 5,
 };

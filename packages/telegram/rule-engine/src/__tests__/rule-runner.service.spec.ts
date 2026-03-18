@@ -26,7 +26,10 @@ function createMockModels() {
       find: vi.fn().mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([]) })),
     },
     TelegramSendLog: {
-      find: vi.fn().mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([]) })),
+      find: vi.fn().mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }),
+        lean: vi.fn().mockResolvedValue([]),
+      })),
       findOne: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue(undefined),
     },
@@ -47,6 +50,12 @@ function createMockModels() {
 }
 
 function createMockRedis() {
+  const mockPipeline = {
+    hset: vi.fn().mockReturnThis(),
+    hincrby: vi.fn().mockReturnThis(),
+    expire: vi.fn().mockReturnThis(),
+    exec: vi.fn().mockResolvedValue([]),
+  };
   return {
     hset: vi.fn().mockResolvedValue(1),
     hget: vi.fn().mockResolvedValue(null),
@@ -54,6 +63,7 @@ function createMockRedis() {
     expire: vi.fn().mockResolvedValue(1),
     exists: vi.fn().mockResolvedValue(0),
     set: vi.fn().mockResolvedValue('OK'),
+    pipeline: vi.fn().mockReturnValue(mockPipeline),
   };
 }
 
@@ -303,6 +313,12 @@ describe('RuleRunnerService', () => {
 
       // Add recent send log so throttle map has data for the identifier
       models.TelegramSendLog.find.mockImplementation(() => ({
+        select: vi.fn().mockReturnValue({
+          lean: vi.fn().mockResolvedValue([{
+            identifierId: 'ident-1',
+            sentAt: new Date(),
+          }]),
+        }),
         lean: vi.fn().mockResolvedValue([{
           identifierId: 'ident-1',
           sentAt: new Date(),
@@ -396,8 +412,10 @@ describe('RuleRunnerService', () => {
       const { service } = createService(models, config);
       await service.runAllRules('run-1');
 
-      expect((config.redis.connection as any).hset).toHaveBeenCalled();
-      expect((config.redis.connection as any).expire).toHaveBeenCalled();
+      expect((config.redis.connection as any).pipeline).toHaveBeenCalled();
+      const pipe = (config.redis.connection as any).pipeline();
+      expect(pipe.hset).toHaveBeenCalled();
+      expect(pipe.expire).toHaveBeenCalled();
     });
   });
 
@@ -633,7 +651,7 @@ describe('RuleRunnerService', () => {
         { identifierId: 'id-2', sentAt: now },
       ];
 
-      const map = service.buildThrottleMap(recentSends);
+      const map = (service as any).buildThrottleMap(recentSends);
 
       expect(map.get('id-1')).toBeDefined();
       expect(map.get('id-1')!.thisWeek).toBe(2);
@@ -643,13 +661,13 @@ describe('RuleRunnerService', () => {
 
     it('returns empty map for no sends', () => {
       const { service } = createService();
-      const map = service.buildThrottleMap([]);
+      const map = (service as any).buildThrottleMap([]);
       expect(map.size).toBe(0);
     });
 
     it('skips entries without identifierId', () => {
       const { service } = createService();
-      const map = service.buildThrottleMap([
+      const map = (service as any).buildThrottleMap([
         { identifierId: '', sentAt: new Date() },
         { sentAt: new Date() },
       ]);

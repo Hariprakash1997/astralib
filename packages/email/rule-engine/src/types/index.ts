@@ -4,7 +4,7 @@ export {
 } from '../constants';
 
 export type {
-  EmailTemplate, CreateEmailTemplateInput, UpdateEmailTemplateInput
+  EmailAttachment, EmailTemplate, CreateEmailTemplateInput, UpdateEmailTemplateInput
 } from './template.types';
 export type {
   RuleCondition, RuleRunStats, RuleTarget, QueryTarget, ListTarget,

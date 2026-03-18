@@ -10,3 +10,5 @@ export const BOT_MODE = {
 } as const;
 
 export const DEFAULT_WEBHOOK_PATH = '/telegram/webhook';
+
+export const DEFAULT_WEBHOOK_PORT = 8443;

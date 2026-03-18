@@ -2,6 +2,8 @@
 
 A production-ready, multi-account Telegram infrastructure library for Node.js. Manages multiple TDLib client sessions with automatic health tracking, account warmup, quarantine management, capacity-based rotation, daily stats, and Telegram identifier tracking. Plug it into any Express app with a single factory call.
 
+> **Getting started?** See the [Quick Start Tutorial](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/quick-start-tutorial.md) for a step-by-step walkthrough, [Integration Guide](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/integration-guide.md) for multi-package setup, or the [Glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/docs/glossary.md) for ID terminology.
+
 ## Install
 
 ```bash
@@ -43,8 +45,18 @@ const tam = createTelegramAccountManager({
 // Admin API (protect with your own auth middleware)
 app.use('/api/telegram', tam.routes);
 
-// Create an account with a session string
-await tam.connection.connect('account-id');
+// 1. Generate session (or use existing one)
+const { phoneCodeHash } = await tam.sessions.requestCode('+919876543210');
+const { session } = await tam.sessions.verifyCode('+919876543210', '12345', phoneCodeHash);
+
+// 2. Create account
+const account = await tam.models.TelegramAccount.create({
+  phone: '+919876543210', name: 'Main Account', session, tags: ['outreach'],
+  // ... other required fields
+});
+
+// 3. Connect
+await tam.connection.connect(account._id.toString());
 
 // Get connected clients
 const clients = tam.getConnectedAccounts();
@@ -64,7 +76,12 @@ app.listen(3000);
 - **Account warmup** -- Phased volume ramp-up with configurable schedules (4-phase default). [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/configuration.md#optionswarmup)
 - **Daily capacity tracking** -- Per-account daily limit enforcement with usage percentage tracking. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/api-routes.md)
 - **Telegram identifier management** -- Track Telegram user IDs, usernames, and contact mappings with status lifecycle. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/api-routes.md#identifier-routes)
-- **Express routes out of the box** -- 20 REST endpoints for accounts and identifiers. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/api-routes.md)
+- **Session generation** -- Two-step phone auth flow (request code, verify OTP, handle 2FA) to produce session strings for new accounts. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/api-routes.md#session-routes)
+- **Account rotation** -- Rotate between accounts using round-robin, least-used, or highest-health strategies via `AccountRotator`. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/types.md#exported-service-classes)
+- **Idle timeout** -- Automatically disconnect accounts that have been idle (no sends) for a configurable duration. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/configuration.md#optionsidletimeoutms)
+- **Account tags** -- Tag accounts for categorization and filtering (e.g., by purpose, region, or priority). Filter accounts by tag via the REST API.
+- **Direct message sending** -- Low-level `sendMessage()` on connected accounts, usable by inbox and other consumers. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/api-routes.md#send-message)
+- **Express routes out of the box** -- 25 REST endpoints for accounts, identifiers, and sessions. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/api-routes.md)
 - **Adapter-based DI** -- Database-agnostic via Mongoose connection injection, logger adapter, lifecycle hooks.
 - **Error classification** -- Critical errors (ban), quarantine errors (flood), skip errors (privacy), and recoverable errors (network) are handled automatically.
 
@@ -81,10 +98,10 @@ All services are also available programmatically via the returned `tam` object.
 ## Getting Started Guide
 
 1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/configuration.md) -- Set up database, credentials, options, and hooks
-2. [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/api-routes.md) -- 20 REST endpoints for accounts and identifiers
+2. [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/api-routes.md) -- 25 REST endpoints for accounts, identifiers, and sessions
 3. [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/telegram/account-manager/docs/types.md) -- All importable types, constants, errors, and service classes
 
-> **Important:** The warmup system requires calling `warmup.advanceDay(accountId)` daily via cron job. Without this, accounts stay in warmup indefinitely.
+> **Important:** When `autoAdvance: true` (the default), the library automatically calls `advanceAllAccounts()` every 24 hours via an internal `setInterval` -- no cron job needed. When `autoAdvance: false`, you must call `warmup.advanceDay(accountId)` manually for each account.
 
 ## License
 

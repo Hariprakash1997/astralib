@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { calculateDelay, isWithinSendWindow, getHumanDelay } from '../utils/delay';
+import { calculateDelay, isWithinSendWindow, getHumanDelay, getHealthAdjustedDelay } from '../utils/delay';
 
 describe('delay utilities', () => {
   beforeEach(() => {
@@ -228,6 +228,55 @@ describe('delay utilities', () => {
       const result = getHumanDelay(3000, 0, 1);
       // delay = 3000, pause = 3000 * 2 = 6000, total = 9000
       expect(result).toBe(9000);
+    });
+  });
+
+  describe('getHealthAdjustedDelay', () => {
+    it('returns base delay when health is 100', () => {
+      const result = getHealthAdjustedDelay(3000, 100);
+      // factor = 1 + (3 * (1 - 100/100)) = 1 + 0 = 1
+      expect(result).toBe(3000);
+    });
+
+    it('returns 4x delay when health is 0', () => {
+      const result = getHealthAdjustedDelay(3000, 0);
+      // factor = 1 + (3 * (1 - 0/100)) = 1 + 3 = 4
+      expect(result).toBe(12000);
+    });
+
+    it('returns ~2.5x delay when health is 50', () => {
+      const result = getHealthAdjustedDelay(3000, 50);
+      // factor = 1 + (3 * (1 - 50/100)) = 1 + 1.5 = 2.5
+      expect(result).toBe(7500);
+    });
+
+    it('clamps health score below 0 to 0', () => {
+      const result = getHealthAdjustedDelay(3000, -50);
+      // Math.max(0, -50) = 0, factor = 1 + 3 = 4
+      expect(result).toBe(12000);
+    });
+
+    it('clamps health score above 100 to 100', () => {
+      const result = getHealthAdjustedDelay(3000, 150);
+      // Math.min(100, 150) = 100, factor = 1
+      expect(result).toBe(3000);
+    });
+
+    it('uses custom multiplier', () => {
+      const result = getHealthAdjustedDelay(3000, 0, 5);
+      // factor = 1 + (5 * 1) = 6
+      expect(result).toBe(18000);
+    });
+
+    it('returns rounded value', () => {
+      const result = getHealthAdjustedDelay(1000, 33);
+      // factor = 1 + (3 * (1 - 33/100)) = 1 + 3 * 0.67 = 1 + 2.01 = 3.01
+      expect(Number.isInteger(result)).toBe(true);
+    });
+
+    it('returns 0 when base is 0', () => {
+      const result = getHealthAdjustedDelay(0, 50);
+      expect(result).toBe(0);
     });
   });
 });

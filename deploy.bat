@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Features: chat dashboard overhaul, drawer component, shared styles, prompt editor. Telegram rule list, template list, throttle settings, dashboard updates. Fixes: template render service"
+set "COMMIT_MSG=Features: chat widget overhaul, engine routes and services, agent dashboard. Telegram batch connect, account rotation, rule runner, inbox sync. Email template editor, draft schema, SMTP updates"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -34,21 +34,21 @@ REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES="
+set "EMAIL_PACKAGES=email-account-manager:patch,email-analytics:patch,email-rule-engine:patch,email-ui:minor"
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*
 REM  telegram-account-manager, telegram-rule-engine, telegram-inbox, telegram-bot, telegram-ui
 REM  Leave empty if no telegram changes: set "TELEGRAM_PACKAGES="
 REM ============================================================
-set "TELEGRAM_PACKAGES=telegram-ui:minor,telegram-rule-engine:patch"
+set "TELEGRAM_PACKAGES=telegram-account-manager:minor,telegram-inbox:minor,telegram-rule-engine:minor,telegram-bot:minor,telegram-ui:minor"
 
 REM ============================================================
 REM  CHAT - packages/chat/*
 REM  chat-types, chat-engine, chat-ai, chat-widget, chat-ui
 REM  Leave empty if no chat changes: set "CHAT_PACKAGES="
 REM ============================================================
-set "CHAT_PACKAGES=chat-ui:minor"
+set "CHAT_PACKAGES=chat-types:minor,chat-engine:minor,chat-widget:minor,chat-ui:minor"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

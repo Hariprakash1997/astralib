@@ -1,4 +1,10 @@
 
+export interface EmailAttachment {
+  filename: string;
+  url: string;
+  contentType: string;
+}
+
 export interface EmailTemplate {
   _id: string;
   name: string;
@@ -18,6 +24,8 @@ export interface EmailTemplate {
   version: number;
   isActive: boolean;
 
+  attachments?: EmailAttachment[];
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,6 +43,7 @@ export interface CreateEmailTemplateInput {
   preheaders?: string[];
   fields?: Record<string, string>;
   variables?: string[];
+  attachments?: EmailAttachment[];
 }
 
 export interface UpdateEmailTemplateInput {
@@ -49,5 +58,6 @@ export interface UpdateEmailTemplateInput {
   preheaders?: string[];
   fields?: Record<string, string>;
   variables?: string[];
+  attachments?: EmailAttachment[];
   isActive?: boolean;
 }

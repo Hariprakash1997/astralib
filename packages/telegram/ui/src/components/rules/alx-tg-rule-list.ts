@@ -14,6 +14,7 @@ import {
   alxToggleStyles,
 } from '../../styles/shared.js';
 import { TelegramRuleAPI } from '../../api/rule.api.js';
+import { iconEdit, iconDelete, iconClone, iconPlus, iconRefresh } from '../../utils/icons.js';
 
 interface TgRule {
   _id: string;
@@ -44,6 +45,7 @@ export class AlxTgRuleList extends LitElement {
         gap: 0.25rem;
         align-items: center;
       }
+      .alx-table-wrap { overflow-x: auto; }
     `,
   ];
 
@@ -184,8 +186,8 @@ export class AlxTgRuleList extends LitElement {
 
         <div class="toolbar">
           <span class="spacer"></span>
-          <button @click=${() => this.load()}>Refresh</button>
-          <button class="alx-btn-primary" @click=${this.onCreate}>+ Create</button>
+          <button @click=${() => this.load()}>${iconRefresh(14)} Refresh</button>
+          <button class="alx-btn-primary" @click=${this.onCreate}>${iconPlus(14)} Create</button>
         </div>
 
         ${this.error ? html`<div class="alx-error">${this.error}</div>` : ''}
@@ -194,10 +196,10 @@ export class AlxTgRuleList extends LitElement {
           : this.rules.length === 0
             ? html`<div class="alx-empty">
   <p>Create rules to automate your Telegram campaigns.</p>
-  <button class="alx-btn-primary alx-btn-sm" style="margin-top:0.5rem" @click=${this.onCreate}>+ Create Rule</button>
+  <button class="alx-btn-primary alx-btn-sm" style="margin-top:0.5rem" @click=${this.onCreate}>${iconPlus(14)} Create Rule</button>
 </div>`
             : html`
-                <table>
+                <div class="alx-table-wrap"><table>
                   <thead>
                     <tr>
                       <th>NAME</th>
@@ -227,15 +229,15 @@ export class AlxTgRuleList extends LitElement {
                         <td>${this.formatDate(r.lastRun)}</td>
                         <td>
                           <div class="action-group">
-                            <button class="alx-btn-icon" title="Clone" @click=${(e: Event) => this.onClone(e, r)}>&#x2398;</button>
-                            <button class="alx-btn-icon" title="Edit" @click=${() => this.onEdit(r)}>&#9998;</button>
-                            <button class="alx-btn-icon danger" title="Delete" @click=${(e: Event) => this.onDelete(e, r)}>&times;</button>
+                            <button class="alx-btn-icon" title="Clone" @click=${(e: Event) => this.onClone(e, r)}>${iconClone(14)}</button>
+                            <button class="alx-btn-icon" title="Edit" @click=${() => this.onEdit(r)}>${iconEdit(14)}</button>
+                            <button class="alx-btn-icon danger" title="Delete" @click=${(e: Event) => this.onDelete(e, r)}>${iconDelete(14)}</button>
                           </div>
                         </td>
                       </tr>
                     `)}
                   </tbody>
-                </table>
+                </table></div>
 
                 <div class="pagination">
                   <button class="alx-btn-sm" ?disabled=${this.page <= 1} @click=${this.onPrev}>Prev</button>

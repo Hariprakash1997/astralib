@@ -1,8 +1,8 @@
-import { LitElement, html, css, nothing } from 'lit';
+import { LitElement, html, css, nothing, type TemplateResult } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import type { FAQItem, FAQCategory } from '@astralibx/chat-types';
-import { chatResetStyles, chatBaseStyles } from '../styles/shared.js';
+import { chatResetStyles, chatBaseStyles, chatAnimations } from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 
 /**
@@ -14,6 +14,7 @@ export class AlxChatFaq extends LitElement {
   static styles = [
     chatResetStyles,
     chatBaseStyles,
+    chatAnimations,
     css`
       :host {
         display: block;
@@ -25,12 +26,7 @@ export class AlxChatFaq extends LitElement {
         flex-direction: column;
         height: 100%;
         overflow: hidden;
-        animation: fadeIn 0.3s ease;
-      }
-
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
       }
 
       .faq-header {
@@ -55,19 +51,8 @@ export class AlxChatFaq extends LitElement {
         left: 12px;
         top: 50%;
         transform: translateY(-50%);
-        width: 16px;
-        height: 16px;
         color: var(--alx-chat-text-muted);
-      }
-
-      .search-icon svg {
-        width: 100%;
-        height: 100%;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+        pointer-events: none;
       }
 
       .search-input {
@@ -80,7 +65,7 @@ export class AlxChatFaq extends LitElement {
         font-family: var(--alx-chat-font);
         font-size: 13px;
         outline: none;
-        transition: border-color 0.2s ease;
+        transition: border-color 0.2s var(--alx-chat-spring-smooth);
       }
 
       .search-input::placeholder {
@@ -116,7 +101,7 @@ export class AlxChatFaq extends LitElement {
         font-size: 12px;
         font-weight: 500;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.2s var(--alx-chat-spring-smooth);
         white-space: nowrap;
         flex-shrink: 0;
       }
@@ -145,17 +130,19 @@ export class AlxChatFaq extends LitElement {
 
       .faq-item {
         border: 1px solid var(--alx-chat-border);
+        border-left: 3px solid var(--alx-chat-primary);
         border-radius: var(--alx-chat-radius-sm);
         margin-bottom: 8px;
         overflow: hidden;
-        transition: border-color 0.2s ease;
+        transition: border-color 0.2s var(--alx-chat-spring-smooth);
       }
 
       .faq-item:hover {
-        border-color: color-mix(in srgb, var(--alx-chat-border) 50%, var(--alx-chat-primary));
+        border-left-width: 4px;
+        border-color: color-mix(in srgb, var(--alx-chat-border) 70%, var(--alx-chat-primary));
       }
 
-      .faq-question {
+      .question-btn {
         display: flex;
         align-items: center;
         gap: 10px;
@@ -163,71 +150,55 @@ export class AlxChatFaq extends LitElement {
         padding: 14px 16px;
         border: none;
         background: transparent;
-        color: var(--alx-chat-text);
         font-family: var(--alx-chat-font);
         font-size: 13px;
         font-weight: 600;
-        text-align: left;
+        color: var(--alx-chat-text);
         cursor: pointer;
+        text-align: left;
         line-height: 1.4;
+        transition: background 0.15s var(--alx-chat-spring-smooth);
       }
 
-      .faq-question:hover {
+      .question-btn:hover {
         background: var(--alx-chat-surface-hover);
       }
 
-      .faq-question-text {
+      .question-text {
         flex: 1;
       }
 
       .chevron {
         flex-shrink: 0;
-        width: 16px;
-        height: 16px;
         color: var(--alx-chat-text-muted);
-        transition: transform 0.2s ease;
+        transition: transform 0.2s var(--alx-chat-spring-smooth);
       }
 
-      .chevron svg {
-        width: 100%;
-        height: 100%;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-      }
-
-      .chevron.expanded {
+      .faq-item.expanded .chevron {
         transform: rotate(180deg);
       }
 
-      .faq-answer {
+      .answer {
         padding: 0 16px 14px;
         font-size: 13px;
         color: var(--alx-chat-text-muted);
         line-height: 1.6;
-        animation: slideDown 0.2s ease;
+        animation: alx-fadeInUp 0.2s var(--alx-chat-spring-smooth);
       }
 
-      @keyframes slideDown {
-        from {
-          opacity: 0;
-          max-height: 0;
-        }
-        to {
-          opacity: 1;
-          max-height: 500px;
-        }
-      }
-
-      .faq-answer-content {
+      .answer-content {
         padding-top: 8px;
         border-top: 1px solid var(--alx-chat-border);
       }
 
-      .faq-answer-content a {
+      .answer-content a {
         color: var(--alx-chat-primary);
+      }
+
+      .highlight {
+        background: var(--alx-chat-primary-light);
+        border-radius: 2px;
+        padding: 0 2px;
       }
 
       .feedback-row {
@@ -245,16 +216,16 @@ export class AlxChatFaq extends LitElement {
       }
 
       .feedback-btn {
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--alx-chat-border);
+        border-radius: 8px;
+        background: transparent;
+        cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
-        border: 1px solid var(--alx-chat-border);
-        border-radius: 6px;
-        background: transparent;
-        cursor: pointer;
-        transition: all 0.15s ease;
+        transition: all 0.15s var(--alx-chat-spring-snappy);
         color: var(--alx-chat-text-muted);
       }
 
@@ -267,16 +238,6 @@ export class AlxChatFaq extends LitElement {
         background: var(--alx-chat-primary);
         border-color: var(--alx-chat-primary);
         color: var(--alx-chat-primary-text);
-      }
-
-      .feedback-btn svg {
-        width: 14px;
-        height: 14px;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
       }
 
       .empty-state {
@@ -293,7 +254,6 @@ export class AlxChatFaq extends LitElement {
       }
 
       .chat-prompt-btn {
-        display: block;
         width: 100%;
         padding: 12px;
         border: none;
@@ -304,7 +264,7 @@ export class AlxChatFaq extends LitElement {
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        transition: background 0.2s ease;
+        transition: background 0.2s var(--alx-chat-spring-smooth);
       }
 
       .chat-prompt-btn:hover {
@@ -340,12 +300,10 @@ export class AlxChatFaq extends LitElement {
           ${this.searchEnabled
             ? html`
                 <div class="search-wrapper">
-                  <span class="search-icon">
-                    <svg viewBox="0 0 24 24">
-                      <circle cx="11" cy="11" r="8"/>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
-                  </span>
+                  <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+                    <line x1="10.5" y1="10.5" x2="14" y2="14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
                   <input
                     class="search-input"
                     type="text"
@@ -406,19 +364,20 @@ export class AlxChatFaq extends LitElement {
   private renderFaqItem(item: FAQItem, index: number) {
     const isExpanded = this.expandedIndex === index;
     const feedbackValue = this.feedbackMap.get(index);
+    const query = this.searchQuery.trim();
 
     return html`
-      <div class="faq-item">
-        <button class="faq-question" @click=${() => this.toggleItem(index, item)}>
-          <span class="faq-question-text">${item.question}</span>
-          <span class=${classMap({ chevron: true, expanded: isExpanded })}>
-            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-          </span>
+      <div class=${classMap({ 'faq-item': true, expanded: isExpanded })}>
+        <button class="question-btn" @click=${() => this.toggleItem(index, item)}>
+          <span class="question-text">${this._highlightText(item.question, query)}</span>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <polyline points="4 6 8 10 12 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </button>
         ${isExpanded
           ? html`
-              <div class="faq-answer">
-                <div class="faq-answer-content" .innerHTML=${item.answer}></div>
+              <div class="answer">
+                <div class="answer-content">${this._highlightText(item.answer, query)}</div>
                 ${this.feedbackEnabled
                   ? html`
                       <div class="feedback-row">
@@ -428,8 +387,8 @@ export class AlxChatFaq extends LitElement {
                           @click=${() => this.handleFeedback(index, item, true)}
                           aria-label="Yes, helpful"
                         >
-                          <svg viewBox="0 0 24 24">
-                            <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                            <path d="M4 6.5V12.5H2.5C1.95 12.5 1.5 12.05 1.5 11.5V7.5C1.5 6.95 1.95 6.5 2.5 6.5H4ZM5 6.5L7.5 1.5C8.05 1.5 8.5 1.95 8.5 2.5V5H11.5C12.05 5 12.5 5.45 12.5 6V7L10.5 12.5H5V6.5Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
                           </svg>
                         </button>
                         <button
@@ -437,8 +396,8 @@ export class AlxChatFaq extends LitElement {
                           @click=${() => this.handleFeedback(index, item, false)}
                           aria-label="Not helpful"
                         >
-                          <svg viewBox="0 0 24 24">
-                            <path d="M10 15V19a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3H10zM17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/>
+                          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="transform: scaleY(-1)">
+                            <path d="M4 6.5V12.5H2.5C1.95 12.5 1.5 12.05 1.5 11.5V7.5C1.5 6.95 1.95 6.5 2.5 6.5H4ZM5 6.5L7.5 1.5C8.05 1.5 8.5 1.95 8.5 2.5V5H11.5C12.05 5 12.5 5.45 12.5 6V7L10.5 12.5H5V6.5Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
                           </svg>
                         </button>
                       </div>
@@ -449,6 +408,15 @@ export class AlxChatFaq extends LitElement {
           : nothing}
       </div>
     `;
+  }
+
+  private _highlightText(text: string, query: string): TemplateResult {
+    if (!query || !text) return html`${text}`;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return html`${parts.map(part =>
+      regex.test(part) ? html`<span class="highlight">${part}</span>` : part
+    )}`;
   }
 
   private getFilteredItems(): FAQItem[] {

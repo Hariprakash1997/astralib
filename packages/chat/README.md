@@ -32,6 +32,22 @@ Production-grade chat infrastructure for Node.js -- real-time messaging engine, 
 - **chat-widget** and **chat-ui** share types via **chat-types** without pulling in server deps
 - **chat-ai** is fully optional -- a human-agent-only setup needs only **chat-engine** + **chat-widget**
 
+## Design Principles
+
+1. **Everything is optional** -- the library adapts to your setup. No AI? Skip `chat-ai`. No agents? Skip `assignAgent` adapter. Solo operator? One person handles all chats from the dashboard. The mode emerges from what you configure, not from a mode switch.
+
+2. **Adapter-based dependency injection** -- consumers control the "how" (which AI to call, how to assign agents, where to upload files). The library orchestrates the "when" and "what" (session lifecycle, message routing, queue management).
+
+3. **Factory pattern** -- each package exposes a single factory function (`createChatEngine`, `createChatAI`) that validates config with Zod, registers Mongoose models, creates services, and returns a ready-to-use object.
+
+4. **Zero hardcoded business logic** -- no built-in agent rotation algorithm, no specific AI provider, no opinionated auth. All decisions are delegated to consumer-provided adapters and hooks.
+
+5. **Per-agent settings** -- agents can override global AI/manual mode, have individual prompt templates, and control their visibility to visitors. Global settings provide defaults; agent-level settings override when `allowPerAgentMode` is enabled.
+
+6. **Production-safe defaults** -- rate limiting, typing throttle, session timeout, reconnect detection, concurrent session prevention, and graceful shutdown are all built-in with sensible defaults.
+
+Reference: [Glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/docs/glossary.md) -- ID types, session modes, content types, memory scopes, and key concepts.
+
 ## End-to-End Setup
 
 ### 1. Install packages

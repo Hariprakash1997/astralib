@@ -1,7 +1,7 @@
 import { ChatMessage, MessagePayload, MessageReceivedPayload, MessageStatusPayload } from './message.types';
 import { ChatSessionSummary, VisitorContext, ChatUserInfo, ChatFeedback } from './session.types';
 import { ChatAgentInfo, AgentIdentity, DashboardStats } from './agent.types';
-import { ChatSessionStatus, SessionMode } from './enums';
+import { ChatSessionStatus, SessionMode, AgentStatus } from './enums';
 
 // Visitor -> Server
 export const VisitorEvent = {
@@ -15,6 +15,8 @@ export const VisitorEvent = {
   TrackEvent: 'chat:track_event',
   Ping: 'chat:ping',
   Feedback: 'chat:feedback',
+  FetchSupportPersons: 'chat:fetch_support_persons',
+  SetPreferredAgent: 'chat:set_preferred_agent',
 } as const;
 
 // Server -> Visitor
@@ -28,6 +30,8 @@ export const ServerToVisitorEvent = {
   AgentLeave: 'chat:agent:leave',
   Error: 'chat:error',
   Pong: 'chat:pong',
+  SupportPersons: 'chat:support_persons',
+  AgentDisconnected: 'chat:agent_disconnected',
 } as const;
 
 // Agent -> Server
@@ -45,6 +49,10 @@ export const AgentEvent = {
   SaveMemory: 'agent:save_memory',
   DeleteMemory: 'agent:delete_memory',
   TransferChat: 'agent:transfer_chat',
+  SendAiMessage: 'agent:send_ai_message',
+  UpdateStatus: 'agent:update_status',
+  LabelMessage: 'agent:label_message',
+  LabelSession: 'agent:label_session',
 } as const;
 
 // Server -> Agent
@@ -62,6 +70,7 @@ export const ServerToAgentEvent = {
   SettingsUpdated: 'agent:settings_updated',
   SessionEvent: 'agent:session_event',
   ChatTransferred: 'agent:chat_transferred',
+  EscalationNeeded: 'agent:escalation_needed',
 } as const;
 
 // Event payload interfaces
@@ -139,4 +148,56 @@ export interface ModeChangedPayload {
 export interface FeedbackPayload {
   rating?: number;
   survey?: Record<string, unknown>;
+}
+
+// Gap 1+7: Support person discovery
+export interface FetchSupportPersonsPayload {
+  channel?: string;
+  filters?: Record<string, unknown>;
+}
+
+export interface SupportPersonsPayload {
+  agents: ChatAgentInfo[];
+}
+
+export interface SetPreferredAgentPayload {
+  agentId: string;
+}
+
+// Gap 2: Agent sends AI message
+export interface SendAiMessagePayload {
+  sessionId: string;
+  content?: string;
+}
+
+// Gap 4: Escalation notification
+export interface EscalationNeededPayload {
+  sessionId: string;
+  visitorId: string;
+  reason?: string;
+  session: ChatSessionSummary;
+}
+
+// Gap 6: Agent disconnect notification
+export interface AgentDisconnectedPayload {
+  sessionId: string;
+  agentId: string;
+  agentName?: string;
+}
+
+// Gap 8: Message labeling
+export interface LabelMessagePayload {
+  sessionId: string;
+  messageId: string;
+  trainingQuality: 'good' | 'bad' | 'needs_review';
+}
+
+export interface LabelSessionPayload {
+  sessionId: string;
+  trainingQuality: 'good' | 'bad' | 'needs_review';
+}
+
+// Gap 11: Agent status update
+export interface UpdateStatusPayload {
+  status: AgentStatus;
 }

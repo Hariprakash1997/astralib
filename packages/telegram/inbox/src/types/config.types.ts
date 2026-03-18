@@ -16,6 +16,7 @@ export interface MediaUploadResult {
 }
 
 export interface InboxMessage {
+  accountId: string;
   conversationId: string;
   messageId: string;
   senderId: string;
@@ -48,5 +49,6 @@ export interface TelegramInboxConfig {
     onNewMessage?: (message: InboxMessage) => void;
     onMessageRead?: (info: { messageId: string; chatId: string; readAt: Date }) => void;
     onTyping?: (info: { chatId: string; userId: string; accountId: string }) => void;
+    onNewContact?: (info: { telegramUserId: string; firstName?: string; lastName?: string; username?: string; accountId: string; chatId: string }) => void;
   };
 }

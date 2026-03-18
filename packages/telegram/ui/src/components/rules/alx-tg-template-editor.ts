@@ -10,6 +10,7 @@ import {
   alxLoadingStyles,
 } from '../../styles/shared.js';
 import { TelegramRuleAPI } from '../../api/rule.api.js';
+import { iconClose, iconPlus } from '../../utils/icons.js';
 
 interface MessageVariant {
   text: string;
@@ -319,10 +320,10 @@ export class AlxTgTemplateEditor extends LitElement {
                     @input=${(e: Event) => this.updateMessage(i, (e.target as HTMLTextAreaElement).value)}
                     placeholder="Message variant ${i + 1}... Use {{variable}} for placeholders"
                   ></textarea>
-                  <button type="button" class="alx-btn-icon danger" @click=${() => this.removeMessage(i)} title="Remove">&times;</button>
+                  <button type="button" class="alx-btn-icon danger" @click=${() => this.removeMessage(i)} title="Remove">${iconClose(14)}</button>
                 </div>
               `)}
-              <button type="button" class="alx-btn-sm" @click=${this.addMessage}>+ Add Variant</button>
+              <button type="button" class="alx-btn-sm" @click=${this.addMessage}>${iconPlus(14)} Add Variant</button>
             </div>
 
             <div class="form-section-title">Custom Fields</div>
@@ -341,10 +342,10 @@ export class AlxTgTemplateEditor extends LitElement {
                     @input=${(e: Event) => this.updateField(i, 'value', (e.target as HTMLInputElement).value)}
                     placeholder="Value"
                   />
-                  <button type="button" class="alx-btn-icon danger" @click=${() => this.removeField(i)}>&times;</button>
+                  <button type="button" class="alx-btn-icon danger" @click=${() => this.removeField(i)}>${iconClose(14)}</button>
                 </div>
               `)}
-              <button type="button" class="alx-btn-sm" @click=${this.addField}>+ Add Field</button>
+              <button type="button" class="alx-btn-sm" @click=${this.addField}>${iconPlus(14)} Add Field</button>
             </div>
           </div>
 

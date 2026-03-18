@@ -1,7 +1,7 @@
 import { noopLogger } from '@astralibx/core';
 import type { LogAdapter, TelegramAccountManagerConfig, WarmupPhase } from '../types/config.types';
-import { ACCOUNT_STATUS, DEFAULT_WARMUP_SCHEDULE } from '../constants';
-import type { TelegramAccountModel } from '../schemas/telegram-account.schema';
+import { ACCOUNT_STATUS, DEFAULT_WARMUP_SCHEDULE, DEFAULT_WARMUP_ADVANCE_INTERVAL_MS } from '../constants';
+import type { TelegramAccountModel, ITelegramAccount } from '../schemas/telegram-account.schema';
 
 export interface WarmupStatus {
   accountId: string;
@@ -17,6 +17,7 @@ export interface WarmupStatus {
 
 export class WarmupManager {
   private logger: LogAdapter;
+  private advanceInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private TelegramAccount: TelegramAccountModel,
@@ -111,7 +112,7 @@ export class WarmupManager {
     }
   }
 
-  async getDailyLimit(account: any): Promise<number> {
+  async getDailyLimit(account: ITelegramAccount): Promise<number> {
     const warmup = account.warmup;
     if (!warmup?.enabled) return account.currentDailyLimit;
 
@@ -119,14 +120,14 @@ export class WarmupManager {
     return phase ? phase.dailyLimit : account.currentDailyLimit;
   }
 
-  async getCurrentPhase(account: any): Promise<WarmupPhase | null> {
+  async getCurrentPhase(account: ITelegramAccount): Promise<WarmupPhase | null> {
     const warmup = account.warmup;
     if (!warmup?.enabled || !warmup.schedule) return null;
 
     return this.findPhaseForDay(warmup.schedule, warmup.currentDay);
   }
 
-  async getRecommendedDelay(account: any): Promise<number> {
+  async getRecommendedDelay(account: ITelegramAccount): Promise<number> {
     const phase = await this.getCurrentPhase(account);
     if (!phase) return 0;
 
@@ -170,6 +171,28 @@ export class WarmupManager {
         ? { min: phase.delayMinMs, max: phase.delayMaxMs }
         : { min: acct.currentDelayMin, max: acct.currentDelayMax },
     };
+  }
+
+  startAutoAdvance(intervalMs = DEFAULT_WARMUP_ADVANCE_INTERVAL_MS): void {
+    if (this.advanceInterval) return;
+
+    this.advanceInterval = setInterval(() => {
+      this.advanceAllAccounts().catch((err) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.logger.error(`Auto-advance failed: ${msg}`);
+      });
+    }, intervalMs);
+    this.advanceInterval.unref();
+
+    this.logger.info('Warmup auto-advance started');
+  }
+
+  stopAutoAdvance(): void {
+    if (this.advanceInterval) {
+      clearInterval(this.advanceInterval);
+      this.advanceInterval = null;
+      this.logger.info('Warmup auto-advance stopped');
+    }
   }
 
   private findPhaseForDay(schedule: WarmupPhase[], day: number): WarmupPhase | null {

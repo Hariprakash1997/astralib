@@ -66,6 +66,15 @@ import {
   type ChatTrackingEvent,
   type ChatMetric,
   type ErrorContext,
+  type FetchSupportPersonsPayload,
+  type SupportPersonsPayload,
+  type SetPreferredAgentPayload,
+  type SendAiMessagePayload,
+  type EscalationNeededPayload,
+  type AgentDisconnectedPayload,
+  type LabelMessagePayload,
+  type LabelSessionPayload,
+  type UpdateStatusPayload,
 } from '../src/index';
 
 describe('Enums', () => {
@@ -139,6 +148,8 @@ describe('Event Constants', () => {
       expect(VisitorEvent.TrackEvent).toBe('chat:track_event');
       expect(VisitorEvent.Ping).toBe('chat:ping');
       expect(VisitorEvent.Feedback).toBe('chat:feedback');
+      expect(VisitorEvent.FetchSupportPersons).toBe('chat:fetch_support_persons');
+      expect(VisitorEvent.SetPreferredAgent).toBe('chat:set_preferred_agent');
     });
 
     it('should be readonly (as const)', () => {
@@ -158,6 +169,8 @@ describe('Event Constants', () => {
       expect(ServerToVisitorEvent.AgentLeave).toBe('chat:agent:leave');
       expect(ServerToVisitorEvent.Error).toBe('chat:error');
       expect(ServerToVisitorEvent.Pong).toBe('chat:pong');
+      expect(ServerToVisitorEvent.SupportPersons).toBe('chat:support_persons');
+      expect(ServerToVisitorEvent.AgentDisconnected).toBe('chat:agent_disconnected');
     });
 
     it('should be readonly (as const)', () => {
@@ -181,6 +194,10 @@ describe('Event Constants', () => {
       expect(AgentEvent.SaveMemory).toBe('agent:save_memory');
       expect(AgentEvent.DeleteMemory).toBe('agent:delete_memory');
       expect(AgentEvent.TransferChat).toBe('agent:transfer_chat');
+      expect(AgentEvent.SendAiMessage).toBe('agent:send_ai_message');
+      expect(AgentEvent.UpdateStatus).toBe('agent:update_status');
+      expect(AgentEvent.LabelMessage).toBe('agent:label_message');
+      expect(AgentEvent.LabelSession).toBe('agent:label_session');
     });
 
     it('should be readonly (as const)', () => {
@@ -204,6 +221,7 @@ describe('Event Constants', () => {
       expect(ServerToAgentEvent.SettingsUpdated).toBe('agent:settings_updated');
       expect(ServerToAgentEvent.SessionEvent).toBe('agent:session_event');
       expect(ServerToAgentEvent.ChatTransferred).toBe('agent:chat_transferred');
+      expect(ServerToAgentEvent.EscalationNeeded).toBe('agent:escalation_needed');
     });
 
     it('should be readonly (as const)', () => {

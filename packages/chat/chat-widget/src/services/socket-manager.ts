@@ -12,6 +12,8 @@ import type {
   StatusPayload,
   ChatErrorPayload,
   VisitorContext,
+  AgentDisconnectedPayload,
+  SupportPersonsPayload,
 } from '@astralibx/chat-types';
 import {
   VisitorEvent,
@@ -26,8 +28,11 @@ export interface SocketManagerCallbacks {
   onStatus: (payload: StatusPayload) => void;
   onAgentJoin: (agent: ChatAgentInfo) => void;
   onAgentLeave: () => void;
+  onAgentDisconnected: (payload: AgentDisconnectedPayload) => void;
+  onSupportPersons: (payload: SupportPersonsPayload) => void;
   onError: (payload: ChatErrorPayload) => void;
   onConnectionChange: (status: 'disconnected' | 'connecting' | 'connected' | 'reconnecting') => void;
+  onConnectionFailed?: () => void;
 }
 
 interface PendingMessage {
@@ -43,21 +48,34 @@ const PENDING_TIMEOUT_MS = 30_000;
  * Wraps socket.io-client for the chat widget.
  * Handles connect/disconnect lifecycle, event emission, and reconnection.
  */
+export interface SocketManagerConfig {
+  maxReconnectAttempts?: number;
+}
+
 export class ChatSocketManager {
   private socket: Socket | null = null;
   private pendingMessages = new Map<string, PendingMessage>();
   private callbacks: SocketManagerCallbacks;
   private socketUrl: string;
   private namespace: string;
+  private config: SocketManagerConfig;
 
-  constructor(socketUrl: string, callbacks: SocketManagerCallbacks, namespace = '/chat') {
+  constructor(socketUrl: string, callbacks: SocketManagerCallbacks, namespace = '/chat', config: SocketManagerConfig = {}) {
     this.socketUrl = socketUrl;
     this.callbacks = callbacks;
     this.namespace = namespace;
+    this.config = config;
   }
 
   async connect(context: VisitorContext, existingSessionId?: string | null): Promise<void> {
     if (this.socket?.connected) return;
+
+    // Clean up any existing disconnected socket before creating a new one
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
+    }
 
     this.callbacks.onConnectionChange('connecting');
 
@@ -67,7 +85,7 @@ export class ChatSocketManager {
     this.socket = io(`${this.socketUrl}${this.namespace}`, {
       transports: ['websocket', 'polling'],
       reconnection: true,
-      reconnectionAttempts: Infinity,
+      reconnectionAttempts: this.config.maxReconnectAttempts ?? 10,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 10000,
       timeout: 20000,
@@ -156,6 +174,14 @@ export class ChatSocketManager {
     this.socket?.emit(VisitorEvent.TrackEvent, { event, data });
   }
 
+  fetchSupportPersons(channel?: string, filters?: Record<string, unknown>): void {
+    this.socket?.emit(VisitorEvent.FetchSupportPersons, { channel, filters });
+  }
+
+  setPreferredAgent(agentId: string): void {
+    this.socket?.emit(VisitorEvent.SetPreferredAgent, { agentId });
+  }
+
   sendPing(): void {
     this.socket?.emit(VisitorEvent.Ping, {});
   }
@@ -164,11 +190,22 @@ export class ChatSocketManager {
     return this.socket?.connected ?? false;
   }
 
+  private safeCallback<T>(name: string, fn: ((arg: T) => void) | undefined, arg: T): void {
+    try {
+      fn?.(arg);
+    } catch (err) {
+      console.error(`[ChatSocket] Error in ${name} callback:`, err);
+    }
+  }
+
   private bindEvents(): void {
     if (!this.socket) return;
 
+    // Remove all existing listeners to prevent accumulation on reconnection
+    this.socket.removeAllListeners();
+
     this.socket.on(ServerToVisitorEvent.Connected, (payload: ConnectedPayload) => {
-      this.callbacks.onConnected(payload);
+      this.safeCallback('onConnected', this.callbacks.onConnected, payload);
     });
 
     this.socket.on(ServerToVisitorEvent.Message, (payload: MessageReceivedPayload) => {
@@ -179,43 +216,70 @@ export class ChatSocketManager {
         pending.resolve();
         this.pendingMessages.delete(payload.tempId);
       }
-      this.callbacks.onMessage(payload);
+      this.safeCallback('onMessage', this.callbacks.onMessage, payload);
     });
 
-    this.socket.on(ServerToVisitorEvent.MessageStatus, (payload: MessageStatusPayload) => {
-      this.callbacks.onMessageStatus(payload);
+    this.socket.on(ServerToVisitorEvent.MessageStatus, (payload: MessageStatusPayload & { tempId?: string }) => {
+      // Resolve pending message if this is a send confirmation
+      if (payload.tempId && this.pendingMessages.has(payload.tempId)) {
+        const pending = this.pendingMessages.get(payload.tempId)!;
+        clearTimeout(pending.timeout);
+        pending.resolve();
+        this.pendingMessages.delete(payload.tempId);
+      }
+      this.safeCallback('onMessageStatus', this.callbacks.onMessageStatus, payload);
     });
 
     this.socket.on(ServerToVisitorEvent.Typing, (payload: TypingPayload) => {
-      this.callbacks.onTyping(payload);
+      this.safeCallback('onTyping', this.callbacks.onTyping, payload);
     });
 
     this.socket.on(ServerToVisitorEvent.Status, (payload: StatusPayload) => {
-      this.callbacks.onStatus(payload);
+      this.safeCallback('onStatus', this.callbacks.onStatus, payload);
     });
 
     this.socket.on(ServerToVisitorEvent.AgentJoin, (agent: ChatAgentInfo) => {
-      this.callbacks.onAgentJoin(agent);
+      this.safeCallback('onAgentJoin', this.callbacks.onAgentJoin, agent);
     });
 
     this.socket.on(ServerToVisitorEvent.AgentLeave, () => {
-      this.callbacks.onAgentLeave();
+      try {
+        this.callbacks.onAgentLeave();
+      } catch (err) {
+        console.error('[ChatSocket] Error in onAgentLeave callback:', err);
+      }
+    });
+
+    this.socket.on(ServerToVisitorEvent.AgentDisconnected, (payload: AgentDisconnectedPayload) => {
+      this.safeCallback('onAgentDisconnected', this.callbacks.onAgentDisconnected, payload);
+    });
+
+    this.socket.on(ServerToVisitorEvent.SupportPersons, (payload: SupportPersonsPayload) => {
+      this.safeCallback('onSupportPersons', this.callbacks.onSupportPersons, payload);
     });
 
     this.socket.on(ServerToVisitorEvent.Error, (payload: ChatErrorPayload) => {
-      this.callbacks.onError(payload);
+      this.safeCallback('onError', this.callbacks.onError, payload);
     });
 
     this.socket.on('disconnect', () => {
-      this.callbacks.onConnectionChange('disconnected');
+      this.safeCallback('onConnectionChange', this.callbacks.onConnectionChange, 'disconnected');
     });
 
     this.socket.on('reconnect_attempt', () => {
-      this.callbacks.onConnectionChange('reconnecting');
+      this.safeCallback('onConnectionChange', this.callbacks.onConnectionChange, 'reconnecting');
     });
 
     this.socket.on('reconnect', () => {
-      this.callbacks.onConnectionChange('connected');
+      this.safeCallback('onConnectionChange', this.callbacks.onConnectionChange, 'connected');
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      try {
+        this.callbacks.onConnectionFailed?.();
+      } catch (err) {
+        console.error('[ChatSocket] Error in onConnectionFailed callback:', err);
+      }
     });
   }
 }

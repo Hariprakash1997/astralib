@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import type { ChatAgentInfo } from '@astralibx/chat-types';
-import { chatResetStyles, chatBaseStyles } from '../styles/shared.js';
+import { chatResetStyles, chatBaseStyles, chatAnimations } from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 
 /**
@@ -15,6 +15,7 @@ export class AlxChatAgentSelector extends LitElement {
   static styles = [
     chatResetStyles,
     chatBaseStyles,
+    chatAnimations,
     css`
       :host {
         display: block;
@@ -26,12 +27,7 @@ export class AlxChatAgentSelector extends LitElement {
         flex-direction: column;
         height: 100%;
         overflow: hidden;
-        animation: fadeIn 0.3s ease;
-      }
-
-      @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(8px); }
-        to { opacity: 1; transform: translateY(0); }
+        animation: alx-fadeInUp 0.3s var(--alx-chat-spring-smooth);
       }
 
       .selector-header {
@@ -63,7 +59,7 @@ export class AlxChatAgentSelector extends LitElement {
         border-radius: var(--alx-chat-radius);
         background: var(--alx-chat-surface);
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.2s var(--alx-chat-spring-smooth);
         width: 100%;
         text-align: left;
         font-family: var(--alx-chat-font);
@@ -169,7 +165,7 @@ export class AlxChatAgentSelector extends LitElement {
         width: 20px;
         height: 20px;
         color: var(--alx-chat-text-muted);
-        transition: color 0.2s ease;
+        transition: color 0.2s var(--alx-chat-spring-smooth);
       }
 
       .agent-card:hover .select-arrow {
@@ -195,7 +191,7 @@ export class AlxChatAgentSelector extends LitElement {
         border-radius: var(--alx-chat-radius);
         background: transparent;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.2s var(--alx-chat-spring-smooth);
         width: 100%;
         text-align: left;
         font-family: var(--alx-chat-font);
@@ -245,7 +241,7 @@ export class AlxChatAgentSelector extends LitElement {
         cursor: pointer;
         text-decoration: underline;
         text-underline-offset: 2px;
-        transition: color 0.2s ease;
+        transition: color 0.2s var(--alx-chat-spring-smooth);
         flex-shrink: 0;
       }
 

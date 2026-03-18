@@ -135,12 +135,13 @@ export class ApprovalService {
 
   async updateContent(
     draftId: string,
-    content: { subject?: string; htmlBody?: string; textBody?: string },
+    content: { subject?: string; htmlBody?: string; textBody?: string; attachments?: Array<{ filename: string; url: string; contentType: string }> },
   ): Promise<EmailDraftDocument> {
     const updates: Record<string, unknown> = {};
     if (content.subject !== undefined) updates.subject = content.subject;
     if (content.htmlBody !== undefined) updates.htmlBody = content.htmlBody;
     if (content.textBody !== undefined) updates.textBody = content.textBody;
+    if (content.attachments !== undefined) updates.attachments = content.attachments;
 
     const draft = await this.EmailDraft.findByIdAndUpdate(
       draftId,

@@ -225,6 +225,8 @@ export class AlxEmailDashboard extends LitElement {
   @state() private _tabCounts: Partial<Record<TabId, number>> = {};
 
   private _hashListening = false;
+  private _toastTimer?: ReturnType<typeof setTimeout>;
+  private _tabCountTimer?: ReturnType<typeof setTimeout>;
 
   private static readonly DARK_VARS: Record<string, string> = {
     '--alx-primary': '#d4af37',
@@ -281,6 +283,8 @@ export class AlxEmailDashboard extends LitElement {
     super.disconnectedCallback();
     window.removeEventListener('hashchange', this._onHashChange);
     this._hashListening = false;
+    if (this._toastTimer) clearTimeout(this._toastTimer);
+    if (this._tabCountTimer) clearTimeout(this._tabCountTimer);
   }
 
   // --- Hash routing ---
@@ -303,7 +307,8 @@ export class AlxEmailDashboard extends LitElement {
       this._loadedTabs = new Set([...this._loadedTabs, tab]);
     }
     window.location.hash = tab;
-    setTimeout(() => this._updateTabCounts(), 1500);
+    if (this._tabCountTimer) clearTimeout(this._tabCountTimer);
+    this._tabCountTimer = setTimeout(() => this._updateTabCounts(), 1500);
   }
 
   // --- Drawer ---
@@ -375,7 +380,8 @@ export class AlxEmailDashboard extends LitElement {
     accountList?.load?.();
     templateList?.load?.();
     ruleList?.load?.();
-    setTimeout(() => this._updateTabCounts(), 1500);
+    if (this._tabCountTimer) clearTimeout(this._tabCountTimer);
+    this._tabCountTimer = setTimeout(() => this._updateTabCounts(), 1500);
   }
 
   private _updateTabCounts(): void {
@@ -410,7 +416,8 @@ export class AlxEmailDashboard extends LitElement {
 
   private _showToast(message: string): void {
     this._toast = message;
-    setTimeout(() => { this._toast = ''; }, 3000);
+    if (this._toastTimer) clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => { this._toast = ''; }, 3000);
   }
 
   private _renderOnboarding() {

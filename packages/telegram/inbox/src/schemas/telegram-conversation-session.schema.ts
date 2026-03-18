@@ -1,5 +1,5 @@
 import { Schema, Model, HydratedDocument } from 'mongoose';
-import { SESSION_STATUSES } from '../constants';
+import { SESSION_STATUSES, STATUS_ACTIVE } from '../constants';
 
 export interface ITelegramConversationSession {
   accountId: string;
@@ -30,7 +30,7 @@ export function createTelegramConversationSessionSchema(prefix?: string) {
       status: {
         type: String,
         enum: SESSION_STATUSES,
-        default: 'active',
+        default: STATUS_ACTIVE,
       },
       startedAt: { type: Date, default: Date.now },
       endedAt: Date,
@@ -45,7 +45,8 @@ export function createTelegramConversationSessionSchema(prefix?: string) {
 
   schema.index({ accountId: 1, contactId: 1 });
   schema.index({ conversationId: 1 });
-  schema.index({ status: 1 });
+  schema.index({ conversationId: 1, accountId: 1, status: 1 });
+  schema.index({ accountId: 1, status: 1 });
 
   return schema;
 }

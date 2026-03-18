@@ -5,13 +5,31 @@ import type { TelegramMessageModel, TelegramMessageDocument } from '../schemas/t
 import type { TelegramConversationSessionModel } from '../schemas/telegram-conversation-session.schema';
 import { noopLogger } from '@astralibx/core';
 import type { LogAdapter, TelegramInboxConfig, InboxMessage, ContentType } from '../types/config.types';
-import { DEFAULT_MAX_FILE_SIZE_MB } from '../constants';
+import {
+  DEFAULT_MAX_FILE_SIZE_MB,
+  MAX_SEEN_CONTACTS_CACHE,
+  SENDER_ACCOUNT,
+  SENDER_USER,
+  DIRECTION_OUTBOUND,
+  DIRECTION_INBOUND,
+  CONTENT_TEXT,
+  CONTENT_DOCUMENT,
+  CONTENT_PHOTO,
+  CONTENT_VIDEO,
+  CONTENT_VOICE,
+  CONTENT_AUDIO,
+  CONTENT_STICKER,
+  CONTENT_LOCATION,
+  CONTENT_CONTACT,
+  STATUS_ACTIVE,
+} from '../constants';
 import type { InboxEventGateway } from './websocket-gateway';
 
 type EventHandler = (event: NewMessageEvent) => Promise<void>;
 
 export class MessageListenerService {
   private listeners = new Map<string, EventHandler>();
+  private seenContacts = new Set<string>();
   private logger: LogAdapter;
   private accountManager: TelegramAccountManager;
   private config: TelegramInboxConfig;
@@ -89,6 +107,7 @@ export class MessageListenerService {
     for (const accountId of accountIds) {
       await this.detach(accountId);
     }
+    this.seenContacts.clear();
     this.logger.info('All listeners detached', { count: accountIds.length });
   }
 
@@ -116,8 +135,8 @@ export class MessageListenerService {
       const isOutgoing = message.out || false;
       const chatId = chat.id.toString();
       const senderId = isOutgoing ? accountId : chatId;
-      const senderType = isOutgoing ? 'account' : 'user';
-      const direction = isOutgoing ? 'outbound' : 'inbound';
+      const senderType = isOutgoing ? SENDER_ACCOUNT : SENDER_USER;
+      const direction = isOutgoing ? DIRECTION_OUTBOUND : DIRECTION_INBOUND;
 
       const contentType = this.extractContentType(message);
       const content = message.message || '';
@@ -148,6 +167,7 @@ export class MessageListenerService {
 
       // Save message to DB
       const savedMessage = await this.TelegramMessage.create({
+        accountId,
         conversationId: chatId,
         messageId: String(message.id),
         senderId,
@@ -160,10 +180,11 @@ export class MessageListenerService {
       });
 
       // Update or create conversation session
-      await this.updateConversationSession(chatId, accountId, direction);
+      await this.updateConversationSession(chatId, accountId);
 
       // Build InboxMessage for hooks and gateway
       const inboxMessage: InboxMessage = {
+        accountId,
         conversationId: chatId,
         messageId: String(message.id),
         senderId,
@@ -185,6 +206,36 @@ export class MessageListenerService {
         });
       }
 
+      // Fire onNewContact hook for inbound messages from unseen contacts (per-account)
+      if (direction === DIRECTION_INBOUND) {
+        const contactKey = `${accountId}:${senderId}`;
+        if (!this.seenContacts.has(contactKey)) {
+          // Cap the cache size to prevent unbounded memory growth.
+          // Eviction drops the oldest half of entries when MAX_SEEN_CONTACTS_CACHE is reached,
+          // which may cause duplicate onNewContact hooks for previously seen contacts.
+          if (this.seenContacts.size >= MAX_SEEN_CONTACTS_CACHE) {
+            const entries = Array.from(this.seenContacts);
+            this.seenContacts = new Set(entries.slice(entries.length / 2));
+          }
+          this.seenContacts.add(contactKey);
+          try {
+            const sender = chat as unknown as Record<string, unknown>;
+            this.config.hooks?.onNewContact?.({
+              telegramUserId: String(chatId),
+              firstName: typeof sender.firstName === 'string' ? sender.firstName : undefined,
+              lastName: typeof sender.lastName === 'string' ? sender.lastName : undefined,
+              username: typeof sender.username === 'string' ? sender.username : undefined,
+              accountId,
+              chatId: String(chatId),
+            });
+          } catch (e) {
+            this.logger.error('onNewContact hook error', {
+              error: e instanceof Error ? e.message : String(e),
+            });
+          }
+        }
+      }
+
       // Emit via gateway
       if (this.gateway) {
         this.gateway.emitNewMessage(inboxMessage);
@@ -200,10 +251,9 @@ export class MessageListenerService {
   private async updateConversationSession(
     conversationId: string,
     accountId: string,
-    direction: string,
   ): Promise<void> {
     const session = await this.TelegramConversationSession.findOneAndUpdate(
-      { conversationId, accountId, status: 'active' },
+      { conversationId, accountId, status: STATUS_ACTIVE },
       {
         $inc: { messageCount: 1 },
         $set: { lastMessageAt: new Date() },
@@ -211,7 +261,7 @@ export class MessageListenerService {
           conversationId,
           accountId,
           contactId: conversationId, // chatId is used as contactId when auto-creating
-          status: 'active',
+          status: STATUS_ACTIVE,
           startedAt: new Date(),
         },
       },
@@ -220,42 +270,44 @@ export class MessageListenerService {
   }
 
   private extractContentType(message: Api.Message): ContentType {
-    if (!message.media) return 'text';
+    if (!message.media) return CONTENT_TEXT;
 
     const mediaClass = message.media.className;
 
     switch (mediaClass) {
       case 'MessageMediaPhoto':
-        return 'photo';
+        return CONTENT_PHOTO;
       case 'MessageMediaDocument': {
         const doc = message.media as Api.MessageMediaDocument;
         if (doc.document && 'mimeType' in doc.document) {
-          const mimeType = (doc.document as any).mimeType || '';
-          if (mimeType.startsWith('video/')) return 'video';
-          if (mimeType.startsWith('audio/')) return 'audio';
+          const mimeType = String((doc.document as unknown as Record<string, unknown>).mimeType || '');
+          if (mimeType.startsWith('video/')) return CONTENT_VIDEO;
+          if (mimeType.startsWith('audio/')) return CONTENT_AUDIO;
           if (mimeType === 'application/x-tgsticker' || mimeType.includes('webp') || mimeType.includes('tgs')) {
-            return 'sticker';
+            return CONTENT_STICKER;
           }
         }
         if (doc.document && 'attributes' in doc.document) {
-          const attrs = (doc.document as any).attributes || [];
+          const attrs = Array.isArray((doc.document as unknown as Record<string, unknown>).attributes)
+            ? (doc.document as unknown as Record<string, unknown>).attributes as Array<Record<string, unknown>>
+            : [];
           for (const attr of attrs) {
             if (attr.className === 'DocumentAttributeAudio') {
-              return attr.voice ? 'voice' : 'audio';
+              return attr.voice ? CONTENT_VOICE : CONTENT_AUDIO;
             }
-            if (attr.className === 'DocumentAttributeVideo') return 'video';
-            if (attr.className === 'DocumentAttributeSticker') return 'sticker';
+            if (attr.className === 'DocumentAttributeVideo') return CONTENT_VIDEO;
+            if (attr.className === 'DocumentAttributeSticker') return CONTENT_STICKER;
           }
         }
-        return 'document';
+        return CONTENT_DOCUMENT;
       }
       case 'MessageMediaGeo':
       case 'MessageMediaGeoLive':
-        return 'location';
+        return CONTENT_LOCATION;
       case 'MessageMediaContact':
-        return 'contact';
+        return CONTENT_CONTACT;
       default:
-        return 'text';
+        return CONTENT_TEXT;
     }
   }
 
@@ -263,6 +315,8 @@ export class MessageListenerService {
     message: Api.Message,
     accountId: string,
   ): Promise<{ url: string; mimeType?: string } | null> {
+    if (!message.media) return null;
+
     const uploadAdapter = this.config.media?.uploadAdapter;
     if (!uploadAdapter) return null;
 
@@ -270,7 +324,7 @@ export class MessageListenerService {
     if (!client) return null;
 
     try {
-      const buffer = await client.downloadMedia(message.media!, {}) as Buffer;
+      const buffer = await client.downloadMedia(message.media, {}) as Buffer;
       if (!buffer || buffer.length === 0) return null;
 
       // Check file size limit
@@ -305,7 +359,7 @@ export class MessageListenerService {
     if (message.media.className === 'MessageMediaDocument') {
       const doc = message.media as Api.MessageMediaDocument;
       if (doc.document && 'mimeType' in doc.document) {
-        return (doc.document as any).mimeType || 'application/octet-stream';
+        return String((doc.document as unknown as Record<string, unknown>).mimeType || 'application/octet-stream');
       }
     }
 
@@ -317,10 +371,12 @@ export class MessageListenerService {
 
     const doc = message.media as Api.MessageMediaDocument;
     if (doc.document && 'attributes' in doc.document) {
-      const attrs = (doc.document as any).attributes || [];
+      const attrs = Array.isArray((doc.document as unknown as Record<string, unknown>).attributes)
+        ? (doc.document as unknown as Record<string, unknown>).attributes as Array<Record<string, unknown>>
+        : [];
       for (const attr of attrs) {
         if (attr.className === 'DocumentAttributeFilename' && attr.fileName) {
-          return attr.fileName;
+          return String(attr.fileName);
         }
       }
     }

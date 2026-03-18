@@ -42,7 +42,7 @@ export class AlxTemplateEditor extends LitElement {
   @property({ type: String }) audiences = '';
   @property({ type: String }) platforms = '';
 
-  @state() private _form: TemplateData = { ...EMPTY_TEMPLATE, subjects: [''], bodies: [''], preheaders: [], fields: {} };
+  @state() private _form: TemplateData = { ...EMPTY_TEMPLATE, subjects: [''], bodies: [''], preheaders: [], fields: {}, attachments: [] };
   @state() private _showHelp = false;
   @state() private _loading = false;
   @state() private _saving = false;
@@ -74,7 +74,7 @@ export class AlxTemplateEditor extends LitElement {
       if (this.templateId) {
         this._loadTemplate();
       } else {
-        this._form = { ...EMPTY_TEMPLATE, subjects: [''], bodies: [''], preheaders: [], fields: {} };
+        this._form = { ...EMPTY_TEMPLATE, subjects: [''], bodies: [''], preheaders: [], fields: {}, attachments: [] };
         this._error = '';
         this._previewHtml = '';
       }
@@ -105,6 +105,7 @@ export class AlxTemplateEditor extends LitElement {
           bodies: t.bodies?.length ? [...t.bodies] : t.body ? [t.body] : [''],
           preheaders: t.preheaders ? [...t.preheaders] : [],
           fields: t.fields ? { ...t.fields } : {},
+          attachments: t.attachments ? [...t.attachments] : [],
         };
       }
     } catch (err) {
@@ -171,6 +172,24 @@ export class AlxTemplateEditor extends LitElement {
     };
   }
 
+  // --- Attachment helpers ---
+
+  private _addAttachment(): void {
+    const attachments = [...(this._form.attachments || []), { filename: '', url: '', contentType: '' }];
+    this._form = { ...this._form, attachments };
+  }
+
+  private _removeAttachment(index: number): void {
+    const attachments = (this._form.attachments || []).filter((_, i) => i !== index);
+    this._form = { ...this._form, attachments };
+  }
+
+  private _updateAttachment(index: number, field: 'filename' | 'url' | 'contentType', value: string): void {
+    const attachments = [...(this._form.attachments || [])];
+    attachments[index] = { ...attachments[index], [field]: value };
+    this._form = { ...this._form, attachments };
+  }
+
   private async _onPreview(): Promise<void> {
     this._previewing = true;
     this._error = '';
@@ -202,6 +221,7 @@ export class AlxTemplateEditor extends LitElement {
     try {
       const payload: Record<string, unknown> = { ...this._form };
       delete payload['_id'];
+      payload.attachments = (this._form.attachments || []).filter(a => a.filename && a.url);
 
       let result: unknown;
       if (this._form._id) {
@@ -400,6 +420,7 @@ export class AlxTemplateEditor extends LitElement {
               <li><strong>Variables</strong> — Placeholder names (e.g. "name", "company"). Values come from recipient data at send time.</li>
               <li><strong>Fields</strong> — Default values for variables when recipient data is missing</li>
               <li><strong>Text Body</strong> — Plain text fallback for email clients that don't support HTML</li>
+              <li><strong>Attachments</strong> — File URLs fetched at send time. Use public CDN/S3 links. Each needs filename, URL, and content type.</li>
             </ul>
           </div>
         ` : ''}
@@ -536,6 +557,30 @@ export class AlxTemplateEditor extends LitElement {
                 placeholder="Variable name"
               />
               <button class="alx-btn-sm" @click=${this._addVariable}>Add</button>
+            </div>
+          </div>
+
+          <!-- Attachments -->
+          <div class="form-group form-group-full">
+            <label class="section-label">Attachments</label>
+            <span class="helper-text">File URLs fetched at send time. Use public or signed URLs.</span>
+            <div class="multi-list" style="margin-top:0.5rem">
+              ${(this._form.attachments || []).map(
+                (att, i) => html`
+                  <div class="attachment-row">
+                    <input type="text" .value=${att.filename} placeholder="filename.pdf"
+                      @input=${(e: Event) => this._updateAttachment(i, 'filename', (e.target as HTMLInputElement).value)} />
+                    <input type="text" .value=${att.url} placeholder="https://cdn.example.com/file.pdf"
+                      @input=${(e: Event) => this._updateAttachment(i, 'url', (e.target as HTMLInputElement).value)} />
+                    <input type="text" .value=${att.contentType} placeholder="application/pdf"
+                      @input=${(e: Event) => this._updateAttachment(i, 'contentType', (e.target as HTMLInputElement).value)} />
+                    <button class="remove-btn" @click=${() => this._removeAttachment(i)} title="Remove">&times;</button>
+                  </div>
+                `,
+              )}
+              <div>
+                <button class="alx-btn-sm" @click=${this._addAttachment}>+ Add Attachment</button>
+              </div>
             </div>
           </div>
 

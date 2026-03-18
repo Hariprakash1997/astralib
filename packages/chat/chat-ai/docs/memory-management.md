@@ -108,6 +108,31 @@ memorySearch: {
 | `maxMemories` | `number` | -- | Maximum memories to inject |
 | `maxTokens` | `number` | -- | Token budget for injected memories |
 
+## Choosing a Search Strategy
+
+| Strategy | Best For | Performance | Requires |
+|----------|---------|-------------|----------|
+| `priority` | Small memory sets (<100). Returns all memories sorted by priority. No search filtering. | Fast -- simple DB query | Nothing extra |
+| `text` | Medium sets. MongoDB text index matches on content, key, tags. Good for keyword matching. | Moderate -- uses DB text index | MongoDB text index (auto-created) |
+| `custom` | Large sets, semantic search, vector similarity. Consumer provides search function. | Depends on implementation | Consumer's search function |
+
+```ts
+// Priority (default) -- just sort by priority
+memorySearch: { strategy: 'priority' }
+
+// Text -- MongoDB full-text search
+memorySearch: { strategy: 'text' }
+
+// Custom -- your own search (e.g., vector similarity via Pinecone)
+memorySearch: {
+  strategy: 'custom',
+  customSearch: async (query, scope, options) => {
+    const results = await pinecone.query(query, { topK: options.maxMemories });
+    return results.map(r => r.metadata.memoryId);
+  },
+}
+```
+
 ## Memory Creation Paths
 
 Memories can be created through three paths:
