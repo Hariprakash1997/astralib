@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.12.0
+
+### Minor Changes
+
+- 4dc407f: Feature: send window runtime configuration via Settings UI and PUT /throttle API
+
 ## 2.11.1
 
 ### Patch Changes

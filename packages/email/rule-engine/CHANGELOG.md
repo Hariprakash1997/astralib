@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 12.11.0
+
+### Minor Changes
+
+- 4dc407f: Feature: send window runtime configuration via Settings UI and PUT /throttle API
+
 ## 12.10.1
 
 ### Patch Changes
