@@ -1,5 +1,11 @@
 # @astralibx/email-analytics
 
+## 2.5.3
+
+### Patch Changes
+
+- 47242ec: Features: email template editor, draft schema, integration tests, SMTP updates. Fixes: rule schema, tsup configs
+
 ## 2.5.2
 
 ### Patch Changes

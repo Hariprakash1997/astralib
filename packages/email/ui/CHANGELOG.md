@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.8.0
+
+### Minor Changes
+
+- 47242ec: Features: email template editor, draft schema, integration tests, SMTP updates. Fixes: rule schema, tsup configs
+
 ## 2.7.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @astralibx/email-account-manager
 
+## 10.6.3
+
+### Patch Changes
+
+- 47242ec: Features: email template editor, draft schema, integration tests, SMTP updates. Fixes: rule schema, tsup configs
+
 ## 10.6.2
 
 ### Patch Changes
