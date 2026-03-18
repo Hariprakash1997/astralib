@@ -1,5 +1,11 @@
 # @astralibx/core
 
+## 1.2.2
+
+### Patch Changes
+
+- ef92089: Fixes: core CJS build missing noopLogger export
+
 ## 1.2.1
 
 ### Patch Changes
