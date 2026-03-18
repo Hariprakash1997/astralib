@@ -33,7 +33,7 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
     },
     conditions: [RuleConditionSchema],
     identifiers: [{ type: String }],
-    collection: { type: String }
+    collectionName: { type: String }
   }, { _id: false });
 
   const RuleRunStatsSchema = createRunStatsSchema();

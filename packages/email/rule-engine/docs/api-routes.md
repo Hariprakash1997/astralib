@@ -96,7 +96,7 @@ curl -X POST http://localhost:3000/api/email-rules/templates/preview \
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | Rule name |
-| `target` | object | yes | `{ role, platform, conditions[], mode?, identifiers? }`. Set `mode: "list"` and provide `identifiers` (string array of emails) for list-mode targeting |
+| `target` | object | yes | `{ role, platform, conditions[], mode?, identifiers?, collectionName? }`. Set `mode: "list"` and provide `identifiers` (string array of emails) for list-mode targeting. Set `collectionName` to enable field validation. |
 | `templateId` | string | yes | ID of the template to use |
 | `emailType` | string | no | Must be a valid email type |
 | `validFrom` | Date | no | Rule is inactive before this date |

@@ -19,7 +19,7 @@ export interface QueryTarget {
   role: string;
   platform: string;
   conditions: RuleCondition[];
-  collection?: string;
+  collectionName?: string;
 }
 
 export interface ListTarget {

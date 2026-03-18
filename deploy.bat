@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Feature: collection schema registration for field dropdowns, type-aware operators, template variable picker. Fixes: 14 bugs including userId string identifiers, run history field mapping, pagination, template deletion guard, cooldownDays, resendAfterDays 0, strict Handlebars, preheaderIndex. Refactor: DRY extraction of processSingleUser, asyncHandler, shared utilities, UI formatters. 236 tests."
+set "COMMIT_MSG=Fixes: renamed collection to collectionName to avoid Mongoose reserved key warning, added core as peer dependency, suppressed BullMQ repeated eviction warnings"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -34,7 +34,7 @@ REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES=email-rule-engine:minor,email-ui:minor"
+set "EMAIL_PACKAGES=email-account-manager:patch,email-rule-engine:patch,email-ui:patch"
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*

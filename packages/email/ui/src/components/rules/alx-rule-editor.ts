@@ -143,7 +143,7 @@ export class AlxRuleEditor extends LitElement {
           templateId: r.templateId ?? '',
           platform: target.platform ?? '',
           audience: target.role ?? '',
-          collection: target.collection ?? '',
+          collectionName: target.collectionName ?? '',
           targetMode: target.mode ?? 'query',
           target: {
             conditions: target.conditions ?? [],
@@ -166,8 +166,8 @@ export class AlxRuleEditor extends LitElement {
           validTill: r.validTill ? String(r.validTill).slice(0, 10) : '',
           isActive: r.isActive ?? true,
         };
-        if (target.collection) {
-          this._loadCollectionFields(target.collection);
+        if (target.collectionName) {
+          this._loadCollectionFields(target.collectionName);
         }
       }
     } catch (err) {
@@ -186,8 +186,8 @@ export class AlxRuleEditor extends LitElement {
       this._form = { ...this._form, targetMode: value as 'query' | 'list', target };
       return;
     }
-    if (field === 'collection') {
-      this._form = { ...this._form, collection: value as string };
+    if (field === 'collectionName') {
+      this._form = { ...this._form, collectionName: value as string };
       this._loadCollectionFields(value as string);
       return;
     }
@@ -249,7 +249,7 @@ export class AlxRuleEditor extends LitElement {
             role: this._form.audience || undefined,
             platform: this._form.platform || undefined,
             conditions: this._form.target.conditions ?? [],
-            ...(this._form.collection ? { collection: this._form.collection } : {}),
+            ...(this._form.collectionName ? { collectionName: this._form.collectionName } : {}),
           };
 
       const payload: Record<string, unknown> = {
@@ -487,13 +487,13 @@ export class AlxRuleEditor extends LitElement {
                   <div class="form-group form-group-full">
                     <label>Collection</label>
                     <select
-                      .value=${this._form.collection}
+                      .value=${this._form.collectionName}
                       @change=${(e: Event) =>
-                        this._updateField('collection', (e.target as HTMLSelectElement).value)}
+                        this._updateField('collectionName', (e.target as HTMLSelectElement).value)}
                     >
                       <option value="">No collection (free-text fields)</option>
                       ${this._collections.map(
-                        (c) => html`<option value=${c.name} ?selected=${this._form.collection === c.name}>
+                        (c) => html`<option value=${c.name} ?selected=${this._form.collectionName === c.name}>
                           ${c.label || c.name}
                         </option>`,
                       )}

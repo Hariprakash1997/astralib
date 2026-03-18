@@ -98,8 +98,8 @@ export class RuleService {
       }
     }
 
-    if (isQueryTarget(input.target) && input.target.collection && this.config.collections?.length) {
-      const condErrors = validateConditions(input.target.conditions, input.target.collection, this.config.collections);
+    if (isQueryTarget(input.target) && input.target.collectionName && this.config.collections?.length) {
+      const condErrors = validateConditions(input.target.conditions, input.target.collectionName, this.config.collections);
       if (condErrors.length > 0) {
         throw new RuleTemplateIncompatibleError(
           `Invalid conditions: ${condErrors.map(e => e.message).join('; ')}`
@@ -145,8 +145,8 @@ export class RuleService {
 
     if (isQueryTarget(effectiveTarget as RuleTarget)) {
       const qt = effectiveTarget as QueryTarget;
-      if (qt.collection && this.config.collections?.length) {
-        const condErrors = validateConditions(qt.conditions || [], qt.collection, this.config.collections);
+      if (qt.collectionName && this.config.collections?.length) {
+        const condErrors = validateConditions(qt.conditions || [], qt.collectionName, this.config.collections);
         if (condErrors.length > 0) {
           throw new RuleTemplateIncompatibleError(
             `Invalid conditions: ${condErrors.map(e => e.message).join('; ')}`
@@ -222,7 +222,7 @@ export class RuleService {
     }
 
     const queryTarget = rule.target as unknown as QueryTarget;
-    const collectionName = queryTarget.collection;
+    const collectionName = queryTarget.collectionName;
     const collectionSchema = collectionName
       ? this.config.collections?.find(c => c.name === collectionName)
       : undefined;

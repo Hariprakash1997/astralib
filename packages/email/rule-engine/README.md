@@ -15,6 +15,7 @@ npm install @astralibx/email-rule-engine
 
 | Peer Dependency | Version |
 |-----------------|---------|
+| `@astralibx/core` | `^1.2.0` |
 | `express` | `^4.18.0 \|\| ^5.0.0` |
 | `mongoose` | `^7.0.0 \|\| ^8.0.0` |
 | `ioredis` | `^5.0.0` |

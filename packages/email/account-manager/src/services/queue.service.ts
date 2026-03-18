@@ -67,6 +67,22 @@ export class QueueService {
 
     const connectionOpts = getRedisOptions(this.redis);
 
+    // Check eviction policy once and warn (instead of BullMQ repeating it per queue/worker)
+    try {
+      const info = await this.redis.config('GET', 'maxmemory-policy');
+      const policy = Array.isArray(info) ? info[1] : undefined;
+      if (policy && policy !== 'noeviction') {
+        this.logger.warn(`Redis maxmemory-policy is "${policy}". BullMQ requires "noeviction" to prevent job loss. Run: redis-cli CONFIG SET maxmemory-policy noeviction`);
+      }
+    } catch { /* Redis may not support CONFIG GET in managed environments */ }
+
+    // Suppress BullMQ's repeated eviction warnings (it checks on every Queue/Worker init)
+    const origWarn = console.warn;
+    console.warn = (...args: any[]) => {
+      if (typeof args[0] === 'string' && args[0].includes('Eviction policy')) return;
+      origWarn.apply(console, args);
+    };
+
     this.sendQueue = new Queue(sendQueueName, {
       connection: connectionOpts,
       prefix: keyPrefix,
@@ -96,6 +112,9 @@ export class QueueService {
         concurrency: queueSettings.approvalConcurrency,
       },
     );
+
+    // Restore console.warn after BullMQ init
+    console.warn = origWarn;
 
     this.sendWorker.on('failed', (job, err) => {
       this.logger.error('Send job failed', {

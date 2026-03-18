@@ -72,7 +72,7 @@ Create or edit email templates with MJML/Handlebars body, variable management, a
 - Template fields: key-value editor for template-level placeholder defaults
 - Category/audience/platform render as dropdowns when options are provided, text inputs otherwise
 - Variable tag management (add/remove, displayed as `{{variableName}}` chips)
-- **"Insert Variable" buttons** next to subject, body, and text body fields — opens a picker overlay showing collection fields grouped by collection. Clicking a field inserts `{{collection.fieldPath}}` and auto-adds it to the variables list. Falls back to manual typing when no collections are configured.
+- **"Insert Variable" buttons** next to subject, body, and text body fields — opens a picker overlay showing collection fields grouped by collection. Clicking a field inserts `{{collectionName.fieldPath}}` (e.g. `{{users.email}}`) and auto-adds it to the variables list. Falls back to manual typing when no collections are configured.
 - Info hints for each form section
 - Delete button in edit mode (dispatches `alx-template-deleted`)
 - "Preview" button renders MJML bodies via the API and displays in an iframe

@@ -71,7 +71,7 @@ Query mode uses `queryUsers` to find recipients by conditions. This is the stand
     mode: 'query',
     role: 'customer',
     platform: 'web',
-    collection: 'users',  // optional — enables field dropdowns and validation in the UI
+    collectionName: 'users',  // optional — enables field dropdowns and validation in the UI
     conditions: [
       { field: 'subscription.status', operator: 'eq', value: 'expired' },
     ],
@@ -79,7 +79,7 @@ Query mode uses `queryUsers` to find recipients by conditions. This is the stand
 }
 ```
 
-The optional `collection` field links the rule to a registered collection schema. When set, the admin UI shows field dropdowns instead of free-text inputs and validates conditions against the schema on save. See [collections.md](collections.md).
+The optional `collectionName` field links the rule to a registered collection schema. When set, the admin UI shows field dropdowns instead of free-text inputs and validates conditions against the schema on save. See [collections.md](collections.md).
 
 ### List Mode
 

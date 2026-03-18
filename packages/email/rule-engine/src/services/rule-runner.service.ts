@@ -607,7 +607,7 @@ export class RuleRunnerService {
     const limit = rule.maxPerRun || this.config.options?.defaultMaxPerRun || 500;
     let users: Record<string, unknown>[];
     try {
-      const collectionName = rule.target?.collection;
+      const collectionName = rule.target?.collectionName;
       const collectionSchema = collectionName
         ? this.config.collections?.find((c: any) => c.name === collectionName)
         : undefined;

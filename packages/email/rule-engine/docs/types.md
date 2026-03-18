@@ -57,7 +57,7 @@ import {
 | `CreateEmailRuleInput` | Input for creating a rule. Required: `name`, `target`, `templateId`. All scheduling/throttle fields optional with sensible defaults. |
 | `UpdateEmailRuleInput` | Partial input for updating a rule. All fields optional including `isActive`. |
 | `RuleTarget` | Union type: `QueryTarget \| ListTarget`. |
-| `QueryTarget` | Query-based targeting. Fields: `mode: 'query'`, `role: string`, `platform: string`, `conditions: RuleCondition[]`, `collection?: string`. |
+| `QueryTarget` | Query-based targeting. Fields: `mode: 'query'`, `role: string`, `platform: string`, `conditions: RuleCondition[]`, `collectionName?: string`. |
 | `ListTarget` | List-based targeting. Fields: `mode: 'list'`, `identifiers: string[]`. |
 | `RuleCondition` | Single filter condition. Fields: `field: string`, `operator: RuleOperator`, `value: unknown`. |
 | `RuleRunStats` | Aggregated stats for a run. Fields: `matched`, `sent`, `skipped`, `skippedByThrottle`, `errorCount` (all `number`). |

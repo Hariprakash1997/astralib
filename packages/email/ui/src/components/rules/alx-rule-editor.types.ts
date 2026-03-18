@@ -41,7 +41,7 @@ export interface RuleData {
   templateId: string;
   platform: string;
   audience: string;
-  collection: string;
+  collectionName: string;
   targetMode: 'query' | 'list';
   target: {
     conditions: Condition[];
@@ -70,7 +70,7 @@ export const EMPTY_RULE: RuleData = {
   templateId: '',
   platform: '',
   audience: '',
-  collection: '',
+  collectionName: '',
   targetMode: 'query',
   target: { conditions: [], identifiers: [] },
   behavior: {

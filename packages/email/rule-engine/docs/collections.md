@@ -56,7 +56,7 @@ const engine = createEmailRuleEngine({
 
 - **"Insert Variable"** buttons appear next to subject, body, and text fields
 - Clicking opens a picker showing fields grouped by collection
-- Clicking a field inserts `{{collection.fieldPath}}` and auto-adds it to the variables list
+- Clicking a field inserts `{{collectionName.fieldPath}}` (e.g. `{{users.email}}`) and auto-adds it to the variables list
 
 ### In the Backend
 
