@@ -72,6 +72,7 @@ Create or edit email templates with MJML/Handlebars body, variable management, a
 - Template fields: key-value editor for template-level placeholder defaults
 - Category/audience/platform render as dropdowns when options are provided, text inputs otherwise
 - Variable tag management (add/remove, displayed as `{{variableName}}` chips)
+- **"Insert Variable" buttons** next to subject, body, and text body fields — opens a picker overlay showing collection fields grouped by collection. Clicking a field inserts `{{collection.fieldPath}}` and auto-adds it to the variables list. Falls back to manual typing when no collections are configured.
 - Info hints for each form section
 - Delete button in edit mode (dispatches `alx-template-deleted`)
 - "Preview" button renders MJML bodies via the API and displays in an iframe
@@ -157,7 +158,8 @@ Create or edit an automation rule with condition builder, template selection, an
 ### Features
 - Fields: name, template (dropdown populated from API), platform, audience
 - **Targeting mode** toggle: Query or List. Query mode uses the condition builder; List mode shows a textarea for entering email identifiers directly.
-- **Target Conditions** builder (Query mode): add/remove condition rows with field path, operator (equals, not_equals, contains, gt, gte, lt, lte, in, exists), and value
+- **Collection picker** (Query mode): when collections are configured in the backend, a "Collection" dropdown appears. Selecting a collection replaces free-text field inputs with dropdowns showing actual field paths, auto-filters operators by field type, and adapts value inputs (enum → dropdown, boolean → toggle, date → date picker, number → number input)
+- **Target Conditions** builder (Query mode): add/remove condition rows with field path, operator (equals, not_equals, contains, gt, gte, lt, lte, in, exists), and value. When a collection is selected, field and operator dropdowns are type-aware
 - **Validity dates**: `validFrom` and `validTill` date pickers to constrain when the rule is active
 - Delete button in edit mode (dispatches `alx-rule-deleted`)
 - **Schedule** settings: cron expression, timezone, and enable/disable toggle for scheduled rule execution

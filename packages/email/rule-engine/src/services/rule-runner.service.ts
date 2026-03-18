@@ -547,7 +547,11 @@ export class RuleRunnerService {
     const limit = rule.maxPerRun || this.config.options?.defaultMaxPerRun || 500;
     let users: Record<string, unknown>[];
     try {
-      users = await this.config.adapters.queryUsers(rule.target, limit);
+      const collectionName = rule.target?.collection;
+      const collectionSchema = collectionName
+        ? this.config.collections?.find((c: any) => c.name === collectionName)
+        : undefined;
+      users = await this.config.adapters.queryUsers(rule.target, limit, collectionSchema ? { collectionSchema } : undefined);
     } catch (err) {
       this.logger.error(`Rule "${rule.name}": query failed`, { error: err });
       stats.errorCount = 1;

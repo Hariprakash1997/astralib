@@ -378,6 +378,51 @@ describe('Email Rule Engine — Integration', () => {
     });
   });
 
+  // ─── 4b. List-mode with email-string identifiers (non-ObjectId) ─
+
+  describe('List-mode with email-string identifiers', () => {
+    it('should accept email strings as userId in send logs (#61)', async () => {
+      await deactivateAllRules();
+      await clearRunData();
+
+      const template = await engine.templateService.create({
+        name: 'String ID Template',
+        slug: 'string-id-template',
+        category: 'onboarding',
+        audience: 'customer',
+        platform: 'test',
+        subjects: ['Hi'],
+        bodies: ['Hello'],
+      });
+
+      const rule = await engine.ruleService.create({
+        name: 'String ID Rule',
+        target: {
+          mode: 'list',
+          identifiers: ['user@example.com'],
+        },
+        templateId: template._id.toString(),
+        sendOnce: true,
+      });
+
+      await engine.ruleService.toggleActive(rule._id.toString());
+
+      // Return email strings as identifiers — NOT ObjectIds
+      findIdentifier.mockResolvedValue({ id: 'user@example.com', contactId: 'user@example.com' });
+      resolveData.mockReturnValue({ name: 'User' });
+      sendEmail.mockResolvedValue(undefined);
+      selectAgent.mockResolvedValue({ accountId: 'acc1', email: 'sender@test.com', metadata: {} });
+
+      await engine.runner.runAllRules();
+
+      expect(sendEmail).toHaveBeenCalledTimes(1);
+
+      const sends = await engine.models.EmailRuleSend.find({ ruleId: rule._id });
+      expect(sends).toHaveLength(1);
+      expect(sends[0].userId).toBe('user@example.com');
+    });
+  });
+
   // ─── 5. Template fields merge ───────────────────────────────────
 
   describe('Template fields merge', () => {

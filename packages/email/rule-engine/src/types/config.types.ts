@@ -2,6 +2,7 @@ import type { Connection } from 'mongoose';
 import type { Redis } from 'ioredis';
 import type { LogAdapter } from '@astralibx/core';
 import type { RuleTarget, RuleRunStats, PerRuleStats } from './rule.types';
+import type { CollectionSchema } from './collection.types';
 
 export type { LogAdapter } from '@astralibx/core';
 
@@ -78,8 +79,10 @@ export interface EmailRuleEngineConfig {
     keyPrefix?: string;
   };
 
+  collections?: CollectionSchema[];
+
   adapters: {
-    queryUsers: (target: RuleTarget, limit: number) => Promise<Record<string, unknown>[]>;
+    queryUsers: (target: RuleTarget, limit: number, context?: { collectionSchema?: CollectionSchema }) => Promise<Record<string, unknown>[]>;
     resolveData: (user: Record<string, unknown>) => Record<string, unknown>;
     sendEmail: (params: SendEmailParams) => Promise<void>;
     selectAgent: (identifierId: string, context?: { ruleId: string; templateId: string }) => Promise<AgentSelection | null>;

@@ -4,6 +4,7 @@ import { createRuleController } from '../controllers/rule.controller';
 import { createRunnerController } from '../controllers/runner.controller';
 import { createSettingsController } from '../controllers/settings.controller';
 import { createSendLogController } from '../controllers/send-log.controller';
+import { createCollectionController } from '../controllers/collection.controller';
 import type { TemplateService } from '../services/template.service';
 import type { RuleService } from '../services/rule.service';
 import type { RuleRunnerService } from '../services/rule-runner.service';
@@ -11,6 +12,7 @@ import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
 import type { EmailRuleSendModel } from '../schemas/rule-send.schema';
 import type { EmailThrottleConfigModel } from '../schemas/throttle-config.schema';
 import type { LogAdapter } from '../types/config.types';
+import type { CollectionSchema } from '../types/collection.types';
 
 export interface RoutesDeps {
   templateService: TemplateService;
@@ -23,6 +25,7 @@ export interface RoutesDeps {
   categoryValues?: string[];
   audienceValues?: string[];
   logger?: LogAdapter;
+  collections?: CollectionSchema[];
 }
 
 export function createRoutes(deps: RoutesDeps): Router {
@@ -40,6 +43,7 @@ export function createRoutes(deps: RoutesDeps): Router {
   const runnerCtrl = createRunnerController(deps.runnerService, deps.EmailRuleRunLog, deps.logger);
   const settingsCtrl = createSettingsController(deps.EmailThrottleConfig);
   const sendLogCtrl = createSendLogController(deps.EmailRuleSend);
+  const collectionCtrl = createCollectionController(deps.collections || []);
 
   const templateRouter = Router();
   templateRouter.get('/', templateCtrl.list);
@@ -75,10 +79,15 @@ export function createRoutes(deps: RoutesDeps): Router {
   const sendLogRouter = Router();
   sendLogRouter.get('/', sendLogCtrl.list);
 
+  const collectionRouter = Router();
+  collectionRouter.get('/', collectionCtrl.list);
+  collectionRouter.get('/:name/fields', collectionCtrl.getFields);
+
   router.use('/templates', templateRouter);
   router.use('/rules', ruleRouter);
   router.use('/runner', runnerRouter);
   router.use('/sends', sendLogRouter);
+  router.use('/collections', collectionRouter);
   router.get('/throttle', settingsCtrl.getThrottleConfig);
   router.put('/throttle', settingsCtrl.updateThrottleConfig);
 

@@ -44,6 +44,10 @@ export const ruleEditorStyles = css`
     flex-shrink: 0;
   }
 
+  .condition-no-value {
+    flex: 1;
+  }
+
   .checkbox-group {
     display: flex;
     align-items: center;

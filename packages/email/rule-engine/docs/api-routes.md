@@ -160,6 +160,46 @@ curl -X POST http://localhost:3000/api/email-rules/rules \
 }
 ```
 
+## Collections
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/collections` | List registered collections (name, label, field count, join count) |
+| `GET` | `/collections/:name/fields` | Get flattened fields for a collection (includes joined fields and type-operator mapping) |
+
+These endpoints are read-only — collections are defined in the engine config, not via API.
+
+**List collections response:**
+
+```json
+{
+  "collections": [
+    { "name": "users", "label": "Users", "identifierField": "email", "fieldCount": 6, "joinCount": 1 }
+  ]
+}
+```
+
+**Get fields response:**
+
+```json
+{
+  "name": "users",
+  "label": "Users",
+  "identifierField": "email",
+  "fields": [
+    { "path": "name", "type": "string", "label": "Full Name" },
+    { "path": "address.city", "type": "string" },
+    { "path": "orders[].amount", "type": "number", "isArray": true },
+    { "path": "role", "type": "string", "enumValues": ["customer", "provider"] }
+  ],
+  "typeOperators": {
+    "string": ["eq", "neq", "contains", "in", "not_in", "exists", "not_exists"],
+    "number": ["eq", "neq", "gt", "gte", "lt", "lte", "in", "not_in", "exists", "not_exists"],
+    "boolean": ["eq", "neq", "exists", "not_exists"]
+  }
+}
+```
+
 ## Throttle
 
 | Method | Path | Description |

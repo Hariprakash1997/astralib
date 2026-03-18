@@ -31,7 +31,8 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
       ...(platformValues ? { enum: platformValues } : {})
     },
     conditions: [RuleConditionSchema],
-    identifiers: [{ type: String }]
+    identifiers: [{ type: String }],
+    collection: { type: String }
   }, { _id: false });
 
   const RuleRunStatsSchema = new Schema({

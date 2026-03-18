@@ -93,6 +93,7 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleE
     categoryValues: config.categories,
     audienceValues: config.audiences,
     logger: config.logger,
+    collections: config.collections || [],
   });
 
   return {
@@ -108,6 +109,8 @@ export * from './types';
 export * from './constants';
 export * from './errors';
 export { validateConfig } from './validation/config.schema';
+export { validateConditions, type ConditionValidationError } from './validation/condition.validator';
+export { flattenFields } from './controllers/collection.controller';
 export * from './schemas';
 export { TemplateRenderService, type RenderResult, type CompiledTemplate } from './services/template-render.service';
 export { TemplateService } from './services/template.service';

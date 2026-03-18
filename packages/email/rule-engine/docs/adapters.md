@@ -7,10 +7,10 @@ Adapters are the bridge between the engine and your application. You provide fun
 Finds users matching a rule's targeting conditions. Called once per rule at the start of execution.
 
 ```typescript
-(target: RuleTarget, limit: number) => Promise<Record<string, unknown>[]>
+(target: RuleTarget, limit: number, context?: { collectionSchema?: CollectionSchema }) => Promise<Record<string, unknown>[]>
 ```
 
-- `target` contains `role` (audience), `platform`, and a `conditions[]` array
+- `target` contains `role` (audience), `platform`, `conditions[]` array, and optionally `collection` (the selected collection name)
 - `limit` comes from `rule.maxPerRun` or `config.options.defaultMaxPerRun`
 - Each returned object **must** have `_id` and `email` fields
 
@@ -67,7 +67,8 @@ function buildMongoQuery(conditions: RuleCondition[]): Record<string, unknown> {
   return query;
 }
 
-async function queryUsers(target: RuleTarget, limit: number) {
+async function queryUsers(target: RuleTarget, limit: number, context?: { collectionSchema?: CollectionSchema }) {
+  // context.collectionSchema is available when the rule targets a registered collection
   return User.find({
     role: target.role,
     platform: target.platform,
@@ -75,6 +76,10 @@ async function queryUsers(target: RuleTarget, limit: number) {
   }).limit(limit).lean();
 }
 ```
+
+### Collection context
+
+When a rule has a `collection` selected, the third argument contains the full `CollectionSchema` object. You can use this to auto-cast values (e.g., parse date strings), validate field paths, or build more intelligent queries. Existing adapters that ignore the third argument continue to work unchanged.
 
 ### Common mistakes
 

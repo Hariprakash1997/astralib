@@ -16,6 +16,9 @@ export type {
   EmailRuleEngineConfig, SendEmailParams, AgentSelection,
   RecipientIdentifier, LogAdapter, BeforeSendParams, BeforeSendResult
 } from './config.types';
+export type {
+  FieldType, FieldDefinition, JoinDefinition, CollectionSchema, FlattenedField
+} from './collection.types';
 
 export {
   AlxEmailError, ConfigValidationError, TemplateNotFoundError,

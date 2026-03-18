@@ -2,9 +2,9 @@ import { Schema, Model, Types, HydratedDocument } from 'mongoose';
 
 export interface IEmailRuleSend {
   ruleId: Types.ObjectId;
-  userId: Types.ObjectId;
-  emailIdentifierId?: Types.ObjectId;
-  messageId?: Types.ObjectId;
+  userId: string;
+  emailIdentifierId?: string;
+  messageId?: string;
   sentAt: Date;
   status?: string;
   accountId?: string;
@@ -19,13 +19,13 @@ export interface IEmailRuleSend {
 export type EmailRuleSendDocument = HydratedDocument<IEmailRuleSend>;
 
 export interface EmailRuleSendStatics {
-  findLatestForUser(ruleId: string | Types.ObjectId, userId: string | Types.ObjectId): Promise<EmailRuleSendDocument | null>;
-  findRecentByUserIds(userIds: (string | Types.ObjectId)[], sinceDays: number): Promise<EmailRuleSendDocument[]>;
+  findLatestForUser(ruleId: string | Types.ObjectId, userId: string): Promise<EmailRuleSendDocument | null>;
+  findRecentByUserIds(userIds: string[], sinceDays: number): Promise<EmailRuleSendDocument[]>;
   logSend(
     ruleId: string | Types.ObjectId,
-    userId: string | Types.ObjectId,
-    emailIdentifierId?: string | Types.ObjectId,
-    messageId?: string | Types.ObjectId,
+    userId: string,
+    emailIdentifierId?: string,
+    messageId?: string,
     extra?: { status?: string; accountId?: string; senderName?: string; subject?: string; subjectIndex?: number; bodyIndex?: number; preheaderIndex?: number; failureReason?: string }
   ): Promise<EmailRuleSendDocument>;
 }
@@ -36,9 +36,9 @@ export function createEmailRuleSendSchema(collectionPrefix?: string) {
   const schema = new Schema<IEmailRuleSend>(
     {
       ruleId: { type: Schema.Types.ObjectId, ref: 'EmailRule', required: true },
-      userId: { type: Schema.Types.ObjectId, required: true },
-      emailIdentifierId: { type: Schema.Types.ObjectId },
-      messageId: { type: Schema.Types.ObjectId },
+      userId: { type: String, required: true },
+      emailIdentifierId: { type: String },
+      messageId: { type: String },
       sentAt: { type: Date, required: true, default: () => new Date() },
       status: { type: String },
       accountId: { type: String },
@@ -53,11 +53,11 @@ export function createEmailRuleSendSchema(collectionPrefix?: string) {
       collection: `${collectionPrefix || ''}email_rule_sends`,
 
       statics: {
-        findLatestForUser(ruleId: string | Types.ObjectId, userId: string | Types.ObjectId) {
+        findLatestForUser(ruleId: string | Types.ObjectId, userId: string) {
           return this.findOne({ ruleId, userId }).sort({ sentAt: -1 });
         },
 
-        findRecentByUserIds(userIds: (string | Types.ObjectId)[], sinceDays: number) {
+        findRecentByUserIds(userIds: string[], sinceDays: number) {
           const since = new Date(Date.now() - sinceDays * 86400000);
           return this.find({
             userId: { $in: userIds },
@@ -67,9 +67,9 @@ export function createEmailRuleSendSchema(collectionPrefix?: string) {
 
         async logSend(
           ruleId: string | Types.ObjectId,
-          userId: string | Types.ObjectId,
-          emailIdentifierId?: string | Types.ObjectId,
-          messageId?: string | Types.ObjectId,
+          userId: string,
+          emailIdentifierId?: string,
+          messageId?: string,
           extra?: { status?: string; accountId?: string; senderName?: string; subject?: string; subjectIndex?: number; bodyIndex?: number; preheaderIndex?: number; failureReason?: string }
         ) {
           return this.create({

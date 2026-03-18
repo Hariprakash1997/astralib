@@ -186,4 +186,108 @@ export const templateEditorStyles = css`
     margin-bottom: 0.75rem;
     line-height: 1.5;
   }
+
+  .insert-var-btn {
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
+  .variable-picker-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .variable-picker {
+    background: var(--alx-bg, #fff);
+    border: 1px solid var(--alx-border);
+    border-radius: var(--alx-radius);
+    padding: 1rem;
+    min-width: 340px;
+    max-width: 500px;
+    max-height: 70vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  }
+
+  .variable-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--alx-border);
+  }
+
+  .variable-picker-collections {
+    display: flex;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+
+  .coll-btn {
+    padding: 0.2rem 0.5rem;
+    font-size: 0.7rem;
+    border: 1px solid var(--alx-border);
+    border-radius: var(--alx-radius);
+    background: var(--alx-surface);
+    color: var(--alx-text-muted);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+
+  .coll-btn:hover {
+    border-color: var(--alx-primary);
+    color: var(--alx-primary);
+  }
+
+  .coll-btn.active {
+    background: var(--alx-primary);
+    color: #fff;
+    border-color: var(--alx-primary);
+  }
+
+  .variable-picker-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .field-btn {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.375rem 0.5rem;
+    border: 1px solid var(--alx-border);
+    border-radius: var(--alx-radius);
+    background: var(--alx-surface);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+  }
+
+  .field-btn:hover {
+    border-color: var(--alx-primary);
+    background: color-mix(in srgb, var(--alx-primary) 8%, transparent);
+  }
+
+  .field-path {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--alx-text);
+  }
+
+  .field-type {
+    font-size: 0.7rem;
+    color: var(--alx-text-muted);
+    padding: 0.1rem 0.3rem;
+    background: color-mix(in srgb, var(--alx-text-muted) 10%, transparent);
+    border-radius: 3px;
+  }
 `;

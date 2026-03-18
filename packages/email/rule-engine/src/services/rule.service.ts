@@ -4,6 +4,7 @@ import type { EmailRuleRunLogModel } from '../schemas/run-log.schema';
 import type { CreateEmailRuleInput, UpdateEmailRuleInput, RuleTarget, QueryTarget } from '../types/rule.types';
 import type { EmailRuleEngineConfig } from '../types/config.types';
 import { TemplateNotFoundError, RuleNotFoundError, RuleTemplateIncompatibleError } from '../errors';
+import { validateConditions } from '../validation/condition.validator';
 
 function isQueryTarget(target: RuleTarget): target is QueryTarget {
   return !target.mode || target.mode === 'query';
@@ -87,6 +88,15 @@ export class RuleService {
       }
     }
 
+    if (isQueryTarget(input.target) && input.target.collection && this.config.collections?.length) {
+      const condErrors = validateConditions(input.target.conditions, input.target.collection, this.config.collections);
+      if (condErrors.length > 0) {
+        throw new RuleTemplateIncompatibleError(
+          `Invalid conditions: ${condErrors.map(e => e.message).join('; ')}`
+        );
+      }
+    }
+
     return this.EmailRule.createRule(input);
   }
 
@@ -120,6 +130,18 @@ export class RuleService {
       const compatError = validateRuleTemplateCompat(qt.role, qt.platform, template);
       if (compatError) {
         throw new RuleTemplateIncompatibleError(compatError);
+      }
+    }
+
+    if (isQueryTarget(effectiveTarget as RuleTarget)) {
+      const qt = effectiveTarget as QueryTarget;
+      if (qt.collection && this.config.collections?.length) {
+        const condErrors = validateConditions(qt.conditions || [], qt.collection, this.config.collections);
+        if (condErrors.length > 0) {
+          throw new RuleTemplateIncompatibleError(
+            `Invalid conditions: ${condErrors.map(e => e.message).join('; ')}`
+          );
+        }
       }
     }
 
@@ -194,7 +216,12 @@ export class RuleService {
       return { matchedCount, effectiveLimit, willProcess, ruleId: id, sample };
     }
 
-    const users = await this.config.adapters.queryUsers(rule.target, 50000);
+    const queryTarget = rule.target as unknown as QueryTarget;
+    const collectionName = queryTarget.collection;
+    const collectionSchema = collectionName
+      ? this.config.collections?.find(c => c.name === collectionName)
+      : undefined;
+    const users = await this.config.adapters.queryUsers(rule.target, 50000, collectionSchema ? { collectionSchema } : undefined);
     const matchedCount = users.length;
     const willProcess = Math.min(matchedCount, effectiveLimit);
     const sample = users.slice(0, 10).map((u: any) => ({

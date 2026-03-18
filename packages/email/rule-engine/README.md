@@ -96,6 +96,7 @@ The `createEmailRuleEngine(config)` factory accepts an `EmailRuleEngineConfig` o
 | `db` | Yes | Mongoose connection and optional collection prefix |
 | `redis` | Yes | ioredis connection for distributed locking |
 | `adapters` | Yes | 5 required + 1 optional function bridging your app to the engine |
+| `collections` | No | MongoDB collection schemas for field dropdowns, type-aware operators, and validation |
 | `platforms` | No | Valid platform values for schema validation |
 | `audiences` | No | Valid audience/role values for schema validation |
 | `categories` | No | Valid template categories for schema validation |
@@ -113,6 +114,8 @@ See [docs/configuration.md](https://github.com/Hariprakash1997/astralib/blob/mai
 4. [Rules](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/rules.md) — Define targeting rules with conditions or explicit lists
 5. [Execution Flow](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/execution-flow.md) — Understand how the runner processes rules
 6. [Throttling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/throttling.md) — Configure per-user send limits
+
+7. [Collections](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/collections.md) — Register collection schemas for field dropdowns and type-aware validation
 
 Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/api-routes.md) | [Programmatic API](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/programmatic-api.md) | [Types](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/types.md) | [Constants](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/constants.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/docs/error-handling.md)
 

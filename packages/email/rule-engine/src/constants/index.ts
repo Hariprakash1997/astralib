@@ -76,3 +76,5 @@ export const RUN_LOG_STATUS = {
 } as const;
 
 export type RunLogStatus = (typeof RUN_LOG_STATUS)[keyof typeof RUN_LOG_STATUS];
+
+export { FIELD_TYPE, TYPE_OPERATORS, type FieldType } from './field-types';

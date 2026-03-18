@@ -66,6 +66,18 @@ Each rule has conditions that filter eligible recipients. Conditions use field p
 Use <strong>Dry Run</strong> to see which users would be matched without actually sending.`,
   },
   {
+    title: 'Collections',
+    content: `Collections let developers register MongoDB collection schemas so the admin UI can show real field names instead of free-text inputs.
+
+<strong>When configured:</strong>
+- <strong>Rule Editor:</strong> A "Collection" dropdown appears in the targeting section. Selecting a collection replaces free-text field inputs with dropdowns showing actual field paths (e.g. <code>address.city</code>, <code>orders[].amount</code>). Operators auto-filter by field type — boolean fields only show <code>eq</code>/<code>neq</code>, number fields include <code>gt</code>/<code>lt</code>, etc.
+- <strong>Template Editor:</strong> "Insert Variable" buttons appear next to subject, body, and text fields. Clicking opens a picker showing fields grouped by collection. Clicking a field inserts <code>{{collection.fieldPath}}</code> at the cursor and auto-adds it to the variables list.
+- <strong>Validation:</strong> When saving a rule with a collection selected, the backend validates that condition fields exist and operators are compatible with the field type.
+- <strong>Adapter Context:</strong> During rule execution, <code>queryUsers</code> receives the collection schema as an optional third argument, so your adapter can use it for smarter queries.
+
+<strong>When not configured:</strong> Everything falls back to free-text inputs — no breaking changes.`,
+  },
+  {
     title: 'Throttling',
     content: `Throttle settings prevent email fatigue by limiting how often any single user receives emails.
 

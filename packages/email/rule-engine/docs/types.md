@@ -13,6 +13,9 @@ import type {
   RecipientIdentifier, BeforeSendParams, BeforeSendResult,
   LogAdapter, RenderResult, CompiledTemplate,
   EmailRuleEngine, EmailAttachment,
+  // Collection schema types
+  CollectionSchema, FieldDefinition, JoinDefinition,
+  FlattenedField, FieldType, ConditionValidationError,
   // Constants (value + type)
   TemplateCategory, TemplateAudience, RuleOperator,
   EmailType, RunTrigger, ThrottleWindow, EmailSendStatus,
@@ -54,7 +57,7 @@ import {
 | `CreateEmailRuleInput` | Input for creating a rule. Required: `name`, `target`, `templateId`. All scheduling/throttle fields optional with sensible defaults. |
 | `UpdateEmailRuleInput` | Partial input for updating a rule. All fields optional including `isActive`. |
 | `RuleTarget` | Union type: `QueryTarget \| ListTarget`. |
-| `QueryTarget` | Query-based targeting. Fields: `mode: 'query'`, `role: string`, `platform: string`, `conditions: RuleCondition[]`. |
+| `QueryTarget` | Query-based targeting. Fields: `mode: 'query'`, `role: string`, `platform: string`, `conditions: RuleCondition[]`, `collection?: string`. |
 | `ListTarget` | List-based targeting. Fields: `mode: 'list'`, `identifiers: string[]`. |
 | `RuleCondition` | Single filter condition. Fields: `field: string`, `operator: RuleOperator`, `value: unknown`. |
 | `RuleRunStats` | Aggregated stats for a run. Fields: `matched`, `sent`, `skipped`, `skippedByThrottle`, `errorCount` (all `number`). |
@@ -80,7 +83,7 @@ import {
 
 ```ts
 adapters: {
-  queryUsers: (target: RuleTarget, limit: number) => Promise<Record<string, unknown>[]>;
+  queryUsers: (target: RuleTarget, limit: number, context?: { collectionSchema?: CollectionSchema }) => Promise<Record<string, unknown>[]>;
   resolveData: (user: Record<string, unknown>) => Record<string, unknown>;
   sendEmail: (params: SendEmailParams) => Promise<void>;
   selectAgent: (
@@ -110,6 +113,17 @@ hooks?: {
   beforeSend?: (params: BeforeSendParams) => Promise<BeforeSendResult>;
 }
 ```
+
+## Collection Types
+
+| Type | Description |
+|------|-------------|
+| `CollectionSchema` | Collection schema definition. Fields: `name: string`, `label?: string`, `description?: string`, `identifierField?: string`, `fields: FieldDefinition[]`, `joins?: JoinDefinition[]`. |
+| `FieldDefinition` | Field schema. Fields: `name: string`, `type: FieldType`, `label?: string`, `description?: string`, `enumValues?: string[]`, `fields?: FieldDefinition[]` (for nested object/array types). |
+| `JoinDefinition` | Join between collections. Fields: `from: string`, `localField: string`, `foreignField: string`, `as: string`. |
+| `FlattenedField` | Flattened field returned by the API. Fields: `path: string`, `type: FieldType`, `label?: string`, `description?: string`, `enumValues?: string[]`, `isArray?: boolean`. |
+| `FieldType` | `'string' \| 'number' \| 'boolean' \| 'date' \| 'objectId' \| 'array' \| 'object'` |
+| `ConditionValidationError` | Validation error. Fields: `index: number`, `field: string`, `message: string`. |
 
 ## Throttle Types
 
@@ -256,6 +270,10 @@ Schema factory functions: `createEmailTemplateSchema()`, `createEmailRuleSchema(
 |--------|-------------|
 | `createEmailRuleEngine(config)` | Factory function. Returns `EmailRuleEngine`. |
 | `validateConfig(config)` | Validates `EmailRuleEngineConfig`, throws `ConfigValidationError` on failure. |
+| `validateConditions(conditions, collectionName, collections)` | Validates rule conditions against a collection schema. Returns `ConditionValidationError[]`. |
+| `flattenFields(fields, prefix?)` | Flattens nested `FieldDefinition[]` into `FlattenedField[]` with dot-notation paths. |
+| `TYPE_OPERATORS` | `Record<FieldType, string[]>` — which operators are valid for each field type. |
+| `FIELD_TYPE` | Enum object: `{ String: 'string', Number: 'number', Boolean: 'boolean', Date: 'date', ObjectId: 'objectId', Array: 'array', Object: 'object' }`. |
 | `TemplateService` | CRUD operations for templates. |
 | `RuleService` | CRUD operations for rules. |
 | `RuleRunnerService` | Executes rule runs. Methods: `run()`, `getRunStatus()`, `cancelRun()`. |

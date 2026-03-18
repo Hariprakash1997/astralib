@@ -4,6 +4,32 @@ export interface Condition {
   value: string;
 }
 
+export interface CollectionField {
+  path: string;
+  type: string;
+  label?: string;
+  description?: string;
+  enumValues?: string[];
+  isArray?: boolean;
+}
+
+export interface CollectionSummary {
+  name: string;
+  label?: string;
+  description?: string;
+  fieldCount: number;
+}
+
+export const TYPE_OPERATORS: Record<string, string[]> = {
+  string: ['eq', 'neq', 'contains', 'in', 'not_in', 'exists', 'not_exists'],
+  number: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'not_in', 'exists', 'not_exists'],
+  boolean: ['eq', 'neq', 'exists', 'not_exists'],
+  date: ['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'exists', 'not_exists'],
+  objectId: ['eq', 'neq', 'in', 'not_in', 'exists', 'not_exists'],
+  array: ['contains', 'in', 'not_in', 'exists', 'not_exists'],
+  object: ['exists', 'not_exists'],
+};
+
 export interface TemplateOption {
   _id: string;
   name: string;
@@ -15,6 +41,7 @@ export interface RuleData {
   templateId: string;
   platform: string;
   audience: string;
+  collection: string;
   targetMode: 'query' | 'list';
   target: {
     conditions: Condition[];
@@ -43,6 +70,7 @@ export const EMPTY_RULE: RuleData = {
   templateId: '',
   platform: '',
   audience: '',
+  collection: '',
   targetMode: 'query',
   target: { conditions: [], identifiers: [] },
   behavior: {

@@ -52,6 +52,12 @@ export class AlxTemplateEditor extends LitElement {
   @state() private _previewing = false;
   @state() private _newVariable = '';
   @state() private _newFieldKey = '';
+  @state() private _showVariablePicker = false;
+  @state() private _variablePickerTarget: 'subject' | 'body' | 'text' = 'subject';
+  @state() private _variablePickerIndex = 0;
+  @state() private _pickerCollections: Array<{ name: string; label?: string }> = [];
+  @state() private _pickerFields: Array<{ path: string; type: string; label?: string }> = [];
+  @state() private _pickerSelectedCollection = '';
 
   private __api?: RuleAPI;
   private get _api(): RuleAPI {
@@ -190,6 +196,63 @@ export class AlxTemplateEditor extends LitElement {
     this._form = { ...this._form, attachments };
   }
 
+  private async _openVariablePicker(target: 'subject' | 'body' | 'text', index = 0): Promise<void> {
+    this._variablePickerTarget = target;
+    this._variablePickerIndex = index;
+    this._showVariablePicker = true;
+
+    if (this._pickerCollections.length === 0) {
+      try {
+        const res = await this._api.listCollections() as { collections: Array<{ name: string; label?: string }> };
+        this._pickerCollections = res.collections ?? [];
+        if (this._pickerCollections.length > 0 && !this._pickerSelectedCollection) {
+          this._pickerSelectedCollection = this._pickerCollections[0].name;
+          await this._loadPickerFields(this._pickerSelectedCollection);
+        }
+      } catch {
+        // no collections configured
+      }
+    }
+  }
+
+  private async _loadPickerFields(name: string): Promise<void> {
+    this._pickerSelectedCollection = name;
+    try {
+      const res = await this._api.getCollectionFields(name) as {
+        fields: Array<{ path: string; type: string; label?: string }>;
+      };
+      this._pickerFields = (res.fields ?? []).filter(f => f.type !== 'object');
+    } catch {
+      this._pickerFields = [];
+    }
+  }
+
+  private _insertVariable(fieldPath: string): void {
+    const variable = this._pickerSelectedCollection
+      ? `${this._pickerSelectedCollection}.${fieldPath}`
+      : fieldPath;
+    const tag = `{{${variable}}}`;
+
+    if (this._variablePickerTarget === 'subject') {
+      const arr = [...this._form.subjects];
+      arr[this._variablePickerIndex] = (arr[this._variablePickerIndex] || '') + tag;
+      this._form = { ...this._form, subjects: arr };
+    } else if (this._variablePickerTarget === 'body') {
+      const arr = [...this._form.bodies];
+      arr[this._variablePickerIndex] = (arr[this._variablePickerIndex] || '') + tag;
+      this._form = { ...this._form, bodies: arr };
+    } else {
+      this._form = { ...this._form, textBody: (this._form.textBody || '') + tag };
+    }
+
+    // Auto-add to variables list
+    if (!this._form.variables.includes(variable)) {
+      this._form = { ...this._form, variables: [...this._form.variables, variable] };
+    }
+
+    this._showVariablePicker = false;
+  }
+
   private async _onPreview(): Promise<void> {
     this._previewing = true;
     this._error = '';
@@ -292,6 +355,7 @@ export class AlxTemplateEditor extends LitElement {
       subjects: 'Supports {{variables}}. Multiple variants enable A/B testing.',
     };
     const hint = helperMap[field];
+    const showInsert = field === 'subjects';
     return html`
       <div class="form-group form-group-full">
         <label class="section-label">${label}</label>
@@ -306,6 +370,7 @@ export class AlxTemplateEditor extends LitElement {
                   @input=${(e: Event) => this._updateArrayItem(field, i, (e.target as HTMLInputElement).value)}
                   placeholder=${placeholder}
                 />
+                ${showInsert ? html`<button class="alx-btn-sm insert-var-btn" @click=${() => this._openVariablePicker('subject', i)} title="Insert variable">{ }</button>` : nothing}
                 ${!required || items.length > 1
                   ? html`<button class="remove-btn" @click=${() => this._removeArrayItem(field, i)} title="Remove">&times;</button>`
                   : nothing}
@@ -330,11 +395,14 @@ export class AlxTemplateEditor extends LitElement {
           ${items.map(
             (val, i) => html`
               <div class="multi-row">
-                <textarea
-                  .value=${val}
-                  @input=${(e: Event) => this._updateArrayItem(field, i, (e.target as HTMLTextAreaElement).value)}
-                  placeholder=${placeholder}
-                ></textarea>
+                <div style="flex:1;display:flex;flex-direction:column;gap:0.25rem">
+                  <textarea
+                    .value=${val}
+                    @input=${(e: Event) => this._updateArrayItem(field, i, (e.target as HTMLTextAreaElement).value)}
+                    placeholder=${placeholder}
+                  ></textarea>
+                  <div><button class="alx-btn-sm insert-var-btn" @click=${() => this._openVariablePicker('body', i)}>Insert Variable</button></div>
+                </div>
                 ${items.length > 1
                   ? html`<button class="remove-btn" @click=${() => this._removeArrayItem(field, i)} title="Remove">&times;</button>`
                   : nothing}
@@ -417,7 +485,7 @@ export class AlxTemplateEditor extends LitElement {
               <li><strong>Subjects</strong> — Email subject lines. Add multiple for A/B testing — one is picked randomly per send. Use {{variable}} for personalization.</li>
               <li><strong>Bodies</strong> — HTML email body using MJML syntax (responsive email markup). Add multiple for A/B testing.</li>
               <li><strong>Preheaders</strong> — Preview text shown in inbox after the subject line</li>
-              <li><strong>Variables</strong> — Placeholder names (e.g. "name", "company"). Values come from recipient data at send time.</li>
+              <li><strong>Variables</strong> — Placeholder names (e.g. "name", "company"). Values come from recipient data at send time. Use the "Insert Variable" button to pick from registered collection fields.</li>
               <li><strong>Fields</strong> — Default values for variables when recipient data is missing</li>
               <li><strong>Text Body</strong> — Plain text fallback for email clients that don't support HTML</li>
               <li><strong>Attachments</strong> — File URLs fetched at send time. Use public CDN/S3 links. Each needs filename, URL, and content type.</li>
@@ -526,6 +594,7 @@ export class AlxTemplateEditor extends LitElement {
               placeholder="Plain text version of the email"
               style="min-height: 100px"
             ></textarea>
+            <div><button class="alx-btn-sm insert-var-btn" @click=${() => this._openVariablePicker('text')}>Insert Variable</button></div>
           </div>
 
           <!-- Variables -->
@@ -597,6 +666,39 @@ export class AlxTemplateEditor extends LitElement {
               `
             : nothing}
         </div>
+
+        ${this._showVariablePicker ? html`
+          <div class="variable-picker-overlay" @click=${() => { this._showVariablePicker = false; }}>
+            <div class="variable-picker" @click=${(e: Event) => e.stopPropagation()}>
+              <div class="variable-picker-header">
+                <strong>Insert Variable</strong>
+                <button class="remove-btn" @click=${() => { this._showVariablePicker = false; }}>&times;</button>
+              </div>
+              ${this._pickerCollections.length > 0 ? html`
+                <div class="variable-picker-collections">
+                  ${this._pickerCollections.map(c => html`
+                    <button
+                      class="coll-btn ${this._pickerSelectedCollection === c.name ? 'active' : ''}"
+                      @click=${() => this._loadPickerFields(c.name)}
+                    >${c.label || c.name}</button>
+                  `)}
+                </div>
+                <div class="variable-picker-fields">
+                  ${this._pickerFields.length > 0 ? this._pickerFields.map(f => html`
+                    <button class="field-btn" @click=${() => this._insertVariable(f.path)}>
+                      <span class="field-path">${f.path}</span>
+                      <span class="field-type">${f.type}</span>
+                    </button>
+                  `) : html`<span class="helper-text">No fields available</span>`}
+                </div>
+              ` : html`
+                <div class="variable-picker-fields">
+                  <span class="helper-text">No collections configured. Type variables manually.</span>
+                </div>
+              `}
+            </div>
+          </div>
+        ` : nothing}
 
         <div class="actions">
           <button

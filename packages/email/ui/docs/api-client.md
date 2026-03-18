@@ -113,6 +113,8 @@ const api = new RuleAPI();
 | `getRunHistory(params?)` | GET | `/runner/logs` | Get run history (paginated) |
 | `getThrottleSettings()` | GET | `/throttle` | Get throttle config |
 | `updateThrottleSettings(data)` | PUT | `/throttle` | Update throttle config |
+| `listCollections()` | GET | `/collections` | List registered collection schemas |
+| `getCollectionFields(name)` | GET | `/collections/:name/fields` | Get flattened fields for a collection |
 
 ### Example
 

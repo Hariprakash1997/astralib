@@ -100,4 +100,12 @@ export class RuleAPI {
   getSendLogs(params?: Record<string, unknown>): Promise<any> {
     return this.http.get('/sends', params);
   }
+
+  listCollections(): Promise<any> {
+    return this.http.get('/collections');
+  }
+
+  getCollectionFields(name: string): Promise<any> {
+    return this.http.get(`/collections/${name}/fields`);
+  }
 }

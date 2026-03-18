@@ -14,8 +14,8 @@ import {
   alxTooltipStyles,
 } from '../../styles/shared.js';
 import { RuleAPI } from '../../api/rule.api.js';
-import type { Condition, TemplateOption, RuleData } from './alx-rule-editor.types.js';
-import { EMPTY_RULE, OPERATORS } from './alx-rule-editor.types.js';
+import type { Condition, TemplateOption, RuleData, CollectionField, CollectionSummary } from './alx-rule-editor.types.js';
+import { EMPTY_RULE, OPERATORS, TYPE_OPERATORS } from './alx-rule-editor.types.js';
 import { ruleEditorStyles } from './alx-rule-editor.styles.js';
 
 export class AlxRuleEditor extends LitElement {
@@ -45,6 +45,8 @@ export class AlxRuleEditor extends LitElement {
   @state() private _error = '';
   @state() private _showHelp = false;
   @state() private _showCustomCron = false;
+  @state() private _collections: CollectionSummary[] = [];
+  @state() private _collectionFields: CollectionField[] = [];
 
   private __api?: RuleAPI;
   private get _api(): RuleAPI {
@@ -65,6 +67,7 @@ export class AlxRuleEditor extends LitElement {
   override connectedCallback(): void {
     super.connectedCallback();
     this._loadTemplates();
+    this._loadCollections();
   }
 
   override willUpdate(changed: Map<PropertyKey, unknown>): void {
@@ -76,6 +79,41 @@ export class AlxRuleEditor extends LitElement {
         this._error = '';
       }
     }
+  }
+
+  private async _loadCollections(): Promise<void> {
+    try {
+      const res = await this._api.listCollections() as { collections: CollectionSummary[] };
+      this._collections = res.collections ?? [];
+    } catch {
+      // collections not configured — graceful fallback
+    }
+  }
+
+  private async _loadCollectionFields(name: string): Promise<void> {
+    if (!name) {
+      this._collectionFields = [];
+      return;
+    }
+    try {
+      const res = await this._api.getCollectionFields(name) as { fields: CollectionField[] };
+      this._collectionFields = res.fields ?? [];
+    } catch {
+      this._collectionFields = [];
+    }
+  }
+
+  private _getFieldType(fieldPath: string): string | undefined {
+    const field = this._collectionFields.find(f => f.path === fieldPath);
+    return field?.type;
+  }
+
+  private _getOperatorsForField(fieldPath: string): string[] {
+    const fieldType = this._getFieldType(fieldPath);
+    if (fieldType && TYPE_OPERATORS[fieldType]) {
+      return TYPE_OPERATORS[fieldType];
+    }
+    return OPERATORS;
   }
 
   private async _loadTemplates(): Promise<void> {
@@ -105,6 +143,7 @@ export class AlxRuleEditor extends LitElement {
           templateId: r.templateId ?? '',
           platform: target.platform ?? '',
           audience: target.role ?? '',
+          collection: target.collection ?? '',
           targetMode: target.mode ?? 'query',
           target: {
             conditions: target.conditions ?? [],
@@ -127,6 +166,9 @@ export class AlxRuleEditor extends LitElement {
           validTill: r.validTill ? String(r.validTill).slice(0, 10) : '',
           isActive: r.isActive ?? true,
         };
+        if (target.collection) {
+          this._loadCollectionFields(target.collection);
+        }
       }
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to load rule';
@@ -137,12 +179,16 @@ export class AlxRuleEditor extends LitElement {
 
   private _updateField(field: keyof RuleData, value: unknown): void {
     if (field === 'targetMode') {
-      // Always keep both conditions and identifiers — just switch which mode is active
       const target = {
         conditions: this._form.target.conditions ?? [],
         identifiers: this._form.target.identifiers ?? [],
       };
       this._form = { ...this._form, targetMode: value as 'query' | 'list', target };
+      return;
+    }
+    if (field === 'collection') {
+      this._form = { ...this._form, collection: value as string };
+      this._loadCollectionFields(value as string);
       return;
     }
     this._form = { ...this._form, [field]: value };
@@ -163,6 +209,18 @@ export class AlxRuleEditor extends LitElement {
   private _updateCondition(index: number, field: keyof Condition, value: string): void {
     const conditions = [...this._form.target.conditions];
     conditions[index] = { ...conditions[index], [field]: value };
+
+    // When field changes and collection fields are loaded, reset operator if invalid for new type
+    if (field === 'field' && this._collectionFields.length > 0) {
+      const fieldDef = this._collectionFields.find(f => f.path === value);
+      if (fieldDef) {
+        const validOps = TYPE_OPERATORS[fieldDef.type] || OPERATORS;
+        if (!validOps.includes(conditions[index].operator)) {
+          conditions[index] = { ...conditions[index], operator: validOps[0] };
+        }
+      }
+    }
+
     this._form = { ...this._form, target: { ...this._form.target, conditions } };
   }
 
@@ -191,6 +249,7 @@ export class AlxRuleEditor extends LitElement {
             role: this._form.audience || undefined,
             platform: this._form.platform || undefined,
             conditions: this._form.target.conditions ?? [],
+            ...(this._form.collection ? { collection: this._form.collection } : {}),
           };
 
       const payload: Record<string, unknown> = {
@@ -325,6 +384,7 @@ export class AlxRuleEditor extends LitElement {
                 <ul>
                   <li><strong>Query</strong> — Automatically finds recipients by platform + audience + conditions</li>
                   <li><strong>List</strong> — You enter specific email addresses manually</li>
+                  <li><strong>Collection</strong> — When collections are configured, select one to get field dropdowns and type-aware operators instead of free-text inputs</li>
                 </ul>
               </li>
               <li><strong>Validity</strong> — Optional date range. Rule only runs within these dates.</li>
@@ -423,51 +483,135 @@ export class AlxRuleEditor extends LitElement {
                   />
                 </div>
 
+                ${this._collections.length > 0 ? html`
+                  <div class="form-group form-group-full">
+                    <label>Collection</label>
+                    <select
+                      .value=${this._form.collection}
+                      @change=${(e: Event) =>
+                        this._updateField('collection', (e.target as HTMLSelectElement).value)}
+                    >
+                      <option value="">No collection (free-text fields)</option>
+                      ${this._collections.map(
+                        (c) => html`<option value=${c.name} ?selected=${this._form.collection === c.name}>
+                          ${c.label || c.name}
+                        </option>`,
+                      )}
+                    </select>
+                    <span class="helper-text">Select a collection to get field dropdowns and type-aware operators</span>
+                  </div>
+                ` : ''}
+
                 <!-- Conditions -->
                 <div class="section-title">Target Conditions</div>
 
                 <div class="form-group form-group-full">
                   ${this._form.target.conditions.map(
-                    (c, i) => html`
-                      <div class="condition-row">
-                        <input
-                          type="text"
-                          .value=${c.field}
-                          @input=${(e: Event) =>
-                            this._updateCondition(i, 'field', (e.target as HTMLInputElement).value)}
-                          placeholder="Field path"
-                        />
-                        <select
-                          .value=${c.operator}
-                          @change=${(e: Event) =>
-                            this._updateCondition(
-                              i,
-                              'operator',
-                              (e.target as HTMLSelectElement).value,
+                    (c, i) => {
+                      const hasFields = this._collectionFields.length > 0;
+                      const operators = hasFields ? this._getOperatorsForField(c.field) : OPERATORS;
+                      const fieldDef = this._collectionFields.find(f => f.path === c.field);
+                      const hasEnum = fieldDef?.enumValues && fieldDef.enumValues.length > 0;
+                      const isBool = fieldDef?.type === 'boolean';
+                      const isDate = fieldDef?.type === 'date';
+                      const isNumber = fieldDef?.type === 'number';
+                      const noValue = ['exists', 'not_exists'].includes(c.operator);
+
+                      return html`
+                        <div class="condition-row">
+                          ${hasFields ? html`
+                            <select
+                              .value=${c.field}
+                              @change=${(e: Event) =>
+                                this._updateCondition(i, 'field', (e.target as HTMLSelectElement).value)}
+                            >
+                              <option value="">Select field</option>
+                              ${this._collectionFields
+                                .filter(f => f.type !== 'object')
+                                .map(f => html`<option value=${f.path} ?selected=${c.field === f.path}>
+                                  ${f.path} (${f.type})
+                                </option>`)}
+                            </select>
+                          ` : html`
+                            <input
+                              type="text"
+                              .value=${c.field}
+                              @input=${(e: Event) =>
+                                this._updateCondition(i, 'field', (e.target as HTMLInputElement).value)}
+                              placeholder="Field path"
+                            />
+                          `}
+                          <select
+                            .value=${c.operator}
+                            @change=${(e: Event) =>
+                              this._updateCondition(
+                                i,
+                                'operator',
+                                (e.target as HTMLSelectElement).value,
+                              )}
+                          >
+                            ${operators.map(
+                              (op) =>
+                                html`<option value=${op} ?selected=${c.operator === op}>
+                                  ${op}
+                                </option>`,
                             )}
-                        >
-                          ${OPERATORS.map(
-                            (op) =>
-                              html`<option value=${op} ?selected=${c.operator === op}>
-                                ${op}
-                              </option>`,
-                          )}
-                        </select>
-                        <input
-                          type="text"
-                          .value=${c.value}
-                          @input=${(e: Event) =>
-                            this._updateCondition(i, 'value', (e.target as HTMLInputElement).value)}
-                          placeholder="Value"
-                        />
-                        <button
-                          class="alx-btn-sm alx-btn-danger"
-                          @click=${() => this._removeCondition(i)}
-                        >
-                          &times;
-                        </button>
-                      </div>
-                    `,
+                          </select>
+                          ${noValue ? html`<span class="condition-no-value"></span>` :
+                            hasEnum ? html`
+                              <select
+                                .value=${c.value}
+                                @change=${(e: Event) =>
+                                  this._updateCondition(i, 'value', (e.target as HTMLSelectElement).value)}
+                              >
+                                <option value="">Select value</option>
+                                ${fieldDef!.enumValues!.map(v => html`<option value=${v} ?selected=${c.value === v}>${v}</option>`)}
+                              </select>
+                            ` :
+                            isBool ? html`
+                              <select
+                                .value=${c.value}
+                                @change=${(e: Event) =>
+                                  this._updateCondition(i, 'value', (e.target as HTMLSelectElement).value)}
+                              >
+                                <option value="true" ?selected=${c.value === 'true'}>true</option>
+                                <option value="false" ?selected=${c.value === 'false'}>false</option>
+                              </select>
+                            ` :
+                            isDate ? html`
+                              <input
+                                type="date"
+                                .value=${c.value}
+                                @input=${(e: Event) =>
+                                  this._updateCondition(i, 'value', (e.target as HTMLInputElement).value)}
+                              />
+                            ` :
+                            isNumber ? html`
+                              <input
+                                type="number"
+                                .value=${c.value}
+                                @input=${(e: Event) =>
+                                  this._updateCondition(i, 'value', (e.target as HTMLInputElement).value)}
+                                placeholder="Value"
+                              />
+                            ` : html`
+                              <input
+                                type="text"
+                                .value=${c.value}
+                                @input=${(e: Event) =>
+                                  this._updateCondition(i, 'value', (e.target as HTMLInputElement).value)}
+                                placeholder="Value"
+                              />
+                            `}
+                          <button
+                            class="alx-btn-sm alx-btn-danger"
+                            @click=${() => this._removeCondition(i)}
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      `;
+                    },
                   )}
                   <button class="alx-btn-sm" @click=${this._addCondition}>+ Add Condition</button>
                 </div>

@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Features: dry-run results display, run progress polling, onboarding banner. Fixes: UI feedback for delete, toggle, approve, cancel operations"
+set "COMMIT_MSG=Feature: collection schema registration for field dropdowns, type-aware operators, template variable picker. Fix: EmailRuleSend userId accepts string identifiers
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -34,7 +34,7 @@ REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES=email-ui:patch"
+set "EMAIL_PACKAGES=email-rule-engine:minor,email-ui:minor"
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*

@@ -24,7 +24,7 @@ Five required functions and one optional. See [adapters.md](adapters.md) for ful
 
 | Adapter | Signature | Required |
 |---------|-----------|----------|
-| `queryUsers` | `(target: RuleTarget, limit: number) => Promise<Record<string, unknown>[]>` | Yes |
+| `queryUsers` | `(target: RuleTarget, limit: number, context?: { collectionSchema?: CollectionSchema }) => Promise<Record<string, unknown>[]>` | Yes |
 | `resolveData` | `(user: Record<string, unknown>) => Record<string, unknown>` | Yes |
 | `sendEmail` | `(params: SendEmailParams) => Promise<void>` | Yes |
 | `selectAgent` | `(identifierId: string, context?) => Promise<AgentSelection \| null>` | Yes |
@@ -56,6 +56,43 @@ selectAgent: async (identifierId, context) => {
 ```
 
 If you use `@astralibx/email-account-manager`, its built-in `selectAgent` helper already enforces warmup limits. See the email-account-manager docs for details.
+
+## collections (optional)
+
+Register MongoDB collection schemas so the admin UI shows real field names in dropdowns, filters operators by type, and offers a variable picker for templates. See [collections.md](collections.md) for the full reference.
+
+```typescript
+collections: [
+  {
+    name: 'users',
+    label: 'Users',
+    identifierField: 'email',
+    fields: [
+      { name: 'name', type: 'string', label: 'Full Name' },
+      { name: 'email', type: 'string' },
+      { name: 'age', type: 'number' },
+      { name: 'isActive', type: 'boolean' },
+      { name: 'role', type: 'string', enumValues: ['customer', 'provider'] },
+      {
+        name: 'address',
+        type: 'object',
+        fields: [
+          { name: 'city', type: 'string' },
+          { name: 'zip', type: 'string' },
+        ],
+      },
+    ],
+  },
+],
+```
+
+When configured:
+- **Rule editor** shows field dropdowns and type-aware operators instead of free-text inputs
+- **Template editor** shows an "Insert Variable" picker with collection fields
+- **Backend** validates condition fields and operators on rule create/update
+- **queryUsers adapter** receives the collection schema as an optional third argument
+
+When not configured, everything falls back to free-text inputs with no validation — zero breaking changes.
 
 ## platforms, audiences, categories (optional)
 
@@ -203,12 +240,26 @@ const engine = createEmailRuleEngine({
   db: { connection: dbConnection, collectionPrefix: 'myapp_' },
   redis: { connection: redis, keyPrefix: 'myapp:' },
 
+  collections: [
+    {
+      name: 'users',
+      label: 'Users',
+      identifierField: 'email',
+      fields: [
+        { name: 'name', type: 'string' },
+        { name: 'email', type: 'string' },
+        { name: 'age', type: 'number' },
+        { name: 'isActive', type: 'boolean' },
+      ],
+    },
+  ],
+
   platforms: ['web', 'mobile', 'both'],
   audiences: ['customer', 'provider', 'all'],
   categories: ['onboarding', 'engagement', 'transactional', 're-engagement', 'announcement'],
 
   adapters: {
-    queryUsers: async (target, limit) => { /* ... */ },
+    queryUsers: async (target, limit, context?) => { /* ... */ },
     resolveData: (user) => ({ /* ... */ }),
     sendEmail: async (params) => { /* ... */ },
     selectAgent: async (identifierId, context) => ({ accountId: 'default', email: 'noreply@example.com', metadata: {} }),
