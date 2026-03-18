@@ -27,14 +27,16 @@ export function createTemplateController(templateService: TemplateService, optio
 
   async function list(req: Request, res: Response) {
     try {
-      const { category, audience, platform, isActive } = req.query;
-      const templates = await templateService.list({
+      const { category, audience, platform, isActive, page, limit } = req.query;
+      const { templates, total } = await templateService.list({
         category: category as string | undefined,
         audience: audience as string | undefined,
         platform: platform as string | undefined,
-        isActive: isActive !== undefined ? isActive === 'true' : undefined
+        isActive: isActive !== undefined ? isActive === 'true' : undefined,
+        page: Math.max(1, parseInt(String(page), 10) || 1),
+        limit: Math.min(parseInt(String(limit), 10) || 200, 500),
       });
-      res.json({ success: true, data: { templates } });
+      res.json({ success: true, data: { templates, total } });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ success: false, error: message });

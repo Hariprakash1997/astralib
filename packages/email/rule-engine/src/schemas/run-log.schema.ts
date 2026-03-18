@@ -82,8 +82,7 @@ export function createEmailRuleRunLogSchema(collectionPrefix?: string) {
     }
   );
 
-  schema.index({ runAt: -1 });
-  schema.index({ runAt: 1 }, { expireAfterSeconds: 90 * 86400 });
+  schema.index({ runAt: -1 }, { expireAfterSeconds: 90 * 86400 });
 
   return schema;
 }

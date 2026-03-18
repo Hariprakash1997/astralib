@@ -76,7 +76,7 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleE
     createEmailThrottleConfigSchema(prefix)
   ) as EmailThrottleConfigModel;
 
-  const templateService = new TemplateService(EmailTemplate, config);
+  const templateService = new TemplateService(EmailTemplate, config, EmailRule);
   const ruleService = new RuleService(EmailRule, EmailTemplate, EmailRuleRunLog, config);
   const runnerService = new RuleRunnerService(
     EmailRule, EmailTemplate, EmailRuleSend, EmailRuleRunLog, EmailThrottleConfig, config

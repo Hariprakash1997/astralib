@@ -744,6 +744,7 @@ describe('RuleRunnerService', () => {
       const result = service.trigger();
       expect(result).toHaveProperty('runId');
       expect(typeof result.runId).toBe('string');
+      expect(result).toHaveProperty('started', true);
     });
 
     it('getStatus reads from Redis and returns progress', async () => {

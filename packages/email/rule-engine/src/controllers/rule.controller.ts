@@ -23,10 +23,12 @@ export function createRuleController(ruleService: RuleService, options?: RuleCon
   const validAudiences = options?.audiences || Object.values(TEMPLATE_AUDIENCE);
   const validEmailTypes = Object.values(EMAIL_TYPE);
 
-  async function list(_req: Request, res: Response) {
+  async function list(req: Request, res: Response) {
     try {
-      const rules = await ruleService.list();
-      res.json({ success: true, data: { rules } });
+      const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
+      const limit = Math.min(parseInt(String(req.query.limit), 10) || 200, 500);
+      const { rules, total } = await ruleService.list({ page, limit });
+      res.json({ success: true, data: { rules, total } });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ success: false, error: message });
@@ -173,8 +175,14 @@ export function createRuleController(ruleService: RuleService, options?: RuleCon
     try {
       const limitParam = req.query.limit;
       const limit = parseInt(String(Array.isArray(limitParam) ? limitParam[0] : limitParam), 10) || 20;
-      const logs = await ruleService.getRunHistory(limit);
-      res.json({ success: true, data: { logs } });
+      const pageParam = req.query.page;
+      const page = Math.max(1, parseInt(String(Array.isArray(pageParam) ? pageParam[0] : pageParam), 10) || 1);
+      const from = req.query.from ? String(req.query.from) : undefined;
+      const to = req.query.to ? String(req.query.to) : undefined;
+
+      const logs = await ruleService.getRunHistory(limit, { page, from, to });
+      const total = await ruleService.getRunHistoryCount({ from, to });
+      res.json({ success: true, data: { logs, total } });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       res.status(500).json({ success: false, error: message });

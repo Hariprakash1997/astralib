@@ -16,7 +16,7 @@ app.use('/api/email-rules', authMiddleware, engine.routes);
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/templates` | List templates (filter by `?category=`, `?audience=`, `?platform=`, `?isActive=`) |
+| `GET` | `/templates` | List templates with pagination and filters (`?category=`, `?audience=`, `?platform=`, `?isActive=`, `?page=1`, `?limit=50`). Returns `{ templates, total }` |
 | `POST` | `/templates` | Create a new template (see request body below) |
 | `POST` | `/templates/validate` | Validate MJML + Handlebars syntax without saving |
 | `POST` | `/templates/preview` | Preview raw template with sample data (no save) |
@@ -82,7 +82,7 @@ curl -X POST http://localhost:3000/api/email-rules/templates/preview \
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/rules` | List all rules (with populated template name/slug) |
+| `GET` | `/rules` | List rules with pagination (`?page=1&limit=50`). Returns `{ rules, total }` |
 | `POST` | `/rules` | Create a new rule (validates template compatibility). Accepts optional `validFrom` and `validTill` (Date) for time-windowed activation |
 | `GET` | `/runner/logs` | Get execution history (`?limit=20`) |
 | `GET` | `/rules/:id` | Get rule by ID |

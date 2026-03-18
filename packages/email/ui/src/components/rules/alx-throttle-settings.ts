@@ -90,6 +90,11 @@ export class AlxThrottleSettings extends LitElement {
     this._loadSettings();
   }
 
+  override disconnectedCallback(): void {
+    super.disconnectedCallback();
+    if (this._savedTimer) clearTimeout(this._savedTimer);
+  }
+
   private async _loadSettings(): Promise<void> {
     this._loading = true;
     this._error = '';

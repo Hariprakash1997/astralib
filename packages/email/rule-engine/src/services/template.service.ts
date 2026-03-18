@@ -1,5 +1,6 @@
 import { TemplateRenderService } from './template-render.service';
 import type { EmailTemplateModel, EmailTemplateDocument } from '../schemas/template.schema';
+import type { EmailRuleModel } from '../schemas/rule.schema';
 import type { CreateEmailTemplateInput, UpdateEmailTemplateInput } from '../types/template.types';
 import type { EmailRuleEngineConfig } from '../types/config.types';
 import { DuplicateSlugError, TemplateSyntaxError, TemplateNotFoundError } from '../errors';
@@ -26,7 +27,8 @@ export class TemplateService {
 
   constructor(
     private EmailTemplate: EmailTemplateModel,
-    private config: EmailRuleEngineConfig
+    private config: EmailRuleEngineConfig,
+    private EmailRule?: EmailRuleModel
   ) {}
 
   async list(filters?: {
@@ -34,7 +36,9 @@ export class TemplateService {
     audience?: string;
     platform?: string;
     isActive?: boolean;
-  }): Promise<EmailTemplateDocument[]> {
+    page?: number;
+    limit?: number;
+  }): Promise<{ templates: EmailTemplateDocument[]; total: number }> {
     const query: Record<string, unknown> = {};
 
     if (filters?.category) query['category'] = filters.category;
@@ -42,7 +46,15 @@ export class TemplateService {
     if (filters?.platform) query['platform'] = filters.platform;
     if (filters?.isActive !== undefined) query['isActive'] = filters.isActive;
 
-    return this.EmailTemplate.find(query).sort({ category: 1, name: 1 });
+    const page = filters?.page ?? 1;
+    const limit = filters?.limit ?? 200;
+    const skip = (page - 1) * limit;
+
+    const [templates, total] = await Promise.all([
+      this.EmailTemplate.find(query).sort({ category: 1, name: 1 }).skip(skip).limit(limit),
+      this.EmailTemplate.countDocuments(query),
+    ]);
+    return { templates, total };
   }
 
   async getById(id: string): Promise<EmailTemplateDocument | null> {
@@ -143,6 +155,13 @@ export class TemplateService {
   }
 
   async delete(id: string): Promise<boolean> {
+    if (this.EmailRule) {
+      const activeRules = await this.EmailRule.find({ templateId: id, isActive: true });
+      if (activeRules.length > 0) {
+        const names = activeRules.map(r => r.name).join(', ');
+        throw new Error(`Cannot delete template: ${activeRules.length} active rule(s) reference it (${names}). Deactivate them first.`);
+      }
+    }
     const result = await this.EmailTemplate.findByIdAndDelete(id);
     return result !== null;
   }
@@ -259,7 +278,8 @@ export class TemplateService {
     const template = await this.EmailTemplate.findById(templateId);
     if (!template) return null;
 
-    const data = { ...(template.fields ?? {}), ...recipientData };
+    const variables = template.variables ?? [];
+    const data = this._buildSampleData(variables, { ...(template.fields ?? {}), ...recipientData });
 
     return this.renderService.renderPreview(
       template.subjects[0],

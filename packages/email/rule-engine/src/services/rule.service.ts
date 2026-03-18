@@ -54,10 +54,19 @@ export class RuleService {
     private config: EmailRuleEngineConfig
   ) {}
 
-  async list(): Promise<EmailRuleDocument[]> {
-    return this.EmailRule.find()
-      .populate('templateId', 'name slug')
-      .sort({ sortOrder: 1, createdAt: -1 });
+  async list(opts?: { page?: number; limit?: number }): Promise<{ rules: EmailRuleDocument[]; total: number }> {
+    const page = opts?.page ?? 1;
+    const limit = opts?.limit ?? 200;
+    const skip = (page - 1) * limit;
+    const [rules, total] = await Promise.all([
+      this.EmailRule.find()
+        .populate('templateId', 'name slug')
+        .sort({ sortOrder: 1, createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      this.EmailRule.countDocuments(),
+    ]);
+    return { rules, total };
   }
 
   async getById(id: string): Promise<EmailRuleDocument | null> {
@@ -248,7 +257,25 @@ export class RuleService {
     return this.EmailRule.create(rest);
   }
 
-  async getRunHistory(limit = 20): Promise<unknown[]> {
-    return this.EmailRuleRunLog.getRecent(limit);
+  async getRunHistory(limit = 20, opts?: { page?: number; from?: string; to?: string }): Promise<unknown[]> {
+    const filter: Record<string, unknown> = {};
+    if (opts?.from || opts?.to) {
+      filter.runAt = {};
+      if (opts.from) (filter.runAt as Record<string, unknown>)['$gte'] = new Date(opts.from);
+      if (opts.to) (filter.runAt as Record<string, unknown>)['$lte'] = new Date(opts.to + 'T23:59:59.999Z');
+    }
+    const page = opts?.page ?? 1;
+    const skip = (page - 1) * limit;
+    return this.EmailRuleRunLog.find(filter).sort({ runAt: -1 }).skip(skip).limit(limit);
+  }
+
+  async getRunHistoryCount(opts?: { from?: string; to?: string }): Promise<number> {
+    const filter: Record<string, unknown> = {};
+    if (opts?.from || opts?.to) {
+      filter.runAt = {};
+      if (opts.from) (filter.runAt as Record<string, unknown>)['$gte'] = new Date(opts.from);
+      if (opts.to) (filter.runAt as Record<string, unknown>)['$lte'] = new Date(opts.to + 'T23:59:59.999Z');
+    }
+    return this.EmailRuleRunLog.countDocuments(filter);
   }
 }

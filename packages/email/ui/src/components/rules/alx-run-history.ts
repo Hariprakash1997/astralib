@@ -141,8 +141,18 @@ export class AlxRunHistory extends LitElement {
   @state() private _totalPages = 1;
   @state() private _total = 0;
   @state() private _expandedIds = new Set<string>();
-  @state() private _dateFrom = '';
-  @state() private _dateTo = '';
+  @state() private _dateFrom = AlxRunHistory._defaultFrom();
+  @state() private _dateTo = AlxRunHistory._defaultTo();
+
+  private static _defaultFrom(): string {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  }
+
+  private static _defaultTo(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
   @state() private _triggering = false;
   @state() private _cancelling = '';
   @state() private _activeRunId = '';
@@ -212,9 +222,27 @@ export class AlxRunHistory extends LitElement {
       if (this._dateFrom) params['from'] = this._dateFrom;
       if (this._dateTo) params['to'] = this._dateTo;
 
-      const res = (await this._api.getRunHistory(params)) as { logs: RunLog[]; total?: number };
+      const res = (await this._api.getRunHistory(params)) as { logs: any[]; total?: number };
       if (gen !== this._loadGeneration) return;
-      this._logs = res.logs ?? [];
+      this._logs = (res.logs ?? []).map((log: any) => ({
+        _id: log._id,
+        runId: log.runId,
+        runAt: log.runAt,
+        status: log.status,
+        triggeredBy: log.triggeredBy,
+        duration: log.duration,
+        rulesProcessed: log.rulesProcessed,
+        totalSent: log.totalSent ?? log.totalStats?.sent ?? 0,
+        totalSkipped: log.totalSkipped ?? (log.totalStats ? log.totalStats.skipped + (log.totalStats.skippedByThrottle ?? 0) : 0),
+        totalErrors: log.totalErrors ?? log.totalStats?.errorCount ?? 0,
+        perRuleStats: (log.perRuleStats ?? []).map((s: any) => ({
+          ruleName: s.ruleName,
+          ruleId: s.ruleId,
+          sent: s.sent ?? 0,
+          skipped: (s.skipped ?? 0) + (s.skippedByThrottle ?? 0),
+          errors: s.errors ?? s.errorCount ?? 0,
+        })),
+      }));
       this._total = res.total ?? res.logs?.length ?? 0;
       this._totalPages = Math.max(1, Math.ceil(this._total / this._limit));
       if (this._page > this._totalPages) {

@@ -52,7 +52,10 @@ export class SchedulerService {
   }
 
   async stopWorker(): Promise<void> {
-    await this.worker?.close();
+    if (this.worker) {
+      await this.worker.close();
+      this.worker = undefined;
+    }
   }
 
   async getScheduledJobs(): Promise<Array<{ ruleId: string; cron: string; next: number | null }>> {

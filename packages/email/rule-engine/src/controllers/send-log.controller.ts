@@ -8,7 +8,7 @@ export function createSendLogController(EmailRuleSend: Model<any>) {
       const filter: Record<string, any> = {};
       if (ruleId) filter.ruleId = ruleId;
       if (status) filter.status = status;
-      if (email) filter.email = { $regex: email, $options: 'i' };
+      if (email) filter.userId = { $regex: email, $options: 'i' };
       if (from || to) {
         filter.sentAt = {};
         if (from) filter.sentAt.$gte = new Date(from as string);

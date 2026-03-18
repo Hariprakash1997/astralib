@@ -95,6 +95,7 @@ export class RuleRunnerService {
     const lockAcquired = await this.lock.acquire();
     if (!lockAcquired) {
       this.logger.warn('Rule runner already executing, skipping');
+      await this.updateRunProgress(runId, { status: 'failed', currentRule: 'Another run is already in progress' } as Partial<RunStatusResponse>);
       return { runId };
     }
 
@@ -366,12 +367,12 @@ export class RuleRunnerService {
 
         const lastSend = sendMap.get(dedupKey);
         if (lastSend) {
-          if (rule.sendOnce && !rule.resendAfterDays) {
+          if (rule.sendOnce && rule.resendAfterDays == null) {
             stats.skipped++;
             this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
             continue;
           }
-          if (rule.resendAfterDays) {
+          if (rule.resendAfterDays != null) {
             const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
             if (daysSince < rule.resendAfterDays) {
               stats.skipped++;
@@ -382,6 +383,14 @@ export class RuleRunnerService {
             stats.skipped++;
             this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
             continue;
+          }
+          if (rule.cooldownDays) {
+            const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
+            if (daysSince < rule.cooldownDays) {
+              stats.skipped++;
+              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'cooldown period' });
+              continue;
+            }
           }
         }
 
@@ -482,7 +491,7 @@ export class RuleRunnerService {
         });
 
         stats.sent++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi });
+        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi, preheaderIndex: pi });
 
         totalProcessed++;
         if (runId && totalProcessed % 10 === 0) {
@@ -631,12 +640,12 @@ export class RuleRunnerService {
 
         const lastSend = sendMap.get(userId);
         if (lastSend) {
-          if (rule.sendOnce && !rule.resendAfterDays) {
+          if (rule.sendOnce && rule.resendAfterDays == null) {
             stats.skipped++;
             this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
             continue;
           }
-          if (rule.resendAfterDays) {
+          if (rule.resendAfterDays != null) {
             const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
             if (daysSince < rule.resendAfterDays) {
               stats.skipped++;
@@ -647,6 +656,14 @@ export class RuleRunnerService {
             stats.skipped++;
             this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'send once' });
             continue;
+          }
+          if (rule.cooldownDays) {
+            const daysSince = (Date.now() - new Date(lastSend.sentAt).getTime()) / MS_PER_DAY;
+            if (daysSince < rule.cooldownDays) {
+              stats.skipped++;
+              this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'skipped', accountId: '', templateId, runId: runId || '', subjectIndex: -1, bodyIndex: -1, failureReason: 'cooldown period' });
+              continue;
+            }
           }
         }
 
@@ -753,7 +770,7 @@ export class RuleRunnerService {
         });
 
         stats.sent++;
-        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi });
+        this.config.hooks?.onSend?.({ ruleId, ruleName: rule.name, email, status: 'sent', accountId: agentSelection.accountId, templateId, runId: runId || '', subjectIndex: si, bodyIndex: bi, preheaderIndex: pi });
 
         totalProcessed++;
         if (runId && totalProcessed % 10 === 0) {
@@ -922,13 +939,13 @@ export class RuleRunnerService {
     return { ok: true };
   }
 
-  trigger(triggeredBy?: RunTrigger): { runId: string } {
+  trigger(triggeredBy?: RunTrigger): { runId: string; started: boolean } {
     const runId = crypto.randomUUID();
     this.runAllRules(triggeredBy || RUN_TRIGGER.Manual, runId).catch(err => {
       this.logger.error('Background rule run failed', { error: err, runId });
       this.updateRunProgress(runId, { status: 'failed' } as Partial<RunStatusResponse>).catch(() => {});
     });
-    return { runId };
+    return { runId, started: true };
   }
 
   buildThrottleMap(recentSends: any[]): Map<string, UserThrottle> {

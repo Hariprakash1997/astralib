@@ -15,7 +15,8 @@ The runner acquires a distributed Redis lock, processes active rules in `sortOrd
 
 ```typescript
 // Fire-and-forget -- returns immediately with a runId
-const { runId } = await engine.runner.trigger('manual');
+const { runId, started } = engine.runner.trigger('manual');
+// started is true if the run began; check run status if lock was held by another process
 ```
 
 ### Run status
@@ -37,8 +38,8 @@ await engine.runner.cancel(runId);
 ## TemplateService
 
 ```typescript
-// List with filters
-const templates = await engine.templateService.list({ category: 'onboarding', isActive: true });
+// List with filters and pagination
+const { templates, total } = await engine.templateService.list({ category: 'onboarding', isActive: true, page: 1, limit: 50 });
 
 // Create
 const template = await engine.templateService.create({
@@ -67,7 +68,7 @@ const result = await engine.templateService.validate('<mj-text>{{user.name}}</mj
 // Toggle active
 await engine.templateService.toggleActive(template._id);
 
-// Delete
+// Delete (throws if active rules reference it)
 await engine.templateService.delete(template._id);
 ```
 
@@ -95,8 +96,9 @@ await engine.ruleService.toggleActive(rule._id);
 const result = await engine.ruleService.delete(rule._id);
 // { deleted: true } or { deleted: false, disabled: true }
 
-// Run history
-const logs = await engine.ruleService.getRunHistory(20);
+// Run history with date filtering and pagination
+const logs = await engine.ruleService.getRunHistory(20, { page: 1, from: '2026-01-01', to: '2026-03-18' });
+const count = await engine.ruleService.getRunHistoryCount({ from: '2026-01-01', to: '2026-03-18' });
 ```
 
 ## TemplateRenderService (standalone)

@@ -100,15 +100,18 @@ adapters: {
 
 ```ts
 hooks?: {
-  onRunStart?: (info: { rulesCount: number; triggeredBy: string }) => void;
-  onRuleStart?: (info: { ruleId: string; ruleName: string; matchedCount: number }) => void;
+  onRunStart?: (info: { rulesCount: number; triggeredBy: string; runId: string }) => void;
+  onRuleStart?: (info: { ruleId: string; ruleName: string; matchedCount: number; templateId: string; runId: string }) => void;
   onSend?: (info: {
     ruleId: string; ruleName: string; email: string;
     status: 'sent' | 'error' | 'skipped' | 'invalid' | 'throttled';
+    accountId: string; templateId: string; runId: string;
+    subjectIndex: number; bodyIndex: number; preheaderIndex?: number;
+    failureReason?: string;
   }) => void;
-  onRuleComplete?: (info: { ruleId: string; ruleName: string; stats: RuleRunStats }) => void;
+  onRuleComplete?: (info: { ruleId: string; ruleName: string; stats: RuleRunStats; templateId: string; runId: string }) => void;
   onRunComplete?: (info: {
-    duration: number; totalStats: RuleRunStats; perRuleStats: PerRuleStats[];
+    duration: number; totalStats: RuleRunStats; perRuleStats: PerRuleStats[]; runId: string;
   }) => void;
   beforeSend?: (params: BeforeSendParams) => Promise<BeforeSendResult>;
 }

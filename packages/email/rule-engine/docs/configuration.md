@@ -137,7 +137,7 @@ Callbacks fired at key points during rule execution. All hooks are optional and 
 |------|-----------|---------|
 | `onRunStart` | After loading active rules | `{ rulesCount: number, triggeredBy: string, runId: string }` |
 | `onRuleStart` | After querying users for a rule | `{ ruleId: string, ruleName: string, matchedCount: number, templateId: string, runId: string }` |
-| `onSend` | After each send attempt | `{ ruleId: string, ruleName: string, email: string, status: 'sent' \| 'error' \| 'skipped' \| 'invalid' \| 'throttled', accountId: string, templateId: string, runId: string, subjectIndex: number, bodyIndex: number, failureReason?: string }` |
+| `onSend` | After each send attempt | `{ ruleId: string, ruleName: string, email: string, status: 'sent' \| 'error' \| 'skipped' \| 'invalid' \| 'throttled', accountId: string, templateId: string, runId: string, subjectIndex: number, bodyIndex: number, preheaderIndex?: number, failureReason?: string }` |
 | `onRuleComplete` | After a rule finishes | `{ ruleId: string, ruleName: string, stats: RuleRunStats, templateId: string, runId: string }` |
 | `onRunComplete` | After run log is saved | `{ duration: number, totalStats: RuleRunStats, perRuleStats: PerRuleStats[], runId: string }` |
 | `beforeSend` | Before each email is delivered | `{ htmlBody: string, textBody: string, subject: string, account: { id: string, email: string, metadata: Record<string, unknown> }, user: { id: string, email: string, name: string }, context: { ruleId: string, templateId: string, runId: string } }` |

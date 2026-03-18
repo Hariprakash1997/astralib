@@ -70,9 +70,19 @@ export class AlxSendLog extends LitElement {
   @state() private _totalPages = 1;
   @state() private _total = 0;
   @state() private _statusFilter = '';
-  @state() private _dateFrom = '';
-  @state() private _dateTo = '';
+  @state() private _dateFrom = AlxSendLog._defaultFrom();
+  @state() private _dateTo = AlxSendLog._defaultTo();
   @state() private _emailSearch = '';
+
+  private static _defaultFrom(): string {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().slice(0, 10);
+  }
+
+  private static _defaultTo(): string {
+    return new Date().toISOString().slice(0, 10);
+  }
 
   private __api?: RuleAPI;
   private get _api(): RuleAPI {

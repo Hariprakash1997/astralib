@@ -131,10 +131,10 @@ export class TemplateRenderService {
     data: Record<string, unknown>,
     textBody?: string
   ): RenderResult {
-    const subjectFn = Handlebars.compile(subject, { strict: true });
+    const subjectFn = Handlebars.compile(subject, { strict: false });
     const resolvedSubject = subjectFn(data);
 
-    const bodyFn = Handlebars.compile(body, { strict: true });
+    const bodyFn = Handlebars.compile(body, { strict: false });
     const resolvedBody = bodyFn(data);
 
     const mjmlSource = wrapInMjml(resolvedBody);
@@ -142,7 +142,7 @@ export class TemplateRenderService {
 
     let text: string;
     if (textBody) {
-      const textFn = Handlebars.compile(textBody, { strict: true });
+      const textFn = Handlebars.compile(textBody, { strict: false });
       text = textFn(data);
     } else {
       text = htmlToPlainText(html);
@@ -155,9 +155,9 @@ export class TemplateRenderService {
     const mjmlSource = wrapInMjml(body);
     const htmlWithHandlebars = compileMjml(mjmlSource);
 
-    const subjectFn = Handlebars.compile(subject, { strict: true });
-    const bodyFn = Handlebars.compile(htmlWithHandlebars, { strict: true });
-    const textBodyFn = textBody ? Handlebars.compile(textBody, { strict: true }) : undefined;
+    const subjectFn = Handlebars.compile(subject, { strict: false });
+    const bodyFn = Handlebars.compile(htmlWithHandlebars, { strict: false });
+    const textBodyFn = textBody ? Handlebars.compile(textBody, { strict: false }) : undefined;
 
     return { subjectFn, bodyFn, textBodyFn };
   }
@@ -168,15 +168,15 @@ export class TemplateRenderService {
     textBody?: string,
     preheaders?: string[]
   ): { subjectFns: HandlebarsTemplateDelegate[]; bodyFns: HandlebarsTemplateDelegate[]; textBodyFn?: HandlebarsTemplateDelegate; preheaderFns?: HandlebarsTemplateDelegate[] } {
-    const subjectFns = subjects.map(s => Handlebars.compile(s, { strict: true }));
+    const subjectFns = subjects.map(s => Handlebars.compile(s, { strict: false }));
     const bodyFns = bodies.map(b => {
       const mjmlSource = wrapInMjml(b);
       const htmlWithHandlebars = compileMjml(mjmlSource);
-      return Handlebars.compile(htmlWithHandlebars, { strict: true });
+      return Handlebars.compile(htmlWithHandlebars, { strict: false });
     });
-    const textBodyFn = textBody ? Handlebars.compile(textBody, { strict: true }) : undefined;
+    const textBodyFn = textBody ? Handlebars.compile(textBody, { strict: false }) : undefined;
     const preheaderFns = preheaders && preheaders.length > 0
-      ? preheaders.map(p => Handlebars.compile(p, { strict: true }))
+      ? preheaders.map(p => Handlebars.compile(p, { strict: false }))
       : undefined;
     return { subjectFns, bodyFns, textBodyFn, preheaderFns };
   }

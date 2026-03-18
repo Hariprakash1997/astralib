@@ -88,6 +88,7 @@ export function createEmailRuleSendSchema(collectionPrefix?: string) {
   schema.index({ ruleId: 1, userId: 1, sentAt: -1 });
   schema.index({ userId: 1, sentAt: -1 });
   schema.index({ ruleId: 1, sentAt: -1 });
+  schema.index({ status: 1, sentAt: -1 });
 
   return schema;
 }

@@ -123,6 +123,7 @@ export interface EmailRuleEngineConfig {
       runId: string;
       subjectIndex: number;
       bodyIndex: number;
+      preheaderIndex?: number;
       failureReason?: string;
     }) => void;
     onRuleComplete?: (info: { ruleId: string; ruleName: string; stats: RuleRunStats; templateId: string; runId: string }) => void;
