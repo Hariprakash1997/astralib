@@ -1,5 +1,11 @@
 # @astralibx/email-account-manager
 
+## 10.6.4
+
+### Patch Changes
+
+- f78f016: Fixes: renamed collection to collectionName to avoid Mongoose reserved key warning, added core as peer dependency, suppressed BullMQ repeated eviction warnings
+
 ## 10.6.3
 
 ### Patch Changes
