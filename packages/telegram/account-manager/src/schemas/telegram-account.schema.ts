@@ -143,7 +143,6 @@ export function createTelegramAccountSchema(options?: CreateTelegramAccountSchem
     },
   );
 
-  schema.index({ phone: 1 }, { unique: true });
   schema.index({ status: 1 });
   schema.index({ 'warmup.enabled': 1, status: 1 });
   schema.index({ tags: 1 });

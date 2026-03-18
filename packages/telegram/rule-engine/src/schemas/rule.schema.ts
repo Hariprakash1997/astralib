@@ -69,7 +69,6 @@ export function createTelegramRuleSchema(
   );
 
   schema.index({ isActive: 1 });
-  schema.index({ templateId: 1 });
 
   return schema;
 }

@@ -8,6 +8,7 @@ export default defineConfig({
   sourcemap: true,
   splitting: false,
   treeshake: true,
+  skipNodeModulesBundle: true,
   outExtension({ format }) {
     return { js: format === 'cjs' ? '.cjs' : '.mjs' };
   },

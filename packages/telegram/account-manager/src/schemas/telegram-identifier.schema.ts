@@ -65,7 +65,6 @@ export function createTelegramIdentifierSchema(options?: CreateTelegramIdentifie
     },
   );
 
-  schema.index({ telegramUserId: 1 }, { unique: true });
   schema.index({ contactId: 1 });
   schema.index({ status: 1 });
   schema.index({ phone: 1 }, { sparse: true });

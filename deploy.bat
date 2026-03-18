@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Features: chat widget overhaul, engine routes and services, agent dashboard. Telegram batch connect, account rotation, rule runner, inbox sync. Email template editor, draft schema, SMTP updates"
+set "COMMIT_MSG=Features: email template editor, draft schema, integration tests, SMTP updates. Fixes: rule schema, tsup configs"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -41,14 +41,14 @@ REM  TELEGRAM - packages/telegram/*
 REM  telegram-account-manager, telegram-rule-engine, telegram-inbox, telegram-bot, telegram-ui
 REM  Leave empty if no telegram changes: set "TELEGRAM_PACKAGES="
 REM ============================================================
-set "TELEGRAM_PACKAGES=telegram-account-manager:minor,telegram-inbox:minor,telegram-rule-engine:minor,telegram-bot:minor,telegram-ui:minor"
+set "TELEGRAM_PACKAGES="
 
 REM ============================================================
 REM  CHAT - packages/chat/*
 REM  chat-types, chat-engine, chat-ai, chat-widget, chat-ui
 REM  Leave empty if no chat changes: set "CHAT_PACKAGES="
 REM ============================================================
-set "CHAT_PACKAGES=chat-types:minor,chat-engine:minor,chat-widget:minor,chat-ui:minor"
+set "CHAT_PACKAGES="
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

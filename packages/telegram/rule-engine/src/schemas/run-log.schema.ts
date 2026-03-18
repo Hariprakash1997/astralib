@@ -62,7 +62,6 @@ export function createTelegramRunLogSchema(collectionPrefix?: string) {
     }
   );
 
-  schema.index({ runId: 1 }, { unique: true });
   schema.index({ status: 1 });
   schema.index({ startedAt: -1 });
 

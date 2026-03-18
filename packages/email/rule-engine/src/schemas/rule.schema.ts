@@ -129,7 +129,6 @@ export function createEmailRuleSchema(platformValues?: string[], audienceValues?
   );
 
   schema.index({ isActive: 1, sortOrder: 1 });
-  schema.index({ templateId: 1 });
 
   return schema;
 }
