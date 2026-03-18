@@ -1,5 +1,11 @@
 # @astralibx/telegram-rule-engine
 
+## 0.2.0
+
+### Minor Changes
+
+- 8e558d9: Features: chat widget overhaul, engine routes and services, agent dashboard. Telegram batch connect, account rotation, rule runner, inbox sync. Email template editor, draft schema, SMTP updates
+
 ## 0.1.3
 
 ### Patch Changes

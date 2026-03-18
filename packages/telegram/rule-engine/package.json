@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/telegram-rule-engine",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "Rule-based Telegram message automation engine with Handlebars templates, throttling, and distributed locking",
   "repository": {
     "type": "git",

@@ -1,5 +1,11 @@
 # @astralibx/email-account-manager
 
+## 10.6.2
+
+### Patch Changes
+
+- 8e558d9: Features: chat widget overhaul, engine routes and services, agent dashboard. Telegram batch connect, account rotation, rule runner, inbox sync. Email template editor, draft schema, SMTP updates
+
 ## 10.6.1
 
 ### Patch Changes
