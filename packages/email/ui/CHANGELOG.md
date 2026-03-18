@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.8.1
+
+### Patch Changes
+
+- 1e9a196: Features: dry-run results display, run progress polling, onboarding banner. Fixes: UI feedback for delete, toggle, approve, cancel operations
+
 ## 2.8.0
 
 ### Minor Changes
