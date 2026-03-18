@@ -1,5 +1,11 @@
 # @astralibx/email-ui
 
+## 2.11.1
+
+### Patch Changes
+
+- f78f016: Fixes: renamed collection to collectionName to avoid Mongoose reserved key warning, added core as peer dependency, suppressed BullMQ repeated eviction warnings
+
 ## 2.11.0
 
 ### Minor Changes
