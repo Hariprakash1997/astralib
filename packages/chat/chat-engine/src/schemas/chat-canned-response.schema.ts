@@ -9,6 +9,7 @@ export interface IChatCannedResponse {
   isActive: boolean;
   order: number;
   createdBy?: string;
+  tenantId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,6 +29,7 @@ export function createChatCannedResponseSchema() {
       isActive: { type: Boolean, default: true },
       order: { type: Number, default: 0 },
       createdBy: { type: String },
+      tenantId: { type: String, index: true, sparse: true },
     },
     {
       timestamps: true,

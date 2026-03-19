@@ -32,6 +32,7 @@ export const ServerToVisitorEvent = {
   Pong: 'chat:pong',
   SupportPersons: 'chat:support_persons',
   AgentDisconnected: 'chat:agent_disconnected',
+  RatingPrompt: 'chat:rating_prompt',
 } as const;
 
 // Agent -> Server
@@ -53,6 +54,9 @@ export const AgentEvent = {
   UpdateStatus: 'agent:update_status',
   LabelMessage: 'agent:label_message',
   LabelSession: 'agent:label_session',
+  EscalateChat: 'agent:escalate_chat',
+  LeaveChat: 'agent:leave_chat',
+  WatchChat: 'agent:watch_chat',
 } as const;
 
 // Server -> Agent
@@ -71,6 +75,7 @@ export const ServerToAgentEvent = {
   SessionEvent: 'agent:session_event',
   ChatTransferred: 'agent:chat_transferred',
   EscalationNeeded: 'agent:escalation_needed',
+  WatchingChat: 'agent:watching_chat',
 } as const;
 
 // Event payload interfaces
@@ -131,6 +136,8 @@ export interface TrackEventPayload {
   eventType: string;
   description?: string;
   data?: Record<string, unknown>;
+  pageTitle?: string;
+  pageUrl?: string;
 }
 
 export interface ChatErrorPayload {
@@ -148,6 +155,10 @@ export interface ModeChangedPayload {
 export interface FeedbackPayload {
   rating?: number;
   survey?: Record<string, unknown>;
+  ratingType?: string;
+  ratingValue?: number | string;
+  followUpSelections?: string[];
+  comment?: string;
 }
 
 // Gap 1+7: Support person discovery
@@ -200,4 +211,21 @@ export interface LabelSessionPayload {
 // Gap 11: Agent status update
 export interface UpdateStatusPayload {
   status: AgentStatus;
+}
+
+// Agent-initiated escalation
+export interface EscalateChatPayload {
+  sessionId: string;
+  targetAgentId?: string;
+  note?: string;
+}
+
+// Agent leave/abandon chat
+export interface LeaveChatPayload {
+  sessionId: string;
+}
+
+// Manager watch chat (read-only monitoring)
+export interface WatchChatPayload {
+  sessionId: string;
 }

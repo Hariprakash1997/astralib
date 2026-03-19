@@ -5,12 +5,21 @@ export class WidgetConfigService {
   constructor(
     private ChatWidgetConfig: ChatWidgetConfigModel,
     private logger: LogAdapter,
+    private tenantId?: string,
   ) {}
 
+  private get configFilter(): Record<string, unknown> {
+    const filter: Record<string, unknown> = { key: 'global' };
+    if (this.tenantId) filter.tenantId = this.tenantId;
+    return filter;
+  }
+
   async get(): Promise<ChatWidgetConfigDocument> {
-    let config = await this.ChatWidgetConfig.findOne({ key: 'global' });
+    let config = await this.ChatWidgetConfig.findOne(this.configFilter);
     if (!config) {
-      config = await this.ChatWidgetConfig.create({ key: 'global' });
+      const createData: Record<string, unknown> = { key: 'global' };
+      if (this.tenantId) createData.tenantId = this.tenantId;
+      config = await this.ChatWidgetConfig.create(createData);
       this.logger.info('Default widget config created');
     }
     return config;
@@ -39,7 +48,7 @@ export class WidgetConfigService {
     updatedBy: string;
   }>): Promise<ChatWidgetConfigDocument> {
     const config = await this.ChatWidgetConfig.findOneAndUpdate(
-      { key: 'global' },
+      this.configFilter,
       { $set: data },
       { upsert: true, new: true },
     );

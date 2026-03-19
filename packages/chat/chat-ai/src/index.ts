@@ -93,6 +93,10 @@ export function createChatAI(config: ChatAIConfig): ChatAI {
     logger,
     config.knowledgeSearch,
     config.embedding,
+    config.vectorStore,
+    config.embeddingAdapter,
+    config.knowledgeVector,
+    config.generateAiResponse,
   );
 
   const promptBuilder = new PromptBuilderService(

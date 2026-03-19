@@ -1,6 +1,7 @@
 import type { Connection } from 'mongoose';
 import type { Redis } from 'ioredis';
 import type { LogAdapter } from '@astralibx/core';
+import type { CollectionSchema, JoinDefinition } from '@astralibx/rule-engine';
 import type { RuleTarget, RuleRunStats, PerRuleStats } from './rule.types';
 
 export type { LogAdapter } from '@astralibx/core';
@@ -76,12 +77,19 @@ export interface TelegramRuleEngineConfig {
   };
 
   adapters: {
-    queryUsers: (target: RuleTarget, limit: number) => Promise<Record<string, unknown>[]>;
+    queryUsers: (
+      target: RuleTarget,
+      limit: number,
+      context?: { collectionSchema?: CollectionSchema; activeJoins?: JoinDefinition[] },
+    ) => Promise<Record<string, unknown>[]>;
     resolveData: (user: Record<string, unknown>) => Record<string, unknown>;
     sendMessage: (params: SendMessageParams) => Promise<void>;
     selectAccount: (identifierId: string, context?: { ruleId: string; templateId: string }) => Promise<AccountSelection | null>;
     findIdentifier: (phoneOrUsername: string) => Promise<RecipientIdentifier | null>;
   };
+
+  /** Collection schemas for join-based targeting. Passed through to core rule engine. */
+  collections?: CollectionSchema[];
 
   platforms?: string[];
 
@@ -101,11 +109,17 @@ export interface TelegramRuleEngineConfig {
     };
     delayBetweenSendsMs?: number;
     jitterMs?: number;
+    /**
+     * Telegram-specific options below. These are consumed by the exported middleware
+     * utilities (calculateTelegramDelay, getHumanDelay, getHealthAdjustedDelay, etc.)
+     * and not passed through to core. Consumers use them when building custom send
+     * pipelines with the exported utility functions.
+     */
     maxConsecutiveFailures?: number;
     thinkingPauseProbability?: number;
     batchProgressInterval?: number;
-    healthDelayMultiplier?: number; // default 3
-    useRedisThrottle?: boolean; // default false, opt-in
+    healthDelayMultiplier?: number;
+    useRedisThrottle?: boolean;
   };
 
   hooks?: {

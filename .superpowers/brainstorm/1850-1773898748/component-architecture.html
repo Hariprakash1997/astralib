@@ -1,0 +1,40 @@
+<h2>Rule Engine UI — Component Architecture</h2>
+<p class="subtitle">Which component structure makes sense? Click to select.</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Monolith Dashboard</h3>
+      <p>One <code>&lt;alx-rule-engine-dashboard&gt;</code> component that includes everything — tabs for templates, rules, run history, settings. Consumer drops one tag and gets the full UI.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Simplest for consumers — one import, one tag</li><li>Consistent navigation built-in</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>All-or-nothing — can't use just the rule editor</li><li>Hard to customize layout</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Individual Components</h3>
+      <p>Each component is standalone: <code>&lt;alx-rule-editor&gt;</code>, <code>&lt;alx-template-editor&gt;</code>, <code>&lt;alx-run-history&gt;</code>, etc. Consumer picks what they need and arranges them in their own layout.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Maximum flexibility — use one or all</li><li>Consumer controls layout</li><li>Each component is small and focused</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>Consumer must wire up navigation themselves</li><li>More imports to manage</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Both — Dashboard + Individual</h3>
+      <p>Export individual components AND a pre-built dashboard. Consumer can use <code>&lt;alx-rule-engine-dashboard&gt;</code> for the full experience, or import individual components for custom layouts.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Works for both quick setup and custom builds</li><li>Dashboard is just a composition of the individual components</li></ul></div>
+        <div class="cons"><h4>Cons</h4><ul><li>More code to maintain (dashboard is extra)</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,120 +1,73 @@
-import type { EmailRuleEngineConfig } from './types/config.types';
-import { createEmailTemplateSchema, type EmailTemplateModel } from './schemas/template.schema';
-import { createEmailRuleSchema, type EmailRuleModel } from './schemas/rule.schema';
-import { createEmailRuleSendSchema, type EmailRuleSendModel } from './schemas/rule-send.schema';
-import { createEmailRuleRunLogSchema, type EmailRuleRunLogModel } from './schemas/run-log.schema';
-import { createEmailThrottleConfigSchema, type EmailThrottleConfigModel } from './schemas/throttle-config.schema';
-import { TemplateService } from './services/template.service';
-import { RuleService } from './services/rule.service';
-import { RuleRunnerService } from './services/rule-runner.service';
-import { createRoutes } from './routes';
-import { validateConfig } from './validation/config.schema';
-import type { Router } from 'express';
+import {
+  createRuleEngine,
+  type RuleEngine,
+  type RuleEngineConfig,
+  type SendParams,
+} from '@astralibx/rule-engine';
+import { renderMjml, htmlToPlainText } from './mjml-renderer';
+import { registerEmailHelpers } from './email-helpers';
 
-/**
- * Engine instance with Express routes and programmatic service access.
- */
-export interface EmailRuleEngine {
-  routes: Router;
-  runner: RuleRunnerService;
-  templateService: TemplateService;
-  ruleService: RuleService;
-  models: {
-    EmailTemplate: EmailTemplateModel;
-    EmailRule: EmailRuleModel;
-    EmailRuleSend: EmailRuleSendModel;
-    EmailRuleRunLog: EmailRuleRunLogModel;
-    EmailThrottleConfig: EmailThrottleConfigModel;
+export interface EmailSendParams {
+  identifierId: string;
+  contactId: string;
+  accountId: string;
+  subject: string;
+  htmlBody: string;
+  textBody: string;
+  ruleId: string;
+  autoApprove: boolean;
+  attachments?: Array<{ filename: string; url: string; contentType: string }>;
+}
+
+export interface EmailRuleEngineConfig extends Omit<RuleEngineConfig, 'adapters'> {
+  adapters: Omit<RuleEngineConfig['adapters'], 'send' | 'sendTest'> & {
+    sendEmail: (params: EmailSendParams) => Promise<void>;
+    sendTestEmail?: (to: string, subject: string, html: string, text: string, attachments?: Array<{ filename: string; url: string; contentType: string }>) => Promise<void>;
   };
 }
 
-/**
- * Creates an email rule engine instance with routes, services, and models.
- *
- * @param config - Engine configuration including DB, Redis, adapters, and options.
- * @returns Engine instance with Express routes and programmatic service access.
- * @throws {ConfigValidationError} If the provided config is invalid.
- *
- * @example
- * ```typescript
- * const engine = createEmailRuleEngine({
- *   db: { connection: mongoose.createConnection(uri) },
- *   redis: { connection: new Redis() },
- *   adapters: { queryUsers, resolveData, sendEmail, selectAgent, findIdentifier },
- * });
- * app.use('/api/email-rules', engine.routes);
- * ```
- */
-export function createEmailRuleEngine(config: EmailRuleEngineConfig): EmailRuleEngine {
-  validateConfig(config);
+export function createEmailRuleEngine(config: EmailRuleEngineConfig): RuleEngine {
+  // Register email-specific helpers before engine creation
+  registerEmailHelpers();
 
-  const conn = config.db.connection;
-  const prefix = config.db.collectionPrefix || '';
-
-  const EmailTemplate = conn.model<any>(
-    `${prefix}EmailTemplate`,
-    createEmailTemplateSchema(config.platforms, config.audiences, config.categories, prefix)
-  ) as EmailTemplateModel;
-
-  const EmailRule = conn.model<any>(
-    `${prefix}EmailRule`,
-    createEmailRuleSchema(config.platforms, config.audiences, prefix)
-  ) as EmailRuleModel;
-
-  const EmailRuleSend = conn.model<any>(
-    `${prefix}EmailRuleSend`,
-    createEmailRuleSendSchema(prefix)
-  ) as EmailRuleSendModel;
-
-  const EmailRuleRunLog = conn.model<any>(
-    `${prefix}EmailRuleRunLog`,
-    createEmailRuleRunLogSchema(prefix)
-  ) as EmailRuleRunLogModel;
-
-  const EmailThrottleConfig = conn.model<any>(
-    `${prefix}EmailThrottleConfig`,
-    createEmailThrottleConfigSchema(prefix)
-  ) as EmailThrottleConfigModel;
-
-  const templateService = new TemplateService(EmailTemplate, config, EmailRule);
-  const ruleService = new RuleService(EmailRule, EmailTemplate, EmailRuleRunLog, config);
-  const runnerService = new RuleRunnerService(
-    EmailRule, EmailTemplate, EmailRuleSend, EmailRuleRunLog, EmailThrottleConfig, config
-  );
-
-  const routes = createRoutes({
-    templateService,
-    ruleService,
-    runnerService,
-    EmailRuleRunLog,
-    EmailRuleSend,
-    EmailThrottleConfig,
-    platformValues: config.platforms,
-    categoryValues: config.categories,
-    audienceValues: config.audiences,
-    logger: config.logger,
-    collections: config.collections || [],
-  });
-
-  return {
-    routes,
-    runner: runnerService,
-    templateService,
-    ruleService,
-    models: { EmailTemplate, EmailRule, EmailRuleSend, EmailRuleRunLog, EmailThrottleConfig }
+  const coreConfig: RuleEngineConfig = {
+    ...config,
+    adapters: {
+      queryUsers: config.adapters.queryUsers,
+      resolveData: config.adapters.resolveData,
+      selectAgent: config.adapters.selectAgent,
+      findIdentifier: config.adapters.findIdentifier,
+      send: async (params: SendParams) => {
+        const html = renderMjml(params.body);
+        const text = params.textBody || htmlToPlainText(html);
+        await config.adapters.sendEmail({
+          identifierId: params.identifierId,
+          contactId: params.contactId,
+          accountId: params.accountId,
+          subject: params.subject || '',
+          htmlBody: html,
+          textBody: text,
+          ruleId: params.ruleId,
+          autoApprove: params.autoApprove,
+          attachments: (params.metadata?.attachments as any[]) ?? undefined,
+        });
+      },
+      sendTest: config.adapters.sendTestEmail
+        ? async (to: string, body: string, subject?: string, metadata?: Record<string, unknown>) => {
+            const html = renderMjml(body);
+            const text = htmlToPlainText(html);
+            await config.adapters.sendTestEmail!(to, subject || '', html, text, (metadata?.attachments as any[]) ?? undefined);
+          }
+        : undefined,
+    },
   };
+
+  return createRuleEngine(coreConfig);
 }
 
-export * from './types';
-export * from './constants';
-export * from './errors';
-export { validateConfig } from './validation/config.schema';
-export { validateConditions, type ConditionValidationError } from './validation/condition.validator';
-export { flattenFields } from './controllers/collection.controller';
-export * from './schemas';
-export { TemplateRenderService, type RenderResult, type CompiledTemplate } from './services/template-render.service';
-export { TemplateService } from './services/template.service';
-export { RuleService } from './services/rule.service';
-export { RuleRunnerService } from './services/rule-runner.service';
-export { RedisLock } from '@astralibx/core';
-export { SchedulerService } from './services/scheduler.service';
+// Re-export everything from core
+export * from '@astralibx/rule-engine';
+
+// Export email-specific utilities
+export { renderMjml, htmlToPlainText } from './mjml-renderer';
+export { registerEmailHelpers } from './email-helpers';

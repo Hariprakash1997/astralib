@@ -4,6 +4,7 @@ export enum ChatSessionStatus {
   WaitingAgent = 'waiting_agent',
   WithAgent = 'with_agent',
   Resolved = 'resolved',
+  Closed = 'closed',
   Abandoned = 'abandoned',
 }
 
@@ -20,6 +21,7 @@ export enum ChatContentType {
   File = 'file',
   Card = 'card',
   System = 'system',
+  Event = 'event',
 }
 
 export enum ChatMessageStatus {

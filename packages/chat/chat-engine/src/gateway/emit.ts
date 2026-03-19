@@ -2,6 +2,7 @@ import type { Namespace } from 'socket.io';
 import type { LogAdapter } from '@astralibx/core';
 import type { RedisService } from '../services/redis.service';
 import type { PendingMessageService } from '../services/pending-message.service';
+import { INTERNAL_EVENT, PENDING_TYPE } from '../constants/index.js';
 
 export interface EmitDeps {
   visitorNs: Namespace;
@@ -25,9 +26,9 @@ export async function emitToVisitor(
       data,
       timestamp: new Date().toISOString(),
     });
-    deps.agentNs.emit('agent:session_event', {
+    deps.agentNs.emit(INTERNAL_EVENT.AgentSessionEvent, {
       sessionId,
-      type: 'message_pending',
+      type: PENDING_TYPE.MessagePending,
       event,
       data,
     });
@@ -42,9 +43,9 @@ export async function emitToVisitor(
       data,
       timestamp: new Date().toISOString(),
     });
-    deps.agentNs.emit('agent:session_event', {
+    deps.agentNs.emit(INTERNAL_EVENT.AgentSessionEvent, {
       sessionId,
-      type: 'message_pending',
+      type: PENDING_TYPE.MessagePending,
       event,
       data,
     });

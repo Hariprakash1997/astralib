@@ -8,6 +8,8 @@ import {
 } from '@astralibx/chat-types';
 import type { ChatMessageModel, ChatMessageDocument } from '../schemas/chat-message.schema';
 import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
+import { SYSTEM_MESSAGE } from '../constants/index.js';
+import { withTenantFilter, withTenantId } from '../utils/helpers.js';
 
 export class MessageService {
   constructor(
@@ -15,6 +17,7 @@ export class MessageService {
     private options: ResolvedOptions,
     private logger: LogAdapter,
     private hooks?: ChatEngineConfig['hooks'],
+    private tenantId?: string,
   ) {}
 
   async create(params: {
@@ -27,7 +30,7 @@ export class MessageService {
   }): Promise<ChatMessageDocument> {
     const messageId = crypto.randomUUID();
 
-    const message = await this.ChatMessage.create({
+    const message = await this.ChatMessage.create(withTenantId({
       messageId,
       sessionId: params.sessionId,
       senderType: params.senderType,
@@ -37,7 +40,7 @@ export class MessageService {
       status: ChatMessageStatus.Sent,
       metadata: params.metadata || {},
       createdAt: new Date(),
-    });
+    }, this.tenantId));
 
     this.hooks?.onMessageSent?.(this.toPayload(message));
     return message;
@@ -47,7 +50,7 @@ export class MessageService {
     return this.create({
       sessionId,
       senderType: ChatSenderType.System,
-      senderName: 'System',
+      senderName: SYSTEM_MESSAGE.SenderName,
       content,
       contentType: ChatContentType.System,
       metadata,
@@ -55,7 +58,7 @@ export class MessageService {
   }
 
   async findBySession(sessionId: string, limit?: number, before?: string): Promise<ChatMessageDocument[]> {
-    const filter: Record<string, unknown> = { sessionId };
+    const filter: Record<string, unknown> = withTenantFilter({ sessionId }, this.tenantId);
 
     if (before) {
       const cursorMessage = await this.ChatMessage.findOne({ messageId: before });

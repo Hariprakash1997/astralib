@@ -1,5 +1,7 @@
 # Quick Start Tutorial
 
+> **Note:** This tutorial uses `@astralibx/email-rule-engine`, a thin wrapper over `@astralibx/rule-engine`. For core concepts (templates, rules, conditions, joins), see the [core documentation](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/README.md).
+
 End-to-end guide: from zero to your first email campaign in 11 steps.
 
 **Prerequisites:**
@@ -238,7 +240,7 @@ curl -X POST http://localhost:3000/api/email/rules/rules \
 - `emailType` -- `"automated"` respects throttle limits, `"transactional"` bypasses them
 - `maxPerRun` -- Cap on how many recipients per execution (default: 500)
 
-> **Query mode note:** Your `queryUsers` adapter is responsible for translating `conditions` into database queries. See [adapters.md](../rule-engine/docs/adapters.md).
+> **Query mode note:** Your `queryUsers` adapter is responsible for translating `conditions` into database queries. See the [core adapters doc](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/adapters.md).
 
 ---
 
@@ -377,8 +379,8 @@ More endpoints:
 
 ## What's Next?
 
-- [Adapters Guide](../rule-engine/docs/adapters.md) -- Implement `queryUsers`, `resolveData`, `sendEmail`, `selectAgent`, `findIdentifier`
+- [Core Adapters Guide](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/adapters.md) -- Implement `queryUsers`, `resolveData`, `sendEmail`, `selectAgent`, `findIdentifier`
+- [Templates & Rules](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/templates-and-rules.md) -- Full template and rule reference including scheduling
 - [Warmup System](../account-manager/docs/warmup-system.md) -- Protect new accounts from spam filters
 - [Draft Approval](../account-manager/docs/draft-approval.md) -- Add manual review before sending
-- [Scheduling](../rule-engine/docs/rules.md) -- Set up cron-based recurring rules
 - [Glossary](glossary.md) -- All ID types, concepts, and constants explained

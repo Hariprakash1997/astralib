@@ -2,6 +2,8 @@
 
 Get up and running with @astralibx/email-ui in 5 minutes.
 
+> **Shared components:** Rule engine components (templates, rules, run history, throttle settings) come from `@astralibx/rule-engine-ui`. The email dashboard extends the shared rule engine dashboard, adding Accounts and Analytics tabs. See the [rule-engine-ui README](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/README.md) for shared component setup.
+
 ## Install
 
 ```bash
@@ -15,13 +17,14 @@ import { AlxConfig } from '@astralibx/email-ui';
 
 AlxConfig.setup({
   accountManagerApi: 'https://your-api.com/mailer/eam',
-  ruleEngineApi: 'https://your-api.com/mailer/engine',
   analyticsApi: 'https://your-api.com/mailer/analytics',
   authToken: 'your-auth-token',
 });
 ```
 
 > **Important:** Call `AlxConfig.setup()` before importing any components. Components read the config on registration.
+
+Rule engine components are configured separately via `@astralibx/rule-engine-ui` (see shared package docs for `ruleEngineApi` and `RuleEngineAPI` setup).
 
 ## Import Components
 
@@ -31,7 +34,6 @@ import '@astralibx/email-ui';
 
 // Or import specific components
 import '@astralibx/email-ui/components/account';
-import '@astralibx/email-ui/components/rules';
 ```
 
 ## The Email Pipeline
@@ -45,21 +47,23 @@ Accounts → Templates → Rules → Runs
 | Step | What It Does | Component |
 |------|-------------|-----------|
 | **1. Accounts** | Email sender accounts with SMTP credentials | `<alx-account-list>` + `<alx-account-form>` |
-| **2. Templates** | Email content — subjects, bodies, variables | `<alx-template-list>` + `<alx-template-editor>` |
-| **3. Rules** | Connect templates to audiences — who gets what, when | `<alx-rule-list>` + `<alx-rule-editor>` |
-| **4. Runs** | Execute rules, track results | `<alx-run-history>` |
+| **2. Templates** | Email content -- subjects, bodies, variables | `<alx-template-list>` + `<alx-template-editor>` (from `@astralibx/rule-engine-ui`, with `<alx-email-body-editor>` for MJML) |
+| **3. Rules** | Connect templates to audiences -- who gets what, when | `<alx-rule-list>` + `<alx-rule-editor>` (from `@astralibx/rule-engine-ui`) |
+| **4. Runs** | Execute rules, track results | `<alx-run-history>` (from `@astralibx/rule-engine-ui`) |
 
 **Supporting components:** Analytics (overview, timeline, channel breakdown), Settings (throttle, IMAP, approval queue), Health monitoring, Warmup tracking.
 
 ## Minimal Setup (Recommended)
 
-Use the all-in-one dashboard component — zero wiring needed:
+Use the all-in-one dashboard component -- zero wiring needed:
 
 ```html
 <alx-email-dashboard></alx-email-dashboard>
 ```
 
-This gives you the full email management UI: accounts, templates, rules, run history, analytics, and settings — with drawer-based editing, tab navigation, and density toggle built in.
+This gives you the full email management UI: accounts, templates, rules, run history, analytics, and settings -- with drawer-based editing, tab navigation, and density toggle built in.
+
+The template editor slot is automatically filled with `<alx-email-body-editor>` for MJML + Handlebars editing with live preview.
 
 ### Dashboard Attributes
 
@@ -120,7 +124,6 @@ alx-email-dashboard {
 
     AlxConfig.setup({
       accountManagerApi: 'https://your-api.com/mailer/eam',
-      ruleEngineApi: 'https://your-api.com/mailer/engine',
       analyticsApi: 'https://your-api.com/mailer/analytics',
       authToken: 'your-token',
     });
@@ -136,22 +139,22 @@ alx-email-dashboard {
 If you need a custom layout (different tab arrangement, custom wiring), use individual components instead of the dashboard:
 
 ```html
-<!-- Account management -->
+<!-- Account management (email-specific) -->
 <alx-account-list></alx-account-list>
 
-<!-- Template management -->
+<!-- Template management (from @astralibx/rule-engine-ui) -->
 <alx-template-list></alx-template-list>
 
-<!-- Rule management -->
+<!-- Rule management (from @astralibx/rule-engine-ui) -->
 <alx-rule-list></alx-rule-list>
 
-<!-- Run history -->
+<!-- Run history (from @astralibx/rule-engine-ui) -->
 <alx-run-history></alx-run-history>
 ```
 
 ## Edit Flow: The Drawer Pattern
 
-List components emit events when users click edit. Your app catches these events and opens the editor — typically in a slide-in drawer:
+List components emit events when users click edit. Your app catches these events and opens the editor -- typically in a slide-in drawer:
 
 ```html
 <alx-drawer id="drawer">
@@ -250,9 +253,9 @@ import type { TemplateData, RuleData, Condition, Settings } from '@astralibx/ema
 
 ## Next Steps
 
-- [Configuration](./configuration.md) — API setup details
-- [Account Components](./account-components.md) — Full account component API
-- [Rule Components](./rule-components.md) — Templates, rules, runs
-- [Events](./events.md) — All events reference
-- [Theming](./theming.md) — Design tokens and customization
-- [Framework Integration](./framework-integration.md) — Angular, React, Vue, Next.js examples
+- [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/configuration.md) -- API setup details
+- [Account Components](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/account-components.md) -- Full account component API
+- [Rule Engine Components](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/README.md) -- Shared templates, rules, run history, throttle components
+- [Events](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/events.md) -- All events reference
+- [Theming](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/theming.md) -- Design tokens and customization
+- [Framework Integration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/framework-integration.md) -- Angular, React, Vue, Next.js examples

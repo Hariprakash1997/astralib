@@ -1,5 +1,7 @@
 # API Response Contract
 
+> **Note:** For rule engine API routes (templates, rules, runner, collections, throttle, sends), see the [core quick start](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/quick-start-tutorial.md). This document covers account manager and analytics API routes consumed by `@astralibx/email-ui`.
+
 > **This document is the source of truth for API response shapes.** All backend endpoints consumed by `@astralibx/email-ui` MUST follow this contract. Changing response shapes without updating this document and the UI will break the frontend.
 
 ## Response Envelope
@@ -304,284 +306,6 @@ The `HttpClient` in `src/api/http-client.ts` processes responses in this order:
 
 ---
 
-## Rule Engine API (`/mailer/engine`)
-
-### `GET /templates`
-
-**Component:** `<alx-template-list>`, `<alx-rule-editor>` (template dropdown)
-
-**Query params:** `page`, `limit`, `category`, `audience`, `platform`, `_id`
-
-**Response `data`:**
-```json
-{
-  "templates": [
-    {
-      "_id": "string",
-      "name": "string",
-      "slug": "string",
-      "category": "string",
-      "audience": "string",
-      "platform": "string",
-      "subjects": ["string"],
-      "bodies": ["string"],
-      "preheaders": ["string"],
-      "fields": { "key": "string" },
-      "textBody": "string",
-      "variables": ["string"],
-      "isActive": "boolean"
-    }
-  ],
-  "total": "number (optional)"
-}
-```
-
-**UI reads:** `res.templates[]`, `res.total`
-
-> **DO NOT rename** `templates` key. UI destructures it directly.
-
----
-
-### `POST /templates` / `PUT /templates/:id` / `DELETE /templates/:id`
-
-Standard CRUD. Response returns the template object.
-
----
-
-### `POST /templates/preview`
-
-**Component:** `<alx-template-editor>` (preview button)
-
-**Request body:** `{ body: "string", subject: "string", variables: ["string"] }`
-
-**Response `data`:**
-```json
-{
-  "html": "string (rendered HTML)"
-}
-```
-
-> This HTML is rendered in a sandboxed iframe. Keep it safe.
-
----
-
-### `GET /rules`
-
-**Component:** `<alx-rule-list>`
-
-**Query params:** `page`, `limit`, `_id`
-
-**Response `data`:**
-```json
-{
-  "rules": [
-    {
-      "_id": "string",
-      "name": "string",
-      "templateName": "string (optional, for display)",
-      "templateId": "string",
-      "isActive": "boolean",
-      "lastRunAt": "ISO 8601 string | null",
-      "totalSent": "number",
-      "totalSkipped": "number"
-    }
-  ],
-  "total": "number (optional)"
-}
-```
-
-**UI reads:** `res.rules[]`, `res.total`
-
----
-
-### `POST /rules` / `PUT /rules/:id` / `DELETE /rules/:id`
-
-Standard CRUD. Request body matches the `RuleData` interface.
-
----
-
-### `POST /rules/:id/toggle`
-
-**Response `data`:** Updated rule object.
-
----
-
-### `POST /rules/:id/dry-run`
-
-**Response `data`:** Dry run result (matched count, etc.).
-
----
-
-### `POST /runner`
-
-**Component:** `<alx-run-history>` (Run Now button)
-
-**Response `data`:**
-```json
-{
-  "runId": "string"
-}
-```
-
-**UI reads:** `res.runId` (with fallback to `res._id`)
-
-> **DO NOT** wrap this in another object. The auto-unwrap will handle `{ data: { runId: "..." } }` from the envelope.
-
----
-
-### `POST /runner/cancel/:runId`
-
-**Response `data`:** Any (UI ignores body, reloads history).
-
----
-
-### `GET /runner/status` / `GET /runner/status/:runId`
-
-**Response `data`:** Run status object.
-
----
-
-### `GET /runner/logs`
-
-**Component:** `<alx-run-history>`
-
-**Query params:** `page`, `limit`, `from`, `to`
-
-**Response `data`:**
-```json
-{
-  "logs": [
-    {
-      "_id": "string",
-      "runId": "string (optional)",
-      "runAt": "ISO 8601 string",
-      "status": "running | completed | failed | cancelled",
-      "triggeredBy": "string",
-      "duration": "number (ms)",
-      "rulesProcessed": "number",
-      "totalSent": "number",
-      "totalSkipped": "number",
-      "totalErrors": "number",
-      "perRuleStats": [
-        {
-          "ruleName": "string",
-          "ruleId": "string",
-          "sent": "number",
-          "skipped": "number",
-          "errors": "number"
-        }
-      ]
-    }
-  ],
-  "total": "number (optional)"
-}
-```
-
-**UI reads:** `res.logs[]`, `res.total`
-
----
-
-### `GET /throttle`
-
-**Component:** `<alx-throttle-settings>`
-
-**Response `data`:**
-```json
-{
-  "maxPerUserPerDay": "number",
-  "maxPerUserPerWeek": "number",
-  "minGapDays": "number"
-}
-```
-
-> **Note:** This is a flat object, not wrapped in a `throttle` key. It passes through the auto-unwrap unchanged because it has 3 keys.
-
----
-
-### `PUT /throttle`
-
-**Request body:** Same shape as GET response.
-
----
-
-### `POST /templates/:id/clone`
-
-**Component:** `<alx-template-list>`, `<alx-template-editor>`
-
-**Request body:** `{ "name": "optional new name" }`
-
-**Response `data`:** Cloned template object (same shape as GET /templates item).
-
-> Generates a unique slug. Cloned template is deactivated by default.
-
----
-
-### `POST /rules/:id/clone`
-
-**Component:** `<alx-rule-list>`, `<alx-rule-editor>`
-
-**Request body:** `{ "name": "optional new name" }`
-
-**Response `data`:** Cloned rule object (same shape as GET /rules item).
-
-> Resets stats (totalSent, totalSkipped). Cloned rule is deactivated by default.
-
----
-
-### `POST /templates/:id/preview-with-data`
-
-**Component:** `<alx-template-editor>`
-
-**Request body:**
-```json
-{
-  "recipientData": { "name": "John", "company": "Acme" }
-}
-```
-
-**Response `data`:**
-```json
-{
-  "html": "string (rendered HTML)",
-  "text": "string (rendered text)",
-  "subject": "string (rendered subject)"
-}
-```
-
-> Merges template fields with provided recipient data for a realistic preview.
-
----
-
-### `GET /sends`
-
-**Component:** `<alx-send-log>`
-
-**Query params:** `ruleId`, `status`, `email`, `from`, `to`, `page`, `limit`
-
-**Response `data`:**
-```json
-{
-  "sends": [
-    {
-      "_id": "string",
-      "ruleId": "string",
-      "email": "string",
-      "status": "string",
-      "sentAt": "ISO 8601 string",
-      "subjectIndex": "number",
-      "bodyIndex": "number"
-    }
-  ],
-  "total": "number"
-}
-```
-
-**UI reads:** `res.sends[]`, `res.total`
-
-> Individual send log records from `email_rule_sends`.
-
----
-
 ## Analytics API (`/mailer/analytics`)
 
 ### `GET /overview`
@@ -690,7 +414,7 @@ Standard CRUD. Request body matches the `RuleData` interface.
 
 ### `POST /track`
 
-**Component:** Direct API call (no UI component — used by external tracking pages)
+**Component:** Direct API call (no UI component -- used by external tracking pages)
 
 **CORS:** Enabled
 
@@ -739,13 +463,11 @@ The HTTP client auto-unwraps single-item responses:
 | `GET /accounts/:id/warmup` | `{ warmup: {...} }` | YES → inner object |
 | `GET /settings` | `{ settings: {...} }` | YES → inner object |
 | All list endpoints | `{ items: [...], total: N }` | NO (2+ keys) |
-| `GET /throttle` | `{ maxPerUserPerDay: N, ... }` | NO (3 keys) |
-| `POST /runner` | `{ runId: "..." }` | NO (string value, not object) |
 
 ### Rules for Backend Developers
 
 1. **Never add a second key** to single-key object responses — it silently breaks unwrap
-2. **Never rename** list keys (`accounts`, `templates`, `rules`, `logs`, `drafts`)
+2. **Never rename** list keys (`accounts`, `drafts`)
 3. **Always include** `total` in paginated list responses
 4. **Always use** ISO 8601 for dates
 5. **Always use** `_id` as the primary key field name

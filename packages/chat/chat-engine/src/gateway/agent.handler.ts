@@ -20,6 +20,9 @@ import type {
   LabelMessagePayload,
   LabelSessionPayload,
   UpdateStatusPayload,
+  EscalateChatPayload,
+  LeaveChatPayload,
+  WatchChatPayload,
 } from '@astralibx/chat-types';
 import type { SessionService } from '../services/session.service';
 import type { MessageService } from '../services/message.service';
@@ -45,6 +48,9 @@ import {
   clearTypingTimeout,
   withSocketErrorHandler,
 } from './helpers';
+import { validateEscalation } from '../validation/escalation.validator.js';
+import { ERROR_CODE, ERROR_MESSAGE, INTERNAL_EVENT, SYSTEM_MESSAGE } from '../constants/index.js';
+import { resolveAiMode, resolveAiCharacter } from '../utils/ai-resolver.js';
 
 export interface AgentHandlerDeps {
   sessionService: SessionService;
@@ -57,6 +63,17 @@ export interface AgentHandlerDeps {
   emitDeps: EmitDeps;
   notificationDeps: NotificationDeps;
   logger: LogAdapter;
+}
+
+/** Record agent activity timestamp in Redis (non-blocking, fire-and-forget). */
+function trackAgentActivity(agentId: string | undefined, deps: AgentHandlerDeps): void {
+  if (!agentId) return;
+  deps.redisService.setAgentActivity(agentId).catch((err) => {
+    deps.logger.warn('Failed to track agent activity', {
+      agentId,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    });
+  });
 }
 
 export function setupAgentHandlers(
@@ -89,14 +106,22 @@ export function setupAgentHandlers(
       connectedAgentId = payload.agentId;
 
       await deps.redisService.setAgentConnection(payload.agentId, socket.id, payload.agentId);
+      trackAgentActivity(payload.agentId, deps);
 
       // Gap 25: Track agent connection count for multi-tab dedup
       await deps.redisService.incrementAgentConnections(payload.agentId);
 
+      const isManager = await deps.agentService.isManager(payload.agentId);
+
       const [waitingChats, assignedChats] = await Promise.all([
-        deps.sessionService.findWaitingSessions(),
+        deps.sessionService.findPendingQueue(),
         deps.sessionService.findByAgent(payload.agentId),
       ]);
+
+      // Managers see all active sessions for read-only monitoring
+      const allChats = isManager
+        ? (await deps.sessionService.findActiveSessions()).map(s => deps.sessionService.toSummary(s))
+        : undefined;
 
       const dashStats = await deps.sessionService.getDashboardStats();
       const [totalAgents, activeAgents] = await Promise.all([
@@ -108,6 +133,8 @@ export function setupAgentHandlers(
         stats: { ...dashStats, totalAgents, activeAgents },
         waitingChats: waitingChats.map(s => deps.sessionService.toSummary(s)),
         assignedChats: assignedChats.map(s => deps.sessionService.toSummary(s)),
+        isManager,
+        ...(allChats ? { allChats } : {}),
       });
 
       broadcastStatsUpdate(deps.notificationDeps, {
@@ -125,10 +152,11 @@ export function setupAgentHandlers(
 
     socket.on(AgentEvent.AcceptChat, withSocketErrorHandler(socket, deps.logger, async (payload: { sessionId: string }) => {
       if (!connectedAgentId) return;
+      trackAgentActivity(connectedAgentId, deps);
 
       const hasCapacity = await deps.agentService.hasCapacity(connectedAgentId);
       if (!hasCapacity) {
-        socket.emit('agent:error', { code: 'CAPACITY_FULL', message: 'Maximum concurrent chats reached' });
+        socket.emit(INTERNAL_EVENT.AgentError, { code: ERROR_CODE.CapacityFull, message: ERROR_MESSAGE.CapacityFull });
         return;
       }
 
@@ -172,8 +200,20 @@ export function setupAgentHandlers(
 
     socket.on(AgentEvent.SendMessage, withSocketErrorHandler(socket, deps.logger, async (payload: MessagePayload & { sessionId: string }) => {
       if (!connectedAgentId) return;
+      trackAgentActivity(connectedAgentId, deps);
 
       const session = await deps.sessionService.findByIdOrFail(payload.sessionId);
+
+      // Manager read-only: reject message if manager and session not assigned to them
+      const isManager = await deps.agentService.isManager(connectedAgentId);
+      if (isManager && session.agentId !== connectedAgentId) {
+        socket.emit(INTERNAL_EVENT.AgentError, {
+          code: ERROR_CODE.ManagerNotAllowed,
+          message: ERROR_MESSAGE.ManagerMessageNotAllowed,
+        });
+        return;
+      }
+
       validateAgentOwnership(session, connectedAgentId);
       validateSessionForMessaging(session);
 
@@ -228,6 +268,7 @@ export function setupAgentHandlers(
 
     socket.on(AgentEvent.ResolveChat, withSocketErrorHandler(socket, deps.logger, async (payload: { sessionId: string }) => {
       if (!connectedAgentId) return;
+      trackAgentActivity(connectedAgentId, deps);
 
       const preResolve = await deps.sessionService.findByIdOrFail(payload.sessionId);
       validateAgentOwnership(preResolve, connectedAgentId);
@@ -265,6 +306,10 @@ export function setupAgentHandlers(
         status: ChatSessionStatus.Resolved,
       });
 
+      await emitToVisitor(deps.emitDeps, payload.sessionId, ServerToVisitorEvent.RatingPrompt, {
+        sessionId: payload.sessionId,
+      });
+
       socket.emit(ServerToAgentEvent.ChatEnded, {
         sessionId: payload.sessionId,
       });
@@ -297,6 +342,7 @@ export function setupAgentHandlers(
 
     socket.on(AgentEvent.TakeOver, withSocketErrorHandler(socket, deps.logger, async (payload: { sessionId: string }) => {
       if (!connectedAgentId) return;
+      trackAgentActivity(connectedAgentId, deps);
 
       clearAiDebounce(payload.sessionId);
 
@@ -336,8 +382,12 @@ export function setupAgentHandlers(
       if (!connectedAgentId) return;
 
       const settings = await deps.settingsService.get();
-      if (!settings.aiEnabled) {
-        socket.emit('agent:error', { code: 'AI_DISABLED', message: 'AI mode is not enabled' });
+      // Use two-layer AI mode resolution
+      const session = await deps.sessionService.findByIdOrFail(payload.sessionId);
+      const agentDoc = session.agentId ? await deps.agentService.findById(session.agentId) : null;
+      const resolvedMode = resolveAiMode(settings, agentDoc);
+      if (resolvedMode === 'manual') {
+        socket.emit(INTERNAL_EVENT.AgentError, { code: ERROR_CODE.AiDisabled, message: ERROR_MESSAGE.AiModeDisabled });
         return;
       }
 
@@ -412,6 +462,7 @@ export function setupAgentHandlers(
 
     socket.on(AgentEvent.TransferChat, withSocketErrorHandler(socket, deps.logger, async (payload: TransferChatPayload) => {
       if (!connectedAgentId) return;
+      trackAgentActivity(connectedAgentId, deps);
 
       const sessionToTransfer = await deps.sessionService.findByIdOrFail(payload.sessionId);
       validateAgentOwnership(sessionToTransfer, connectedAgentId);
@@ -455,6 +506,137 @@ export function setupAgentHandlers(
       });
     }));
 
+    socket.on(AgentEvent.EscalateChat, withSocketErrorHandler(socket, deps.logger, async (payload: EscalateChatPayload) => {
+      if (!connectedAgentId) return;
+      trackAgentActivity(connectedAgentId, deps);
+
+      const session = await deps.sessionService.findByIdOrFail(payload.sessionId);
+      validateAgentOwnership(session, connectedAgentId);
+
+      const currentAgent = await deps.agentService.findByIdOrFail(connectedAgentId);
+
+      let targetAgent;
+      if (payload.targetAgentId) {
+        // Agent specified a target — validate it
+        targetAgent = await deps.agentService.findByIdOrFail(payload.targetAgentId);
+        validateEscalation(payload.sessionId, currentAgent, targetAgent);
+      } else {
+        // Auto-find the least busy supervisor at the next level
+        targetAgent = await deps.agentService.findLeastBusySupervisor(currentAgent);
+        if (!targetAgent) {
+          socket.emit(INTERNAL_EVENT.AgentError, {
+            code: ERROR_CODE.EscalationFailed,
+            message: `No available supervisor at L${currentAgent.level + 1}`,
+          });
+          return;
+        }
+      }
+
+      // Transfer the session to the target agent
+      await deps.sessionService.transfer(
+        payload.sessionId,
+        targetAgent._id.toString(),
+        payload.note,
+      );
+
+      await deps.agentService.decrementChats(connectedAgentId);
+      await deps.agentService.incrementChats(targetAgent._id.toString());
+
+      const systemMsg = `${SYSTEM_MESSAGE.AgentEscalated} from ${currentAgent.name} (L${currentAgent.level}) to ${targetAgent.name} (L${targetAgent.level})`;
+      await deps.messageService.createSystemMessage(payload.sessionId, systemMsg);
+
+      const messages = await deps.messageService.findBySession(payload.sessionId, deps.options.maxSessionHistory);
+
+      await emitToAgent(deps.emitDeps, targetAgent._id.toString(), ServerToAgentEvent.ChatTransferred, {
+        session: deps.sessionService.toSummary(session),
+        messages: messages.map(m => deps.messageService.toPayload(m)),
+        transferNote: payload.note,
+      });
+
+      socket.emit(ServerToAgentEvent.ChatEnded, {
+        sessionId: payload.sessionId,
+      });
+
+      const agentInfo = deps.agentService.toAgentInfo(targetAgent);
+      await emitToVisitor(deps.emitDeps, payload.sessionId, ServerToVisitorEvent.AgentJoin, {
+        agent: agentInfo,
+      });
+
+      broadcastSessionUpdate(deps.notificationDeps, payload.sessionId, 'escalated', {
+        fromAgentId: connectedAgentId,
+        toAgentId: targetAgent._id.toString(),
+        fromLevel: currentAgent.level,
+        toLevel: targetAgent.level,
+      });
+
+      deps.config.hooks?.onMetric?.({
+        name: 'agent_escalation',
+        value: 1,
+        labels: { channel: session.channel, fromLevel: String(currentAgent.level), toLevel: String(targetAgent.level) },
+      });
+    }));
+
+    socket.on(AgentEvent.LeaveChat, withSocketErrorHandler(socket, deps.logger, async (payload: LeaveChatPayload) => {
+      if (!connectedAgentId) return;
+      trackAgentActivity(connectedAgentId, deps);
+
+      const session = await deps.sessionService.findByIdOrFail(payload.sessionId);
+      validateAgentOwnership(session, connectedAgentId);
+
+      const currentAgent = await deps.agentService.findByIdOrFail(connectedAgentId);
+
+      // Unassign agent, put session back to waiting
+      session.agentId = undefined;
+      session.status = ChatSessionStatus.WaitingAgent;
+
+      // Calculate new queue position
+      const waitingCount = await deps.sessionService.findWaitingSessions();
+      session.queuePosition = waitingCount.length + 1;
+      await session.save();
+
+      await deps.agentService.decrementChats(connectedAgentId);
+
+      await deps.messageService.createSystemMessage(
+        payload.sessionId,
+        SYSTEM_MESSAGE.AgentLeft,
+      );
+
+      socket.emit(ServerToAgentEvent.ChatEnded, {
+        sessionId: payload.sessionId,
+      });
+
+      await emitToVisitor(deps.emitDeps, payload.sessionId, ServerToVisitorEvent.AgentLeave, {});
+      await emitToVisitor(deps.emitDeps, payload.sessionId, ServerToVisitorEvent.Status, {
+        status: ChatSessionStatus.WaitingAgent,
+        queuePosition: session.queuePosition,
+      });
+
+      broadcastSessionUpdate(deps.notificationDeps, payload.sessionId, 'agent_left', {
+        agentId: connectedAgentId,
+      });
+
+      // Notify all agents so the session appears in the waiting queue
+      const summary = deps.sessionService.toSummary(session);
+      deps.notificationDeps.agentNs.emit(ServerToAgentEvent.NewChat, { session: summary });
+
+      const dashStats = await deps.sessionService.getDashboardStats();
+      const [totalAgents, activeAgents] = await Promise.all([
+        deps.agentService.getTotalAgentCount(),
+        deps.agentService.getOnlineAgentCount(),
+      ]);
+      broadcastStatsUpdate(deps.notificationDeps, {
+        ...dashStats,
+        totalAgents,
+        activeAgents,
+      });
+
+      deps.config.hooks?.onMetric?.({
+        name: 'agent_leave',
+        value: 1,
+        labels: { channel: session.channel },
+      });
+    }));
+
     socket.on(AgentEvent.SendAiMessage, withSocketErrorHandler(socket, deps.logger, async (payload: SendAiMessagePayload) => {
       if (!connectedAgentId) return;
 
@@ -478,6 +660,10 @@ export function setupAgentHandlers(
         isAI: true,
       };
 
+      // Resolve AI character for this session
+      const settings = await deps.settingsService.get();
+      const aiCharacter = resolveAiCharacter(settings, aiAgent);
+
       const aiInput = {
         sessionId: session.sessionId,
         visitorId: session.visitorId,
@@ -490,6 +676,7 @@ export function setupAgentHandlers(
         },
         conversationSummary: session.conversationSummary,
         metadata: session.metadata,
+        aiCharacter,
       };
 
       const aiOutput = await deps.config.adapters.generateAiResponse(aiInput);
@@ -546,6 +733,7 @@ export function setupAgentHandlers(
     // Gap 11: Agent status update
     socket.on(AgentEvent.UpdateStatus, withSocketErrorHandler(socket, deps.logger, async (payload: UpdateStatusPayload) => {
       if (!connectedAgentId) return;
+      trackAgentActivity(connectedAgentId, deps);
 
       await deps.agentService.updateStatus(connectedAgentId, payload.status);
 
@@ -561,6 +749,33 @@ export function setupAgentHandlers(
       });
 
       deps.logger.info('Agent status updated', { agentId: connectedAgentId, status: payload.status });
+    }));
+
+    // Manager watch — subscribe to a specific session's real-time updates (read-only)
+    socket.on(AgentEvent.WatchChat, withSocketErrorHandler(socket, deps.logger, async (payload: WatchChatPayload) => {
+      if (!connectedAgentId) return;
+
+      const isManager = await deps.agentService.isManager(connectedAgentId);
+      if (!isManager) {
+        socket.emit(INTERNAL_EVENT.AgentError, {
+          code: ERROR_CODE.ManagerNotAllowed,
+          message: ERROR_MESSAGE.ManagerWatchOnly,
+        });
+        return;
+      }
+
+      const session = await deps.sessionService.findByIdOrFail(payload.sessionId);
+      const messages = await deps.messageService.findBySession(payload.sessionId, deps.options.maxSessionHistory);
+
+      // Join the session room so the manager receives real-time messages
+      socket.join(payload.sessionId);
+
+      socket.emit(ServerToAgentEvent.WatchingChat, {
+        session: deps.sessionService.toSummary(session),
+        messages: messages.map(m => deps.messageService.toPayload(m)),
+      });
+
+      deps.logger.info('Manager watching chat', { agentId: connectedAgentId, sessionId: payload.sessionId });
     }));
 
     socket.on('disconnect', async () => {
@@ -585,6 +800,7 @@ export function setupAgentHandlers(
 
         await deps.agentService.disconnect(connectedAgentId);
         await deps.redisService.removeAgentConnection(connectedAgentId);
+        await deps.redisService.removeAgentActivity(connectedAgentId);
 
         // Gap 25: Decrement agent connection count
         await deps.redisService.decrementAgentConnections(connectedAgentId);

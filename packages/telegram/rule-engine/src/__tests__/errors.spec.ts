@@ -10,12 +10,12 @@ import {
 } from '../errors';
 
 describe('Error Classes', () => {
-  describe('AlxTelegramError', () => {
+  describe('AlxTelegramError (alias for AlxRuleEngineError)', () => {
     it('creates with message and code', () => {
       const err = new AlxTelegramError('something broke', 'CUSTOM_CODE');
       expect(err.message).toBe('something broke');
       expect(err.code).toBe('CUSTOM_CODE');
-      expect(err.name).toBe('AlxTelegramError');
+      expect(err.name).toBe('AlxRuleEngineError');
     });
 
     it('is instanceof Error', () => {
@@ -90,8 +90,8 @@ describe('Error Classes', () => {
       expect(err.runId).toBeUndefined();
     });
 
-    it('is instanceof AlxTelegramError', () => {
-      expect(new RunError('msg')).toBeInstanceOf(AlxTelegramError);
+    it('is instanceof Error', () => {
+      expect(new RunError('msg')).toBeInstanceOf(Error);
     });
   });
 
@@ -103,16 +103,16 @@ describe('Error Classes', () => {
       expect(err.message).toBe('user throttled');
     });
 
-    it('is instanceof AlxTelegramError', () => {
-      expect(new ThrottleError('msg')).toBeInstanceOf(AlxTelegramError);
+    it('is instanceof Error', () => {
+      expect(new ThrottleError('msg')).toBeInstanceOf(Error);
     });
   });
 
-  describe('LockError', () => {
+  describe('LockError (alias for LockAcquisitionError)', () => {
     it('has correct code and fixed message', () => {
       const err = new LockError();
       expect(err.code).toBe('LOCK_ACQUISITION');
-      expect(err.name).toBe('LockError');
+      expect(err.name).toBe('LockAcquisitionError');
       expect(err.message).toContain('Could not acquire distributed lock');
     });
 

@@ -45,6 +45,51 @@ import {
   clearTypingThrottle,
   withSocketErrorHandler,
 } from './helpers';
+import { ERROR_CODE, ERROR_MESSAGE, SYSTEM_MESSAGE, AGENT_VISIBILITY, CHAT_MODE, USER_EVENT_TYPE } from '../constants/index.js';
+import type { IAnalyticsConfig } from '../schemas/chat-settings.schema.js';
+import type { VisitorAnalytics } from '@astralibx/chat-types';
+import { resolveAiMode, resolveAiCharacter } from '../utils/ai-resolver.js';
+
+/**
+ * Strip analytics fields based on privacy settings.
+ * Returns only the fields that are enabled in the analytics config.
+ */
+function stripAnalytics(
+  analytics: VisitorAnalytics | undefined,
+  config: IAnalyticsConfig,
+): Record<string, unknown> | undefined {
+  if (!analytics || !config.enabled) return undefined;
+
+  const result: Record<string, unknown> = {};
+  if (config.collectIp && analytics.ip != null) result.ip = analytics.ip;
+  if (config.collectBrowser && analytics.browser != null) result.browser = analytics.browser;
+  if (config.collectBrowser && analytics.os != null) result.os = analytics.os;
+  if (config.collectScreen && analytics.screenResolution != null) result.screenResolution = analytics.screenResolution;
+  if (config.collectPageView && analytics.currentPage != null) result.currentPage = analytics.currentPage;
+  if (config.collectPageView && analytics.currentPageTitle != null) result.currentPageTitle = analytics.currentPageTitle;
+  if (config.collectLocation && analytics.location != null) result.location = analytics.location;
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/**
+ * Validate file/image content type against file sharing settings.
+ * Returns an error message if validation fails, or null if valid.
+ */
+function validateFileSharing(
+  contentType: ChatContentType,
+  settings: { fileSharing: { enabled: boolean; maxFileSizeMb: number; allowedTypes: string[] } },
+): string | null {
+  if (contentType !== ChatContentType.Image && contentType !== ChatContentType.File) {
+    return null;
+  }
+
+  if (!settings.fileSharing.enabled) {
+    return 'File sharing is disabled';
+  }
+
+  return null;
+}
 
 export interface VisitorHandlerDeps {
   sessionService: SessionService;
@@ -77,6 +122,8 @@ export function setupVisitorHandlers(
     const aiDebounceDeps: AiDebounceDeps = {
       sessionService: deps.sessionService,
       messageService: deps.messageService,
+      agentService: deps.agentService,
+      settingsService: deps.settingsService,
       redisService: deps.redisService,
       options: deps.options,
       config: deps.config,
@@ -91,14 +138,18 @@ export function setupVisitorHandlers(
       if (deps.config.adapters.authenticateVisitor) {
         const allowed = await deps.config.adapters.authenticateVisitor(context);
         if (!allowed) {
-          socket.emit(ServerToVisitorEvent.Error, { code: 'AUTH_FAILED', message: 'Authentication failed' });
+          socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.AuthFailed, message: ERROR_MESSAGE.AuthFailed });
           socket.disconnect();
           return;
         }
       }
 
       const settings = await deps.settingsService.get();
-      const defaultMode = settings.aiEnabled ? settings.defaultSessionMode : SessionMode.Manual;
+      // Two-layer AI control: resolve global AI mode (ignoring per-agent until session is assigned)
+      const globalResolvedMode = resolveAiMode(settings);
+      const defaultMode = globalResolvedMode === 'ai'
+        ? (settings.defaultSessionMode ?? SessionMode.AI)
+        : (settings.aiEnabled ? settings.defaultSessionMode : SessionMode.Manual);
 
       const { session, isNew, messages } = await deps.sessionService.findOrCreate(
         context,
@@ -110,10 +161,18 @@ export function setupVisitorHandlers(
       await deps.redisService.setVisitorConnection(session.sessionId, socket.id, context.visitorId);
       await deps.redisService.setSessionActivity(session.sessionId);
 
+      // Store visitor analytics on session (privacy-filtered)
+      if (context.analytics) {
+        const strippedAnalytics = stripAnalytics(context.analytics, settings.analyticsConfig);
+        if (strippedAnalytics) {
+          session.analytics = strippedAnalytics as any;
+        }
+      }
+
       if (session.status === ChatSessionStatus.New) {
         session.status = ChatSessionStatus.Active;
-        await session.save();
       }
+      await session.save();
 
       const messagePayloads = messages.map((m: any) => deps.messageService.toPayload(m));
 
@@ -145,7 +204,7 @@ export function setupVisitorHandlers(
       if (!isNew) {
         const wasDisconnected = await deps.redisService.hadRecentDisconnect(session.sessionId);
         if (wasDisconnected) {
-          await deps.messageService.createSystemMessage(session.sessionId, 'Visitor reconnected');
+          await deps.messageService.createSystemMessage(session.sessionId, SYSTEM_MESSAGE.VisitorReconnected);
           if (session.agentId) {
             await emitToAgent(deps.emitDeps, session.agentId, ServerToAgentEvent.VisitorReconnected, {
               sessionId: session.sessionId,
@@ -180,6 +239,23 @@ export function setupVisitorHandlers(
         }
       }
 
+      // Resolve user identity — merge anonymous sessions if a known user is identified
+      if (deps.config.adapters.resolveUserIdentity) {
+        try {
+          const resolvedUserId = await deps.config.adapters.resolveUserIdentity(context);
+          if (resolvedUserId && resolvedUserId !== context.visitorId) {
+            await deps.sessionService.mergeAnonymousSessions(context.visitorId, resolvedUserId);
+            deps.logger.info('User identity resolved', {
+              sessionId: session.sessionId,
+              anonymousId: context.visitorId,
+              userId: resolvedUserId,
+            });
+          }
+        } catch (err) {
+          deps.logger.error('resolveUserIdentity failed', { error: err, visitorId: context.visitorId });
+        }
+      }
+
       deps.config.hooks?.onVisitorConnected?.(context.visitorId, session.sessionId);
       deps.config.hooks?.onMetric?.({
         name: 'ws_connections',
@@ -211,12 +287,12 @@ export function setupVisitorHandlers(
       const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
       const sessionId = rooms[0];
       if (!sessionId) {
-        socket.emit(ServerToVisitorEvent.Error, { code: 'NO_SESSION', message: 'No active session' });
+        socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.NoSession, message: ERROR_MESSAGE.NoActiveSession });
         return;
       }
 
       if (payload.metadata && !isJsonSafe(payload.metadata)) {
-        socket.emit(ServerToVisitorEvent.Error, { code: 'INVALID_DATA', message: 'Invalid metadata' });
+        socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidData, message: ERROR_MESSAGE.InvalidMetadata });
         return;
       }
 
@@ -227,12 +303,22 @@ export function setupVisitorHandlers(
 
       const content = validateMessageContent(payload.content, deps.options);
 
+      // Validate file sharing settings for file/image messages
+      if (payload.contentType === ChatContentType.Image || payload.contentType === ChatContentType.File) {
+        const settings = await deps.settingsService.get();
+        const fileSharingError = validateFileSharing(payload.contentType, settings);
+        if (fileSharingError) {
+          socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.FileSharingDisabled, message: fileSharingError });
+          return;
+        }
+      }
+
       // Validate that file/image messages have a valid URL as content
       if ((payload.contentType === ChatContentType.Image || payload.contentType === ChatContentType.File) && content) {
         try {
           new URL(content);
         } catch {
-          socket.emit(ServerToVisitorEvent.Error, { code: 'INVALID_URL', message: 'File content must be a valid URL' });
+          socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidUrl, message: ERROR_MESSAGE.FileContentInvalidUrl });
           return;
         }
       }
@@ -272,7 +358,10 @@ export function setupVisitorHandlers(
       }
 
       const settings = await deps.settingsService.get();
-      if (session.mode === SessionMode.AI && settings.aiEnabled && deps.config.adapters.generateAiResponse) {
+      // Use two-layer AI mode resolution: check global switch, then per-agent
+      const sessionAgent = session.agentId ? await deps.agentService.findById(session.agentId) : null;
+      const resolvedMode = resolveAiMode(settings, sessionAgent);
+      if (session.mode === SessionMode.AI && resolvedMode === 'ai' && deps.config.adapters.generateAiResponse) {
         scheduleAiResponse(aiDebounceDeps, sessionId);
       }
     }));
@@ -383,7 +472,7 @@ export function setupVisitorHandlers(
       if (!sessionId) return;
 
       if (!isJsonSafe(data)) {
-        socket.emit(ServerToVisitorEvent.Error, { code: 'INVALID_DATA', message: 'Invalid data format' });
+        socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidData, message: ERROR_MESSAGE.InvalidDataFormat });
         return;
       }
 
@@ -412,18 +501,37 @@ export function setupVisitorHandlers(
         });
       }
 
-      // Gap 10: Store tracked events as system messages when enabled
-      if (deps.options.trackEventsAsMessages) {
-        const systemMsg = await deps.messageService.createSystemMessage(
+      // Store tracked events as inline event messages (senderType: system, contentType: event)
+      const eventContent = `${payload.eventType}: ${payload.description || ''}`.trim();
+      const eventMetadata: Record<string, unknown> = {
+        eventType: payload.eventType,
+        eventData: payload.data,
+      };
+      if (payload.pageTitle) eventMetadata.pageTitle = payload.pageTitle;
+      if (payload.pageUrl) eventMetadata.pageUrl = payload.pageUrl;
+
+      const eventMsg = await deps.messageService.create({
+        sessionId,
+        senderType: ChatSenderType.System,
+        senderName: SYSTEM_MESSAGE.SenderName,
+        content: eventContent,
+        contentType: ChatContentType.Event,
+        metadata: eventMetadata,
+      });
+
+      // Forward inline event to assigned agent so they see it in the chat timeline
+      if (session.agentId) {
+        await emitToAgent(deps.emitDeps, session.agentId, ServerToAgentEvent.SessionEvent, {
           sessionId,
-          `${payload.eventType}: ${payload.description || ''}`.trim(),
-          { eventType: payload.eventType, eventData: payload.data },
-        );
-        deps.emitDeps.agentNs?.emit(ServerToAgentEvent.SessionEvent, {
-          sessionId,
-          message: deps.messageService.toPayload(systemMsg),
+          message: deps.messageService.toPayload(eventMsg),
         });
       }
+
+      // Also broadcast to all agents (e.g. agent dashboard)
+      deps.emitDeps.agentNs?.emit(ServerToAgentEvent.SessionEvent, {
+        sessionId,
+        message: deps.messageService.toPayload(eventMsg),
+      });
     }));
 
     socket.on(VisitorEvent.Ping, () => {
@@ -435,10 +543,55 @@ export function setupVisitorHandlers(
       const sessionId = rooms[0];
       if (!sessionId) return;
 
-      // Validate rating
+      // Two-step rating flow
+      if (payload.ratingType != null || payload.ratingValue != null) {
+        if (!payload.ratingType || typeof payload.ratingType !== 'string') {
+          socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidRating, message: ERROR_MESSAGE.RatingTypeRequired });
+          return;
+        }
+
+        if (payload.ratingValue == null) {
+          socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidRating, message: ERROR_MESSAGE.RatingValueRequired });
+          return;
+        }
+
+        // Validate ratingType matches settings
+        const settings = await deps.settingsService.get();
+        if (settings.ratingConfig?.enabled && settings.ratingConfig.ratingType !== payload.ratingType) {
+          socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidRating, message: `ratingType must be '${settings.ratingConfig.ratingType}'` });
+          return;
+        }
+
+        // Validate ratingValue range
+        if (payload.ratingType === 'thumbs') {
+          if (payload.ratingValue !== 0 && payload.ratingValue !== 1) {
+            socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidRating, message: ERROR_MESSAGE.RatingThumbsRange });
+            return;
+          }
+        } else if (payload.ratingType === 'stars' || payload.ratingType === 'emoji') {
+          const numVal = Number(payload.ratingValue);
+          if (!Number.isInteger(numVal) || numVal < 1 || numVal > 5) {
+            socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidRating, message: ERROR_MESSAGE.RatingStarsRange });
+            return;
+          }
+        } else {
+          socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidRating, message: `Invalid ratingType: ${payload.ratingType}` });
+          return;
+        }
+
+        await deps.sessionService.submitFeedback(sessionId, {
+          ratingType: payload.ratingType,
+          ratingValue: payload.ratingValue,
+          followUpSelections: payload.followUpSelections,
+          comment: payload.comment,
+        });
+        return;
+      }
+
+      // Legacy rating flow
       if (payload.rating != null) {
         if (typeof payload.rating !== 'number' || payload.rating < 1 || payload.rating > 5 || !Number.isInteger(payload.rating)) {
-          socket.emit(ServerToVisitorEvent.Error, { code: 'INVALID_RATING', message: 'Rating must be an integer from 1 to 5' });
+          socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidRating, message: ERROR_MESSAGE.RatingLegacyRange });
           return;
         }
       }
@@ -468,9 +621,25 @@ export function setupVisitorHandlers(
       const sessionId = rooms[0];
       if (!sessionId) return;
 
+      // Fixed mode: reject switch unless the assigned agent has left/disconnected
+      if (settings.chatMode === CHAT_MODE.Fixed) {
+        const session = await deps.sessionService.findById(sessionId);
+        if (session?.agentId) {
+          const currentAgent = await deps.agentService.findById(session.agentId);
+          // Only allow switch if current agent is offline or not found
+          if (currentAgent && currentAgent.isOnline) {
+            socket.emit(ServerToVisitorEvent.Error, {
+              code: ERROR_CODE.FixedModeSwitch,
+              message: ERROR_MESSAGE.FixedModeSwitch,
+            });
+            return;
+          }
+        }
+      }
+
       const agent = await deps.agentService.findById(payload.agentId);
-      if (!agent || !agent.isActive || agent.visibility !== 'public') {
-        socket.emit(ServerToVisitorEvent.Error, { code: 'AGENT_UNAVAILABLE', message: 'Agent not available' });
+      if (!agent || !agent.isActive || agent.visibility !== AGENT_VISIBILITY.Public) {
+        socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.AgentUnavailable, message: ERROR_MESSAGE.AgentNotAvailable });
         return;
       }
 

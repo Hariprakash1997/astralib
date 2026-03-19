@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response, RequestHandler } from 'express';
 import type { WidgetConfigService } from '../services/widget-config.service';
+import type { SettingsService } from '../services/settings.service';
 import { sendSuccess, sendError } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
 
@@ -8,6 +9,7 @@ export function createWidgetConfigRoutes(
   widgetConfigService: WidgetConfigService,
   logger: LogAdapter,
   authMiddleware?: RequestHandler,
+  settingsService?: SettingsService,
 ): Router {
   const router = Router();
 
@@ -15,7 +17,19 @@ export function createWidgetConfigRoutes(
   router.get('/', async (_req: Request, res: Response) => {
     try {
       const config = await widgetConfigService.get();
-      sendSuccess(res, { config });
+
+      // Include business hours status if settings service is available
+      let businessHoursStatus: { isOpen: boolean; outsideHoursMessage?: string; outsideHoursBehavior?: string } | undefined;
+      if (settingsService) {
+        const { isOpen, businessHours } = await settingsService.isWithinBusinessHours();
+        businessHoursStatus = {
+          isOpen,
+          outsideHoursMessage: businessHours.outsideHoursMessage,
+          outsideHoursBehavior: businessHours.outsideHoursBehavior,
+        };
+      }
+
+      sendSuccess(res, { config, businessHoursStatus });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Failed to get widget config', { error });

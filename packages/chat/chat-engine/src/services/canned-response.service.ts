@@ -1,11 +1,13 @@
 import crypto from 'crypto';
 import type { LogAdapter } from '@astralibx/core';
 import type { ChatCannedResponseModel, ChatCannedResponseDocument } from '../schemas/chat-canned-response.schema';
+import { withTenantFilter, withTenantId } from '../utils/helpers.js';
 
 export class CannedResponseService {
   constructor(
     private ChatCannedResponse: ChatCannedResponseModel,
     private logger: LogAdapter,
+    private tenantId?: string,
   ) {}
 
   async create(data: {
@@ -18,17 +20,17 @@ export class CannedResponseService {
     createdBy?: string;
   }): Promise<ChatCannedResponseDocument> {
     const responseId = crypto.randomUUID();
-    const response = await this.ChatCannedResponse.create({ responseId, ...data });
+    const response = await this.ChatCannedResponse.create(withTenantId({ responseId, ...data }, this.tenantId));
     this.logger.info('Canned response created', { responseId });
     return response;
   }
 
   async findById(responseId: string): Promise<ChatCannedResponseDocument | null> {
-    return this.ChatCannedResponse.findOne({ responseId });
+    return this.ChatCannedResponse.findOne(withTenantFilter({ responseId }, this.tenantId));
   }
 
   async findByShortcut(shortcut: string): Promise<ChatCannedResponseDocument | null> {
-    return this.ChatCannedResponse.findOne({ shortcut, isActive: true });
+    return this.ChatCannedResponse.findOne(withTenantFilter({ shortcut, isActive: true }, this.tenantId));
   }
 
   async update(responseId: string, data: Partial<{
@@ -52,7 +54,7 @@ export class CannedResponseService {
   }
 
   async list(filters?: { category?: string; isActive?: boolean; search?: string }): Promise<ChatCannedResponseDocument[]> {
-    const query: Record<string, unknown> = {};
+    const query: Record<string, unknown> = withTenantFilter({} as Record<string, unknown>, this.tenantId);
     if (filters?.category) query.category = filters.category;
     if (filters?.isActive !== undefined) query.isActive = filters.isActive;
     if (filters?.search) {

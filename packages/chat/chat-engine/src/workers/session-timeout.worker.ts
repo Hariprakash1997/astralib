@@ -1,17 +1,25 @@
 import type { LogAdapter } from '@astralibx/core';
-import { ChatSessionStatus } from '@astralibx/chat-types';
+import { ChatSessionStatus, ServerToVisitorEvent } from '@astralibx/chat-types';
 import type { SessionService } from '../services/session.service';
+import type { MessageService } from '../services/message.service';
 import type { AgentService } from '../services/agent.service';
+import type { SettingsService } from '../services/settings.service';
 import type { RedisService } from '../services/redis.service';
 import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
+import type { EmitDeps } from '../gateway/emit';
+import { emitToVisitor } from '../gateway/emit';
+import { SYSTEM_MESSAGE } from '../constants/index.js';
 
 export interface SessionTimeoutWorkerDeps {
   sessionService: SessionService;
+  messageService: MessageService;
   agentService: AgentService;
+  settingsService: SettingsService;
   redisService: RedisService;
   config: ChatEngineConfig;
   options: ResolvedOptions;
   logger: LogAdapter;
+  getEmitDeps?: () => EmitDeps | undefined;
 }
 
 export class SessionTimeoutWorker {
@@ -137,8 +145,66 @@ export class SessionTimeoutWorker {
           });
         }
       }
+
+      // Auto-close resolved sessions that have been idle past autoCloseAfterMinutes
+      await this.autoCloseResolvedSessions();
     } finally {
       this.running = false;
+    }
+  }
+
+  private async autoCloseResolvedSessions(): Promise<void> {
+    try {
+      const settings = await this.deps.settingsService.get();
+      const autoCloseMinutes = settings.autoCloseAfterMinutes;
+      if (!autoCloseMinutes || autoCloseMinutes <= 0) return;
+
+      const autoCloseMs = autoCloseMinutes * 60_000;
+      const resolvedSessions = await this.deps.sessionService.findResolvedForAutoClose(autoCloseMs);
+
+      const currentEmitDeps = this.deps.getEmitDeps?.();
+
+      for (const session of resolvedSessions) {
+        try {
+          await this.deps.sessionService.close(session.sessionId);
+
+          await this.deps.messageService.createSystemMessage(
+            session.sessionId,
+            SYSTEM_MESSAGE.AutoClosed,
+          );
+
+          if (currentEmitDeps) {
+            await emitToVisitor(currentEmitDeps, session.sessionId, ServerToVisitorEvent.Status, {
+              status: ChatSessionStatus.Closed,
+            });
+
+            await emitToVisitor(currentEmitDeps, session.sessionId, ServerToVisitorEvent.RatingPrompt, {
+              sessionId: session.sessionId,
+            });
+          }
+
+          this.deps.config.hooks?.onMetric?.({
+            name: 'session_auto_closed',
+            value: 1,
+            labels: { channel: session.channel, mode: session.mode },
+          });
+
+          this.deps.logger.info('Session auto-closed due to inactivity', {
+            sessionId: session.sessionId,
+            visitorId: session.visitorId,
+            autoCloseMinutes,
+          });
+        } catch (err) {
+          this.deps.logger.error('Failed to auto-close resolved session', {
+            sessionId: session.sessionId,
+            error: err instanceof Error ? err.message : 'Unknown error',
+          });
+        }
+      }
+    } catch (err) {
+      this.deps.logger.error('Auto-close resolved sessions sweep failed', {
+        error: err instanceof Error ? err.message : 'Unknown error',
+      });
     }
   }
 }

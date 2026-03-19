@@ -3,6 +3,8 @@ import type { ChatMessage as ChatMessageType } from '@astralibx/chat-types';
 import { AgentStatus, ChatSenderType, ChatContentType, ChatMessageStatus, SessionMode } from '@astralibx/chat-types';
 import type { SessionService } from '../services/session.service';
 import type { MessageService } from '../services/message.service';
+import type { AgentService } from '../services/agent.service';
+import type { SettingsService } from '../services/settings.service';
 import type { RedisService } from '../services/redis.service';
 import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
 import type { EmitDeps } from './emit';
@@ -11,10 +13,14 @@ import { notifyAgentsNewMessage, notifyAgentsEscalation } from './notifications'
 import type { NotificationDeps } from './notifications';
 import { ServerToVisitorEvent, ServerToAgentEvent } from '@astralibx/chat-types';
 import type { AiSimulationConfig } from '../types/config.types';
+import { SYSTEM_MESSAGE } from '../constants/index.js';
+import { resolveAiMode, resolveAiCharacter } from '../utils/ai-resolver.js';
 
 export interface AiDebounceDeps {
   sessionService: SessionService;
   messageService: MessageService;
+  agentService?: AgentService;
+  settingsService?: SettingsService;
   redisService: RedisService;
   options: ResolvedOptions;
   config: ChatEngineConfig;
@@ -90,6 +96,17 @@ async function executeAiResponse(
   if (!session) return;
   if (session.mode !== SessionMode.AI) return;
 
+  // Two-layer AI mode check: if global/agent mode resolves to manual, skip AI
+  if (deps.settingsService && deps.agentService) {
+    const settings = await deps.settingsService.get();
+    const agent = session.agentId ? await deps.agentService.findById(session.agentId) : null;
+    const resolvedMode = resolveAiMode(settings, agent);
+    if (resolvedMode === 'manual') {
+      deps.logger.info('AI mode resolved to manual, skipping AI response', { sessionId });
+      return;
+    }
+  }
+
   const locked = await deps.redisService.acquireAiLock(sessionId);
   if (!locked) {
     deps.logger.info('AI lock not acquired, skipping', { sessionId });
@@ -150,9 +167,21 @@ async function executeAiResponse(
       });
     }
 
+    // Resolve AI character for this session
+    let aiCharacter = null;
+    if (deps.settingsService) {
+      const settings = await deps.settingsService.get();
+      const agentDoc = session.agentId && deps.agentService
+        ? await deps.agentService.findById(session.agentId)
+        : null;
+      aiCharacter = resolveAiCharacter(settings, agentDoc);
+    }
+
+    // Use character name if resolved, otherwise default to 'AI'
+    const characterName = aiCharacter?.name || 'AI';
     const agentInfo = session.agentId
-      ? { agentId: session.agentId, name: 'AI', status: AgentStatus.Available, isAI: true }
-      : { agentId: 'ai', name: 'AI', status: AgentStatus.Available, isAI: true };
+      ? { agentId: session.agentId, name: characterName, status: AgentStatus.Available, isAI: true }
+      : { agentId: 'ai', name: characterName, status: AgentStatus.Available, isAI: true };
 
     const input = {
       sessionId,
@@ -166,6 +195,7 @@ async function executeAiResponse(
       },
       conversationSummary: session.conversationSummary,
       metadata: session.metadata,
+      aiCharacter,
     };
 
     const output = await withTimeout(generateAiResponse(input), AI_TIMEOUT_MS, 'AI response generation');
@@ -190,7 +220,7 @@ async function executeAiResponse(
     if (output.shouldEscalate) {
       await deps.sessionService.escalate(sessionId, output.escalationReason);
 
-      await deps.messageService.createSystemMessage(sessionId, 'Escalated to human agent');
+      await deps.messageService.createSystemMessage(sessionId, SYSTEM_MESSAGE.EscalatedToHuman);
 
       const sessionSummary = deps.sessionService.toSummary(session);
       notifyAgentsEscalation(deps.notificationDeps, {

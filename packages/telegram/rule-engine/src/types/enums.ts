@@ -18,15 +18,8 @@ export const ERROR_CATEGORY = {
 
 export type ErrorCategory = typeof ERROR_CATEGORY[keyof typeof ERROR_CATEGORY];
 
-export const SEND_STATUS = {
-  Sent: 'sent',
-  Error: 'error',
-  Skipped: 'skipped',
-  Throttled: 'throttled',
-  Invalid: 'invalid',
-} as const;
-
-export type SendStatus = typeof SEND_STATUS[keyof typeof SEND_STATUS];
+// SEND_STATUS is re-exported from @astralibx/rule-engine in index.ts.
+// Telegram consumers should import it from there.
 
 export const ERROR_OPERATION = {
   Send: 'send',

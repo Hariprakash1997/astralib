@@ -1,5 +1,7 @@
 # API Routes
 
+> **Note:** All REST endpoints are provided by `@astralibx/rule-engine` core. This package re-exports the same routes with identical endpoints, request/response shapes, and behavior. No Telegram-specific routes are added.
+
 All routes are mounted under your chosen prefix (e.g., `/api/telegram-rules`). All responses use `{ success: boolean, data?: any, error?: string }`.
 
 ## Authentication
@@ -240,6 +242,78 @@ curl -X PUT http://localhost:3000/api/telegram-rules/settings/throttle \
   -H "Content-Type: application/json" \
   -d '{ "maxPerUserPerDay": 2, "maxPerUserPerWeek": 5, "minGapDays": 1 }'
 ```
+
+---
+
+## Collections
+
+These read-only endpoints are provided by core and mounted automatically when collections are registered in the engine config.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/collections` | List all registered collection schemas |
+| `GET` | `/collections/:name/fields` | Get flattened fields for a collection (for UI condition builder) |
+
+### List collections
+
+```bash
+curl "http://localhost:3000/api/telegram-rules/collections"
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "collections": [
+      {
+        "name": "telegram_contacts",
+        "label": "Telegram Contacts",
+        "identifierField": "chatId",
+        "fieldCount": 5,
+        "joinCount": 1,
+        "joins": [
+          { "alias": "subscription", "from": "subscriptions", "label": "Subscriptions" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Get collection fields
+
+Returns flattened fields for a collection, optionally including fields from joined collections. The `joins` query parameter is a comma-separated list of join aliases to include.
+
+```bash
+curl "http://localhost:3000/api/telegram-rules/collections/telegram_contacts/fields?joins=subscription"
+```
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "fields": [
+      { "name": "firstName", "type": "string", "label": "First Name" },
+      { "name": "lastName", "type": "string", "label": "Last Name" },
+      { "name": "username", "type": "string", "label": "Username" },
+      { "name": "tags", "type": "array", "label": "Tags" },
+      { "name": "lastMessageAt", "type": "date", "label": "Last Message" },
+      { "name": "subscription.plan", "type": "string", "label": "Plan" },
+      { "name": "subscription.active", "type": "boolean", "label": "Active" }
+    ],
+    "typeOperators": { "string": ["eq", "neq", "contains", "in", "not_in", "exists", "not_exists"], "..." : "..." },
+    "identifierField": "chatId"
+  }
+}
+```
+
+Pass multiple join aliases as comma-separated values: `?joins=subscription,account`.
+
+If no collections are registered, these endpoints return empty results rather than errors.
 
 ---
 

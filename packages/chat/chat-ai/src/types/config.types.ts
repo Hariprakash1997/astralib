@@ -2,7 +2,8 @@ import type { Connection } from 'mongoose';
 import type { LogAdapter } from '@astralibx/core';
 import type { ChatMessage } from '@astralibx/chat-types';
 import type { MemoryBackendConfig, MemorySearchConfig } from './memory.types';
-import type { KnowledgeSearchConfig } from './knowledge.types';
+import type { KnowledgeSearchConfig, KnowledgeVectorConfig } from './knowledge.types';
+import type { VectorStoreAdapter, EmbeddingAdapter } from './vector-store.types';
 
 export type { LogAdapter };
 
@@ -39,6 +40,18 @@ export interface ChatAIConfig {
 
   knowledgeSearch?: KnowledgeSearchConfig;
 
+  /** Vector store adapter for RAG knowledge base. Optional — when absent, knowledge uses MongoDB text search only. */
+  vectorStore?: VectorStoreAdapter;
+
+  /** Embedding adapter for vector operations. Required when vectorStore is provided. */
+  embeddingAdapter?: EmbeddingAdapter;
+
+  /** Configuration for vector-backed knowledge dedup and staleness. */
+  knowledgeVector?: KnowledgeVectorConfig;
+
+  /** AI generate function used for Stage 2 dedup review and staleness analysis. */
+  generateAiResponse?: (systemPrompt: string, userMessage: string) => Promise<string>;
+
   embedding?: {
     generate: (text: string) => Promise<number[]>;
     dimensions: number;
@@ -74,4 +87,11 @@ export const DEFAULT_KNOWLEDGE_SEARCH: Required<KnowledgeSearchConfig> = {
   customSearch: async () => [],
   maxEntries: 5,
   maxTokens: 3000,
+};
+
+export const DEFAULT_KNOWLEDGE_VECTOR: Required<KnowledgeVectorConfig> = {
+  dedupThreshold: 0.90,
+  aiReviewEnabled: false,
+  staleDays: 30,
+  staleMinHits: 0,
 };

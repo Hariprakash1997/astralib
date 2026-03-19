@@ -1,6 +1,8 @@
 # Glossary
 
-Reference for all ID types, concepts, constants, and data models across the email packages.
+> **Note:** For rule engine terms (conditions, operators, throttle, hooks, rule types, target modes), see the [core glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/glossary.md).
+
+Reference for email-specific ID types, concepts, and constants across the email packages.
 
 ---
 
@@ -79,7 +81,7 @@ Max emails an account can send per day. Set via `limits.dailyMax` at account cre
 ## Template Concepts
 
 ### MJML (Mailjet Markup Language)
-Responsive email markup that compiles to cross-client HTML. Write this:
+Responsive email markup that compiles to cross-client HTML. The `@astralibx/email-rule-engine` wrapper auto-wraps body fragments in a full MJML document structure before compiling. Write fragments like:
 
 ```xml
 <mj-section>
@@ -90,107 +92,9 @@ Responsive email markup that compiles to cross-client HTML. Write this:
 </mj-section>
 ```
 
-The library compiles it to bulletproof HTML tables that render correctly in Gmail, Outlook, Apple Mail, etc.
+The library compiles them to bulletproof HTML tables that render correctly in Gmail, Outlook, Apple Mail, etc.
 
-### Handlebars
-Variable syntax: `{{variableName}}`
-
-| Syntax | Purpose | Example |
-|--------|---------|---------|
-| `{{var}}` | Insert value | `{{firstName}}` renders as "John" |
-| `{{#if var}}...{{/if}}` | Conditional | Show block only if var is truthy |
-| `{{#each items}}...{{/each}}` | Loop | Repeat block for each item |
-
-Variable values come from two sources:
-1. Template `fields` (defaults, e.g. `{ "company": "MyApp" }`)
-2. Your `resolveData` adapter (per-recipient data)
-
-Adapter values override field defaults.
-
-### A/B Testing (Variants)
-`subjects`, `bodies`, and `preheaders` are arrays. One variant is randomly picked per send:
-
-```json
-"subjects": [
-  "Welcome, {{firstName}}!",
-  "{{firstName}}, your account is ready"
-]
-```
-
-Track which variant performs better via `GET /analytics/variants`.
-
-### Attachments
-URL-based file references. The SMTP service fetches the URL at send time:
-
-```json
-"attachments": [
-  { "filename": "guide.pdf", "url": "https://cdn.example.com/guide.pdf", "contentType": "application/pdf" }
-]
-```
-
-Use public URLs or signed S3/CDN links. Files are NOT stored in the database.
-
----
-
-## Rule Concepts
-
-### Target Mode (`TARGET_MODE`)
-
-| Mode | How it works | Use case |
-|------|-------------|----------|
-| `'query'` | Your `queryUsers` adapter finds recipients by conditions | Automated campaigns |
-| `'list'` | You provide specific email addresses | One-off sends |
-
-### Conditions (Query Mode)
-Filter users by field values. Your `queryUsers` adapter receives these and translates to database queries.
-
-| Operator | Meaning | Example |
-|----------|---------|---------|
-| `'eq'` | Equals | `{ "field": "city", "operator": "eq", "value": "Mumbai" }` |
-| `'neq'` | Not equals | `{ "field": "status", "operator": "neq", "value": "blocked" }` |
-| `'gt'` | Greater than | `{ "field": "age", "operator": "gt", "value": 18 }` |
-| `'gte'` | Greater than or equal | |
-| `'lt'` | Less than | |
-| `'lte'` | Less than or equal | |
-| `'contains'` | String contains (case-insensitive) | `{ "field": "name", "operator": "contains", "value": "john" }` |
-| `'in'` | Value in array | `{ "field": "plan", "operator": "in", "value": ["gold", "silver"] }` |
-| `'not_in'` | Value not in array | |
-| `'exists'` | Field exists | |
-| `'not_exists'` | Field doesn't exist | |
-
-### Email Type (`EMAIL_TYPE`)
-
-| Value | Meaning | Throttle? |
-|-------|---------|-----------|
-| `'automated'` | Campaign/marketing email | Yes -- respects throttle limits |
-| `'transactional'` | System email (receipts, resets) | Can bypass throttle |
-
-### sendOnce
-- `true` -- Track per-user sends in database. Each person receives this email once, ever. Subsequent runs skip them.
-- `false` -- Send every time the rule runs. Use for recurring notifications.
-
-### autoApprove
-- `true` -- Send immediately via SMTP queue
-- `false` -- Create a draft in `pending` status. Admin must approve before it sends.
-
-### maxPerRun
-Cap on recipients per execution. Prevents accidentally emailing your entire database. Default: 500.
-
----
-
-## Throttle Concepts
-
-All throttle limits are **global across all rules**, not per-rule.
-
-| Setting | What it does | Default |
-|---------|-------------|---------|
-| `maxPerUserPerDay` | Max emails one person receives per day | 1 |
-| `maxPerUserPerWeek` | Max emails one person receives per week | 2 |
-| `minGapDays` | Minimum days between emails to same person | 3 |
-
-**Example:** If `maxPerUserPerDay: 2` and Rule A sends to john@example.com, Rule B can only send to john if he hasn't already received 2 emails today.
-
-Throttle window is always rolling (sliding 7-day window), not calendar-based.
+For Handlebars syntax, A/B testing variants, attachments, and all other template and rule concepts (conditions, operators, throttle, target modes, `sendOnce`, `autoApprove`, `maxPerRun`), see the [core glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/glossary.md).
 
 ---
 

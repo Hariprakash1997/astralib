@@ -1,7 +1,7 @@
 {
   "name": "@astralibx/email-rule-engine",
-  "version": "12.11.0",
-  "description": "Rule-based email automation engine with MJML + Handlebars templates, throttling, and distributed locking",
+  "version": "13.0.0",
+  "description": "Email automation engine — thin wrapper over @astralibx/rule-engine with MJML rendering",
   "repository": {
     "type": "git",
     "url": "https://github.com/Hariprakash1997/astralib.git",
@@ -44,30 +44,28 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@astralibx/core": "*",
-    "handlebars": "^4.7.0",
+    "@astralibx/rule-engine": "*",
     "html-to-text": "^9.0.0",
-    "mjml": "^4.0.0",
-    "zod": "^3.23.0"
+    "mjml": "^4.0.0"
   },
   "peerDependencies": {
-    "@astralibx/core": "^1.2.0",
+    "@astralibx/rule-engine": "^0.1.0",
     "express": "^4.18.0 || ^5.0.0",
     "ioredis": "^5.0.0",
     "mongoose": "^7.0.0 || ^8.0.0"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
     "@types/html-to-text": "^9.0.4",
     "@types/mjml": "^4.7.4",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^3.0.0",
     "express": "^5.0.0",
-    "handlebars": "^4.7.8",
     "html-to-text": "^9.0.5",
     "ioredis": "^5.4.2",
     "mjml": "^4.15.3",
+    "mongodb-memory-server": "^10.0.0",
     "mongoose": "^8.12.1",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.0"
   }
 }

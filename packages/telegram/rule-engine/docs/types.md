@@ -1,36 +1,67 @@
 # Exported Types
 
+Most types, constants, errors, and utilities are re-exported from `@astralibx/rule-engine` core. This package adds Telegram-specific config types, error categorization, and delay utilities.
+
 All types can be imported from `@astralibx/telegram-rule-engine`:
 
 ```ts
 import type {
+  // ── Re-exported from core ──────────────────────────────────────
+  RuleEngine, RuleEngineConfig, RuleEngineAdapters,
+  SendParams, AgentSelection, RecipientIdentifier,
+  BeforeSendParams, BeforeSendResult,
+  RunProgress, RunStatus, RunStatusResponse,
+  Template, CreateTemplateInput, UpdateTemplateInput, Attachment,
+  RuleRunStats, PerRuleStats,
+  CollectionSchema, JoinDefinition,
+  TemplateCategory, TemplateAudience, RuleOperator, RuleType,
+  RunTrigger, SendStatus, TargetMode, RunLogStatus, FieldType,
+  LogAdapter,
+
+  // ── Telegram-specific types ────────────────────────────────────
+  TelegramRuleEngineConfig,   // Top-level config for createTelegramRuleEngine
+  TelegramRuleEngine,         // Return type of createTelegramRuleEngine
+  SendMessageParams,          // Alias for core's SendParams (telegram naming)
+  AccountSelection,           // Alias for core's AgentSelection (telegram naming)
   CreateTelegramTemplateInput, UpdateTelegramTemplateInput,
-  RuleTarget, QueryTarget, ListTarget, RuleRunStats, PerRuleStats,
+  RuleTarget, QueryTarget, ListTarget,
   ThrottleConfig, ThrottleWindow,
-  TelegramRuleEngineConfig, SendMessageParams, AccountSelection,
-  RecipientIdentifier, BeforeSendParams, BeforeSendResult,
-  LogAdapter, RunProgress, RunStatus, RunStatusResponse,
-  TelegramRuleEngine,
-  // Enum types
-  DeliveryStatus, ErrorCategory, SendStatus, ErrorOperation,
+  DeliveryStatus, ErrorCategory, ErrorOperation,
 } from '@astralibx/telegram-rule-engine';
 
 import {
-  DELIVERY_STATUS, ERROR_CATEGORY, SEND_STATUS, ERROR_OPERATION,
-  // Error classes
-  AlxTelegramError, ConfigValidationError, TemplateNotFoundError,
-  RuleNotFoundError, RunError, ThrottleError, LockError,
+  // ── Re-exported from core ──────────────────────────────────────
+  TEMPLATE_CATEGORY, TEMPLATE_AUDIENCE, RULE_OPERATOR, RULE_TYPE,
+  RUN_TRIGGER, THROTTLE_WINDOW, SEND_STATUS, TARGET_MODE,
+  RUN_LOG_STATUS, FIELD_TYPE, TYPE_OPERATORS,
+  AlxRuleEngineError, ConfigValidationError, TemplateNotFoundError,
+  TemplateSyntaxError, RuleNotFoundError, RuleTemplateIncompatibleError,
+  LockAcquisitionError, DuplicateSlugError,
+  validateConfig, RedisLock,
+  TemplateRenderService, TemplateService, RuleService,
+  RuleRunnerService, SchedulerService,
+  createTemplateSchema, createRuleSchema, createSendLogSchema,
+  createRunLogSchema, createErrorLogSchema, createThrottleConfigSchema,
+  validateConditions, flattenFields, buildAggregationPipeline,
+
+  // ── Telegram-specific exports ──────────────────────────────────
+  DELIVERY_STATUS, ERROR_CATEGORY, ERROR_OPERATION,
+  RunError, ThrottleError,
+  // Backward compat aliases
+  AlxRuleEngineError as AlxTelegramError,
+  LockAcquisitionError as LockError,
   // Constants
   DEFAULT_LOCK_TTL_MS, DEFAULT_MAX_PER_RUN,
   DEFAULT_DELAY_BETWEEN_SENDS_MS, DEFAULT_JITTER_MS,
   DEFAULT_MAX_CONSECUTIVE_FAILURES, DEFAULT_THINKING_PAUSE_PROBABILITY,
   DEFAULT_BATCH_PROGRESS_INTERVAL, DEFAULT_THROTTLE_CONFIG,
-  DEFAULT_THROTTLE_TTL_SECONDS,
+  DEFAULT_THROTTLE_TTL_SECONDS, DEFAULT_HEALTH_DELAY_MULTIPLIER,
   REDIS_KEY_PREFIX, RUN_PROGRESS_TTL_SECONDS, MESSAGE_PREVIEW_LENGTH,
   // Utilities
-  RedisLock, calculateDelay, isWithinSendWindow, getHumanDelay, getHealthAdjustedDelay,
-  // Config validator
-  validateConfig,
+  calculateDelay, isWithinSendWindow, getHumanDelay, getHealthAdjustedDelay,
+  categorizeError, isRetryableError, checkRedisThrottle, incrementRedisThrottle,
+  calculateTelegramDelay,
+  createTelegramAdapters,
   // Factory
   createTelegramRuleEngine,
 } from '@astralibx/telegram-rule-engine';
@@ -57,16 +88,16 @@ import {
 
 ## Config & Adapter Types
 
-| Type | Description |
-|------|-------------|
-| `TelegramRuleEngineConfig` | Top-level config passed to `createTelegramRuleEngine()`. |
-| `SendMessageParams` | Params passed to the `sendMessage` adapter. Fields: `identifierId`, `contactId`, `accountId`, `message`, `media?`, `ruleId`, `templateId`. |
-| `AccountSelection` | Return type of the `selectAccount` adapter. Fields: `accountId: string`, `phone: string`, `metadata: Record<string, unknown>`. |
-| `RecipientIdentifier` | Return type of the `findIdentifier` adapter. Fields: `id: string`, `contactId: string`. |
-| `BeforeSendParams` | Params passed to the `beforeSend` hook. Fields: `message`, `account: { id, phone, metadata }`, `user: { id, contactId, name }`, `context: { ruleId, templateId, runId }`, `media?`. |
-| `BeforeSendResult` | Return type of the `beforeSend` hook. Fields: `message: string`, `media?`. |
-| `LogAdapter` | Logger interface (re-exported from `@astralibx/core`). Methods: `info`, `warn`, `error`. |
-| `TelegramRuleEngine` | Return type of `createTelegramRuleEngine()`. Fields: `routes: Router`, `runner`, `templateService`, `ruleService`, `models`, `destroy()`. |
+| Type | Source | Description |
+|------|--------|-------------|
+| `TelegramRuleEngineConfig` | **telegram** | Top-level config passed to `createTelegramRuleEngine()`. Includes telegram-specific options like `useRedisThrottle`, `maxConsecutiveFailures`, `thinkingPauseProbability`, `healthDelayMultiplier`, `batchProgressInterval`. |
+| `SendMessageParams` | **telegram** (alias) | Alias for core's `SendParams`. Params passed to the `sendMessage` adapter. Fields: `identifierId`, `contactId`, `accountId`, `message`, `media?`, `ruleId`, `templateId`. |
+| `AccountSelection` | **telegram** (alias) | Alias for core's `AgentSelection`. Return type of the `selectAccount` adapter. Fields: `accountId: string`, `phone: string`, `metadata: Record<string, unknown>`. |
+| `RecipientIdentifier` | core | Return type of the `findIdentifier` adapter. Fields: `id: string`, `contactId: string`. |
+| `BeforeSendParams` | core | Params passed to the `beforeSend` hook. Fields: `message`, `account: { id, phone, metadata }`, `user: { id, contactId, name }`, `context: { ruleId, templateId, runId }`, `media?`. |
+| `BeforeSendResult` | core | Return type of the `beforeSend` hook. Fields: `message: string`, `media?`. |
+| `LogAdapter` | core | Logger interface (re-exported from `@astralibx/core`). Methods: `info`, `warn`, `error`. |
+| `TelegramRuleEngine` | **telegram** | Return type of `createTelegramRuleEngine()`. Fields: `routes: Router`, `runner`, `templateService`, `ruleService`, `models`, `destroy()`. |
 
 > **Note:** The `TelegramRuleEngineConfig.options` type includes `useRedisThrottle?: boolean`. When set to `true`, the engine uses Redis-based throttle tracking instead of MongoDB for lower-latency throttle checks during rule execution.
 
@@ -200,39 +231,79 @@ Type: `ErrorOperation = 'send' | 'sync' | 'connect' | 'other'`
 
 ## Error Classes
 
-All extend `AlxTelegramError` (which extends `AlxError` from `@astralibx/core`).
+Most error classes are re-exported from core. `RunError` and `ThrottleError` are Telegram-specific. `AlxTelegramError` and `LockError` are backward-compatibility aliases.
 
-| Class | Description |
-|-------|-------------|
-| `AlxTelegramError` | Base error for the telegram rule engine. |
-| `ConfigValidationError` | Invalid engine configuration. |
-| `TemplateNotFoundError` | Template lookup failed. |
-| `RuleNotFoundError` | Rule lookup failed. |
-| `RunError` | Error during rule run execution. |
-| `ThrottleError` | Throttle-related error. |
-| `LockError` | Distributed lock acquisition failed. |
+| Class | Source | Description |
+|-------|--------|-------------|
+| `AlxRuleEngineError` | core | Base error for the rule engine. |
+| `AlxTelegramError` | alias | Backward-compat alias for `AlxRuleEngineError`. |
+| `ConfigValidationError` | core | Invalid engine configuration. |
+| `TemplateNotFoundError` | core | Template lookup failed. |
+| `TemplateSyntaxError` | core | Handlebars template syntax error. |
+| `RuleNotFoundError` | core | Rule lookup failed. |
+| `RuleTemplateIncompatibleError` | core | Rule-template mismatch. |
+| `LockAcquisitionError` | core | Distributed lock acquisition failed. |
+| `LockError` | alias | Backward-compat alias for `LockAcquisitionError`. |
+| `DuplicateSlugError` | core | Duplicate slug/name conflict. |
+| `RunError` | **telegram** | Error during rule run execution. |
+| `ThrottleError` | **telegram** | Throttle-related error. |
+
+## Collection Types
+
+These types are re-exported from `@astralibx/rule-engine` core and used when configuring collections and joins.
+
+| Type | Source | Description |
+|------|--------|-------------|
+| `CollectionSchema` | core | Defines a collection's name, label, identifier field, fields, and joins. Passed in the `collections` config array. |
+| `JoinDefinition` | core | Declares a join between two collections. Fields: `from`, `localField`, `foreignField`, `as`. Maps to a MongoDB `$lookup`. |
+| `FieldDefinition` | core | Describes a single field in a collection. Fields: `name`, `type` (`FieldType`), `label?`, `description?`, `enumValues?`, `fields?` (for nested objects/arrays). |
+| `FlattenedField` | core | A field flattened to a dot-notation path with its resolved type. Returned by `flattenFields()` and the `/collections/:name/fields` endpoint. |
+| `PipelineBuilderOptions` | core | Options for `buildAggregationPipeline()`. Fields: `joins: JoinDefinition[]`, `conditions: RuleCondition[]`, `limit?: number`. |
 
 ## Mongoose Schema Types
 
+All schema factories and model types are re-exported from core. The generic names are used (no `Telegram` prefix).
+
 | Type | Description |
 |------|-------------|
-| `TelegramTemplateModel` | Mongoose model type for templates. |
-| `TelegramRuleModel` | Mongoose model type for rules. |
-| `TelegramSendLogModel` | Mongoose model type for send logs. |
-| `TelegramRunLogModel` | Mongoose model type for run logs. |
-| `TelegramErrorLogModel` | Mongoose model type for error logs. |
-| `TelegramThrottleConfigModel` | Mongoose model type for throttle config. |
+| `TemplateModel` | Mongoose model type for templates. |
+| `RuleModel` | Mongoose model type for rules. |
+| `SendLogModel` | Mongoose model type for send logs. |
+| `RunLogModel` | Mongoose model type for run logs. |
+| `ErrorLogModel` | Mongoose model type for error logs. |
+| `ThrottleConfigModel` | Mongoose model type for throttle config. |
 
-Schema factory functions: `createTelegramTemplateSchema()`, `createTelegramRuleSchema()`, `createTelegramSendLogSchema()`, `createTelegramRunLogSchema()`, `createTelegramErrorLogSchema()`, `createTelegramThrottleConfigSchema()`.
+Schema factory functions (re-exported from core): `createTemplateSchema()`, `createRuleSchema()`, `createSendLogSchema()`, `createRunLogSchema()`, `createErrorLogSchema()`, `createThrottleConfigSchema()`.
 
 ## Services & Utilities
 
+### Core (re-exported)
+
 | Export | Description |
 |--------|-------------|
-| `createTelegramRuleEngine(config)` | Factory function. Returns `TelegramRuleEngine`. |
-| `validateConfig(config)` | Validates `TelegramRuleEngineConfig`, throws `ConfigValidationError` on failure. |
+| `createTelegramRuleEngine(config)` | Factory function. Wraps core's `createRuleEngine` with Telegram adapters. Returns `TelegramRuleEngine`. |
+| `validateConfig(config)` | Validates config, throws `ConfigValidationError` on failure. Re-exported from core. |
 | `RedisLock` | Distributed lock utility using Redis. Re-exported from `@astralibx/core`. |
+| `TemplateRenderService` | Handlebars template compilation and rendering. Re-exported from core. |
+| `TemplateService` | Template CRUD service. Re-exported from core. |
+| `RuleService` | Rule CRUD and dry run service. Re-exported from core. |
+| `RuleRunnerService` | Rule execution orchestrator. Re-exported from core. |
+| `SchedulerService` | Scheduling service. Re-exported from core. |
+| `validateConditions` | Validate rule conditions. Re-exported from core. |
+| `flattenFields` | Flatten nested field definitions. Re-exported from core. |
+| `buildAggregationPipeline` | Build MongoDB aggregation pipelines. Re-exported from core. |
+
+### Telegram-specific utilities
+
+| Export | Description |
+|--------|-------------|
+| `categorizeError(error)` | Classifies a Telegram API error into `ErrorCategory`: `'critical'`, `'account'`, `'recoverable'`, `'skip'`, or `'unknown'`. Used to decide whether to retry, skip, or halt. |
+| `isRetryableError(error)` | Returns `true` if the error is recoverable and the send can be retried. |
+| `calculateTelegramDelay(options)` | Compute the full Telegram-specific delay including base delay, jitter, thinking pauses, and health adjustment. |
+| `checkRedisThrottle(redis, key, config)` | Check Redis-backed throttle state for an identifier. Returns whether the send should be throttled. |
+| `incrementRedisThrottle(redis, key)` | Increment the Redis throttle counter after a successful send. |
 | `calculateDelay` | Compute delay with jitter. |
 | `isWithinSendWindow` | Check if current time is within the configured send window. |
 | `getHumanDelay` | Get a human-like delay with optional thinking pause. |
 | `getHealthAdjustedDelay` | Adjust delay based on account health score. Signature: `(baseMs: number, healthScore: number, multiplier?: number) => number`. Health 100 = 1x, Health 0 = (1 + multiplier)x. |
+| `createTelegramAdapters(config)` | Maps `TelegramRuleEngineConfig` adapters to core's `RuleEngineAdapters` interface. |

@@ -270,4 +270,41 @@ export class RedisService {
   async clearDebounceTimer(sessionId: string): Promise<void> {
     await this.redis.del(this.key(`debounce:${sessionId}`));
   }
+
+  // --- Agent activity tracking (for auto-away) ---
+
+  async setAgentActivity(agentId: string): Promise<void> {
+    await this.redis.set(
+      this.key(`agent:activity:${agentId}`),
+      Date.now().toString(),
+    );
+  }
+
+  async getAgentActivity(agentId: string): Promise<number | null> {
+    const data = await this.redis.get(this.key(`agent:activity:${agentId}`));
+    return data ? parseInt(data, 10) : null;
+  }
+
+  async removeAgentActivity(agentId: string): Promise<void> {
+    await this.redis.del(this.key(`agent:activity:${agentId}`));
+  }
+
+  /**
+   * Returns agent IDs that have been idle longer than the given threshold.
+   */
+  async getIdleAgents(agentIds: string[], thresholdMs: number): Promise<string[]> {
+    if (agentIds.length === 0) return [];
+
+    const now = Date.now();
+    const idle: string[] = [];
+
+    for (const agentId of agentIds) {
+      const lastActivity = await this.getAgentActivity(agentId);
+      if (lastActivity === null || (now - lastActivity) > thresholdMs) {
+        idle.push(agentId);
+      }
+    }
+
+    return idle;
+  }
 }

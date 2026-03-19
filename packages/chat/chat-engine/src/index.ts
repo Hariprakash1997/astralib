@@ -5,15 +5,16 @@ import type { LogAdapter } from '@astralibx/core';
 import type { ChatEngineConfig, ResolvedOptions } from './types/config.types';
 import { DEFAULT_OPTIONS } from './types/config.types';
 import { validateConfig } from './validation';
-import { createChatSessionSchema, type ChatSessionModel } from './schemas/chat-session.schema';
-import { createChatMessageSchema, type ChatMessageModel } from './schemas/chat-message.schema';
-import { createChatAgentSchema, type ChatAgentModel } from './schemas/chat-agent.schema';
-import { createChatSettingsSchema, type ChatSettingsModel } from './schemas/chat-settings.schema';
-import { createPendingMessageSchema, type PendingMessageModel } from './schemas/pending-message.schema';
-import { createChatFAQItemSchema, type ChatFAQItemModel } from './schemas/chat-faq-item.schema';
-import { createChatGuidedQuestionSchema, type ChatGuidedQuestionModel } from './schemas/chat-guided-question.schema';
-import { createChatCannedResponseSchema, type ChatCannedResponseModel } from './schemas/chat-canned-response.schema';
-import { createChatWidgetConfigSchema, type ChatWidgetConfigModel } from './schemas/chat-widget-config.schema';
+import { createChatSessionSchema, type IChatSession, type ChatSessionModel } from './schemas/chat-session.schema';
+import { createChatMessageSchema, type IChatMessage, type ChatMessageModel } from './schemas/chat-message.schema';
+import { createChatAgentSchema, type IChatAgent, type ChatAgentModel } from './schemas/chat-agent.schema';
+import { createChatSettingsSchema, type IChatSettings, type ChatSettingsModel } from './schemas/chat-settings.schema';
+import { createPendingMessageSchema, type IPendingMessage, type PendingMessageModel } from './schemas/pending-message.schema';
+import { createChatFAQItemSchema, type IChatFAQItem, type ChatFAQItemModel } from './schemas/chat-faq-item.schema';
+import { createChatGuidedQuestionSchema, type IChatGuidedQuestion, type ChatGuidedQuestionModel } from './schemas/chat-guided-question.schema';
+import { createChatCannedResponseSchema, type IChatCannedResponse, type ChatCannedResponseModel } from './schemas/chat-canned-response.schema';
+import { createChatWidgetConfigSchema, type IChatWidgetConfig, type ChatWidgetConfigModel } from './schemas/chat-widget-config.schema';
+import { createChatWebhookSchema, type IChatWebhook, type ChatWebhookModel } from './schemas/chat-webhook.schema';
 import { SessionService } from './services/session.service';
 import { MessageService } from './services/message.service';
 import { AgentService } from './services/agent.service';
@@ -24,9 +25,14 @@ import { CannedResponseService } from './services/canned-response.service';
 import { WidgetConfigService } from './services/widget-config.service';
 import { PendingMessageService } from './services/pending-message.service';
 import { RedisService } from './services/redis.service';
+import { ExportService } from './services/export.service';
+import { ReportService } from './services/report.service';
+import { WebhookService } from './services/webhook.service';
+import { WEBHOOK_EVENT } from './constants/index.js';
 import { createGateway, type GatewayResult } from './gateway';
 import { createRoutes } from './routes';
 import { SessionTimeoutWorker } from './workers/session-timeout.worker';
+import { AutoAwayWorker } from './workers/auto-away.worker';
 import { clearAllDebounceTimers } from './gateway/ai-debounce';
 import { clearAllTypingTimeouts, clearAllTypingThrottles, clearAllConnectionLimits } from './gateway/helpers';
 
@@ -42,6 +48,9 @@ export interface ChatEngine {
   guidedQuestions: GuidedQuestionService;
   cannedResponses: CannedResponseService;
   widgetConfig: WidgetConfigService;
+  exports: ExportService;
+  reports: ReportService;
+  webhooks: WebhookService;
 
   models: {
     ChatSession: ChatSessionModel;
@@ -53,6 +62,7 @@ export interface ChatEngine {
     ChatGuidedQuestion: ChatGuidedQuestionModel;
     ChatCannedResponse: ChatCannedResponseModel;
     ChatWidgetConfig: ChatWidgetConfigModel;
+    ChatWebhook: ChatWebhookModel;
   };
 
   destroy(): Promise<void>;
@@ -73,50 +83,55 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
 
   // Register Mongoose models
 
-  const ChatSession = conn.model<any>(
+  const ChatSession = conn.model<IChatSession>(
     `${prefix}ChatSession`,
     createChatSessionSchema(),
-  ) as ChatSessionModel;
+  );
 
-  const ChatMessage = conn.model<any>(
+  const ChatMessage = conn.model<IChatMessage>(
     `${prefix}ChatMessage`,
     createChatMessageSchema(),
-  ) as ChatMessageModel;
+  );
 
-  const ChatAgent = conn.model<any>(
+  const ChatAgent = conn.model<IChatAgent>(
     `${prefix}ChatAgent`,
     createChatAgentSchema(),
-  ) as ChatAgentModel;
+  );
 
-  const ChatSettings = conn.model<any>(
+  const ChatSettings = conn.model<IChatSettings>(
     `${prefix}ChatSettings`,
     createChatSettingsSchema(),
-  ) as ChatSettingsModel;
+  );
 
-  const PendingMessage = conn.model<any>(
+  const PendingMessage = conn.model<IPendingMessage>(
     `${prefix}PendingMessage`,
     createPendingMessageSchema(),
-  ) as PendingMessageModel;
+  );
 
-  const ChatFAQItem = conn.model<any>(
+  const ChatFAQItem = conn.model<IChatFAQItem>(
     `${prefix}ChatFAQItem`,
     createChatFAQItemSchema(),
-  ) as ChatFAQItemModel;
+  );
 
-  const ChatGuidedQuestion = conn.model<any>(
+  const ChatGuidedQuestion = conn.model<IChatGuidedQuestion>(
     `${prefix}ChatGuidedQuestion`,
     createChatGuidedQuestionSchema(),
-  ) as ChatGuidedQuestionModel;
+  );
 
-  const ChatCannedResponse = conn.model<any>(
+  const ChatCannedResponse = conn.model<IChatCannedResponse>(
     `${prefix}ChatCannedResponse`,
     createChatCannedResponseSchema(),
-  ) as ChatCannedResponseModel;
+  );
 
-  const ChatWidgetConfig = conn.model<any>(
+  const ChatWidgetConfig = conn.model<IChatWidgetConfig>(
     `${prefix}ChatWidgetConfig`,
     createChatWidgetConfigSchema(),
-  ) as ChatWidgetConfigModel;
+  );
+
+  const ChatWebhook = conn.model<IChatWebhook>(
+    `${prefix}ChatWebhook`,
+    createChatWebhookSchema(),
+  );
 
   // Create services
 
@@ -127,12 +142,15 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
     logger,
   );
 
+  const tenantId = config.tenantId;
+
   const sessionService = new SessionService(
     ChatSession,
     ChatMessage,
     resolvedOptions,
     logger,
     hooks,
+    tenantId,
   );
 
   const messageService = new MessageService(
@@ -140,23 +158,25 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
     resolvedOptions,
     logger,
     hooks,
+    tenantId,
   );
 
   const agentService = new AgentService(
     ChatAgent,
     resolvedOptions,
     logger,
+    tenantId,
   );
 
-  const settingsService = new SettingsService(ChatSettings, logger);
+  const settingsService = new SettingsService(ChatSettings, logger, tenantId);
 
-  const faqService = new FAQService(ChatFAQItem, logger);
+  const faqService = new FAQService(ChatFAQItem, logger, tenantId);
 
   const guidedQuestionService = new GuidedQuestionService(ChatGuidedQuestion, logger);
 
-  const cannedResponseService = new CannedResponseService(ChatCannedResponse, logger);
+  const cannedResponseService = new CannedResponseService(ChatCannedResponse, logger, tenantId);
 
-  const widgetConfigService = new WidgetConfigService(ChatWidgetConfig, logger);
+  const widgetConfigService = new WidgetConfigService(ChatWidgetConfig, logger, tenantId);
 
   const pendingMessageService = new PendingMessageService(
     PendingMessage,
@@ -164,11 +184,82 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
     logger,
   );
 
+  const exportService = new ExportService(ChatSession, ChatMessage, logger);
+
+  const reportService = new ReportService(ChatSession, ChatMessage, logger);
+
+  const webhookService = new WebhookService(ChatWebhook, logger);
+
+  // Wire webhook triggers into lifecycle hooks
+  const originalOnSessionCreated = hooks?.onSessionCreated;
+  const originalOnSessionResolved = hooks?.onSessionResolved;
+  const originalOnSessionAbandoned = hooks?.onSessionAbandoned;
+  const originalOnSessionClosed = hooks?.onSessionClosed;
+  const originalOnMessageSent = hooks?.onMessageSent;
+  const originalOnEscalation = hooks?.onEscalation;
+  const originalOnAgentTransfer = hooks?.onAgentTransfer;
+  const originalOnFeedbackReceived = hooks?.onFeedbackReceived;
+
+  const webhookHooks: ChatEngineConfig['hooks'] = {
+    ...hooks,
+    onSessionCreated: (session) => {
+      originalOnSessionCreated?.(session);
+      webhookService.trigger(WEBHOOK_EVENT.ChatStarted, { session });
+    },
+    onSessionResolved: (session, stats) => {
+      originalOnSessionResolved?.(session, stats);
+      webhookService.trigger(WEBHOOK_EVENT.ChatEnded, { session, stats });
+    },
+    onSessionAbandoned: (session) => {
+      originalOnSessionAbandoned?.(session);
+      webhookService.trigger(WEBHOOK_EVENT.ChatEnded, { session, reason: 'abandoned' });
+    },
+    onSessionClosed: (session) => {
+      originalOnSessionClosed?.(session);
+      webhookService.trigger(WEBHOOK_EVENT.ChatEnded, { session, reason: 'closed' });
+    },
+    onMessageSent: (message) => {
+      originalOnMessageSent?.(message);
+      const event = message.senderType === 'visitor'
+        ? WEBHOOK_EVENT.MessageReceived
+        : WEBHOOK_EVENT.MessageSent;
+      webhookService.trigger(event, { message });
+    },
+    onEscalation: (sessionId, reason) => {
+      originalOnEscalation?.(sessionId, reason);
+      webhookService.trigger(WEBHOOK_EVENT.ChatEscalated, { sessionId, reason });
+    },
+    onAgentTransfer: (sessionId, fromAgentId, toAgentId) => {
+      originalOnAgentTransfer?.(sessionId, fromAgentId, toAgentId);
+      webhookService.trigger(WEBHOOK_EVENT.AgentTransferred, { sessionId, fromAgentId, toAgentId });
+    },
+    onFeedbackReceived: (sessionId, feedback) => {
+      originalOnFeedbackReceived?.(sessionId, feedback);
+      webhookService.trigger(WEBHOOK_EVENT.RatingSubmitted, { sessionId, feedback });
+    },
+  };
+
+  // Re-create services that depend on hooks with webhook-wrapped hooks
+  const sessionServiceWithWebhooks = new SessionService(
+    ChatSession,
+    ChatMessage,
+    resolvedOptions,
+    logger,
+    webhookHooks,
+  );
+
+  const messageServiceWithWebhooks = new MessageService(
+    ChatMessage,
+    resolvedOptions,
+    logger,
+    webhookHooks,
+  );
+
   // Create gateway
 
   const gateway: GatewayResult = createGateway({
-    sessionService,
-    messageService,
+    sessionService: sessionServiceWithWebhooks,
+    messageService: messageServiceWithWebhooks,
     agentService,
     settingsService,
     pendingMessageService,
@@ -185,7 +276,7 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
     ai: !!config.adapters?.generateAiResponse,
     visitorSelection: false,
     labeling: !!resolvedOptions.labelingEnabled,
-    fileUpload: !!config.adapters?.uploadFile,
+    fileUpload: !!config.adapters?.uploadFile || !!config.adapters?.fileStorage,
     memory: false,
     prompts: false,
     knowledge: false,
@@ -195,14 +286,17 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
 
   const routes = createRoutes(
     {
-      sessions: sessionService,
-      messages: messageService,
+      sessions: sessionServiceWithWebhooks,
+      messages: messageServiceWithWebhooks,
       agents: agentService,
       settings: settingsService,
       faq: faqService,
       guidedQuestions: guidedQuestionService,
       cannedResponses: cannedResponseService,
       widgetConfig: widgetConfigService,
+      exports: exportService,
+      reports: reportService,
+      webhooks: webhookService,
     },
     {
       authenticateRequest: config.adapters.authenticateRequest,
@@ -211,6 +305,7 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
       uploadFile: config.adapters?.uploadFile,
       maxUploadSizeMb: resolvedOptions.maxUploadSizeMb,
       enrichSessionContext: config.adapters?.enrichSessionContext,
+      fileStorage: config.adapters?.fileStorage,
       logger,
     },
   );
@@ -218,24 +313,45 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
   // Create timeout worker
 
   const timeoutWorker = new SessionTimeoutWorker({
-    sessionService,
+    sessionService: sessionServiceWithWebhooks,
+    messageService: messageServiceWithWebhooks,
     agentService,
+    settingsService,
     redisService,
     config,
     options: resolvedOptions,
     logger,
+    getEmitDeps: () => gateway.emitDeps,
   });
 
   timeoutWorker.start();
+
+  // Create auto-away worker
+
+  const autoAwayWorker = new AutoAwayWorker({
+    agentService,
+    settingsService,
+    redisService,
+    logger,
+  });
+
+  autoAwayWorker.start();
 
   // Build return object
 
   function attach(httpServer: HttpServer): void {
     gateway.attach(httpServer);
+
+    // Wire the agentNs into the auto-away worker after gateway attach
+    const agentNs = gateway.agentNs;
+    if (agentNs) {
+      autoAwayWorker.setAgentNamespace(agentNs);
+    }
   }
 
   async function destroy(): Promise<void> {
     timeoutWorker.stop();
+    autoAwayWorker.stop();
     clearAllDebounceTimers();
     clearAllTypingTimeouts();
     clearAllTypingThrottles();
@@ -252,14 +368,17 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
   return {
     attach,
     routes,
-    sessions: sessionService,
-    messages: messageService,
+    sessions: sessionServiceWithWebhooks,
+    messages: messageServiceWithWebhooks,
     agents: agentService,
     settings: settingsService,
     faq: faqService,
     guidedQuestions: guidedQuestionService,
     cannedResponses: cannedResponseService,
     widgetConfig: widgetConfigService,
+    exports: exportService,
+    reports: reportService,
+    webhooks: webhookService,
     models: {
       ChatSession,
       ChatMessage,
@@ -270,15 +389,23 @@ export function createChatEngine(config: ChatEngineConfig): ChatEngine {
       ChatGuidedQuestion,
       ChatCannedResponse,
       ChatWidgetConfig,
+      ChatWebhook,
     },
     destroy,
   };
 }
 
 // Barrel exports
+export * from './constants/index.js';
 export * from './types';
 export * from './errors';
-export { validateConfig } from './validation';
+export {
+  validateConfig,
+  validateMessageContent,
+  validateSessionForMessaging,
+  validateAgentOwnership,
+  validateSessionTransition,
+} from './validation';
 export * from './schemas';
 export { SessionService } from './services/session.service';
 export { MessageService } from './services/message.service';
@@ -291,4 +418,9 @@ export { WidgetConfigService } from './services/widget-config.service';
 export { PendingMessageService } from './services/pending-message.service';
 export { RedisService } from './services/redis.service';
 export { SessionTimeoutWorker } from './workers/session-timeout.worker';
+export { AutoAwayWorker } from './workers/auto-away.worker';
+export { ExportService } from './services/export.service';
+export { ReportService } from './services/report.service';
+export { WebhookService } from './services/webhook.service';
 export { createRoutes } from './routes';
+export { resolveAiMode, resolveAiCharacter } from './utils/ai-resolver.js';

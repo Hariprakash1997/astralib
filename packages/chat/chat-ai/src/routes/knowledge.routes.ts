@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import type { KnowledgeService } from '../services/knowledge.service';
+import type { KnowledgeService } from '../services/knowledge.service.js';
 import type { LogAdapter } from '@astralibx/core';
 import { getParam, sendSuccess, sendError } from '@astralibx/core';
 
@@ -30,6 +30,18 @@ export function createKnowledgeRoutes(
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Failed to export knowledge entries', { error });
+      sendError(res, message, 500);
+    }
+  });
+
+  // GET /stats — entry statistics
+  router.get('/stats', async (_req: Request, res: Response) => {
+    try {
+      const stats = await knowledgeService.getEntryStats();
+      sendSuccess(res, { stats });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to get knowledge stats', { error });
       sendError(res, message, 500);
     }
   });
@@ -69,18 +81,62 @@ export function createKnowledgeRoutes(
     }
   });
 
-  // POST /search
+  // POST /search — semantic or text search
   router.post('/search', async (req: Request, res: Response) => {
     try {
-      const { query, limit } = req.body;
+      const { query, limit, category } = req.body;
       if (!query) {
         return sendError(res, 'query is required', 400);
       }
-      const entries = await knowledgeService.getRelevantKnowledge(query, { limit });
+      const entries = await knowledgeService.getRelevantKnowledge(query, { limit, category });
       sendSuccess(res, { entries });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Failed to search knowledge', { error });
+      sendError(res, message, 500);
+    }
+  });
+
+  // POST /from-conversation — add knowledge from a conversation
+  router.post('/from-conversation', async (req: Request, res: Response) => {
+    try {
+      const { sessionId, content, category } = req.body;
+      if (!sessionId || !content) {
+        return sendError(res, 'sessionId and content are required', 400);
+      }
+      const result = await knowledgeService.addFromConversation(sessionId, content, category);
+      sendSuccess(res, result, 201);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to add knowledge from conversation', { error });
+      sendError(res, message, 500);
+    }
+  });
+
+  // POST /cleanup — generate staleness review report (does not delete)
+  router.post('/cleanup', async (_req: Request, res: Response) => {
+    try {
+      const report = await knowledgeService.cleanupStaleEntries();
+      sendSuccess(res, { report });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to generate cleanup report', { error });
+      sendError(res, message, 500);
+    }
+  });
+
+  // POST /cleanup/apply — apply cleanup (actually delete/merge based on report)
+  router.post('/cleanup/apply', async (req: Request, res: Response) => {
+    try {
+      const { deleteIds, mergeInstructions } = req.body;
+      if (!Array.isArray(deleteIds)) {
+        return sendError(res, 'deleteIds array is required', 400);
+      }
+      const result = await knowledgeService.applyCleanup(deleteIds, mergeInstructions);
+      sendSuccess(res, result);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to apply cleanup', { error });
       sendError(res, message, 500);
     }
   });
@@ -116,7 +172,7 @@ export function createKnowledgeRoutes(
     }
   });
 
-  // POST /
+  // POST / — add knowledge (pre-feed document) with dedup
   router.post('/', async (req: Request, res: Response) => {
     try {
       const { title, content, category, tags, isActive, priority, metadata, createdBy } = req.body;

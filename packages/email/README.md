@@ -13,7 +13,7 @@ Production-ready email automation ecosystem for Node.js -- account management, r
 | Package | npm | Description | Peer Dependencies |
 |---------|-----|-------------|-------------------|
 | [`@astralibx/email-account-manager`](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/account-manager/README.md) | [npm](https://www.npmjs.com/package/@astralibx/email-account-manager) | Multi-account email infrastructure with Gmail + SES support, BullMQ queues, health tracking, warmup, and approval workflows | `express`, `mongoose`, `ioredis`, `bullmq`, `nodemailer` |
-| [`@astralibx/email-rule-engine`](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/README.md) | [npm](https://www.npmjs.com/package/@astralibx/email-rule-engine) | Rule-based email automation with MJML + Handlebars templates, throttling, and distributed locking | `express`, `mongoose`, `ioredis` |
+| [`@astralibx/email-rule-engine`](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/README.md) | [npm](https://www.npmjs.com/package/@astralibx/email-rule-engine) | Thin wrapper over `@astralibx/rule-engine` — adds MJML rendering and email-specific Handlebars helpers (`currency`, `formatDate`) | `express`, `mongoose`, `ioredis` |
 | [`@astralibx/email-analytics`](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/analytics/README.md) | [npm](https://www.npmjs.com/package/@astralibx/email-analytics) | Event recording, timezone-aware aggregation, time-series, and query API for email metrics | `express`, `mongoose` |
 | [`@astralibx/email-ui`](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/README.md) | [npm](https://www.npmjs.com/package/@astralibx/email-ui) | Lit Web Components for managing accounts, rules, templates, and analytics dashboards | `lit` |
 
@@ -24,10 +24,13 @@ Production-ready email automation ecosystem for Node.js -- account management, r
 │                     Your Express App                        │
 ├──────────────────┬──────────────────┬───────────────────────┤
 │  account-manager │   rule-engine    │      analytics        │
-│  SMTP accounts,  │  Templates,      │  Event recording,     │
-│  warmup, health, │  rules, targeting│  aggregation,         │
-│  queues, bounces │  throttle, sends │  time-series queries  │
-├──────────────────┴──────────────────┴───────────────────────┤
+│  SMTP accounts,  │  MJML + email    │  Event recording,     │
+│  warmup, health, │  helpers (thin   │  aggregation,         │
+│  queues, bounces │  wrapper)        │  time-series queries  │
+├──────────────────┼──────────────────┴───────────────────────┤
+│                  │  @astralibx/rule-engine (core)           │
+│                  │  Templates, rules, throttle, hooks, API  │
+├──────────────────┴──────────────────────────────────────────┤
 │                     @astralibx/core                         │
 │           Base errors, types, validation, RedisLock         │
 └─────────────────────────────────────────────────────────────┘
@@ -41,7 +44,7 @@ Production-ready email automation ecosystem for Node.js -- account management, r
 ```
 
 - **account-manager** -- Sending infrastructure. Manages SMTP accounts (Gmail, SES), warmup schedules, health scoring, capacity rotation, BullMQ queues, draft approval, bounce detection, and unsubscribe handling.
-- **rule-engine** -- Campaign orchestration. Defines targeting rules with conditions, renders MJML + Handlebars templates, enforces per-user throttling, deduplicates sends, and schedules delivery with distributed locking.
+- **rule-engine** -- Campaign orchestration. Thin wrapper over `@astralibx/rule-engine` (core) that adds MJML rendering and email-specific helpers. Core rule engine logic (templates, rules, conditions, throttling, hooks, API routes) lives in `@astralibx/rule-engine`.
 - **analytics** -- Event tracking. Records send/open/click/bounce events, aggregates into daily/weekly/monthly stats, and exposes time-series and breakdown queries.
 - **ui** -- Admin dashboard. Lit Web Components that talk to the three backend REST APIs for account, rule, template, and analytics management.
 

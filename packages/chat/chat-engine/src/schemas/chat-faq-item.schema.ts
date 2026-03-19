@@ -11,6 +11,7 @@ export interface IChatFAQItem {
   viewCount: number;
   helpfulCount: number;
   notHelpfulCount: number;
+  tenantId?: string;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -33,6 +34,7 @@ export function createChatFAQItemSchema() {
       viewCount: { type: Number, default: 0 },
       helpfulCount: { type: Number, default: 0 },
       notHelpfulCount: { type: Number, default: 0 },
+      tenantId: { type: String, index: true, sparse: true },
       metadata: { type: Schema.Types.Mixed, default: {} },
     },
     {

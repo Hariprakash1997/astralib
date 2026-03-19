@@ -4,6 +4,7 @@ import {
   ChatContentType,
   ChatMessageStatus,
 } from '@astralibx/chat-types';
+import { TRAINING_QUALITY_VALUES, type TrainingQuality } from '../constants/index.js';
 
 export interface IChatMessage {
   messageId: string;
@@ -13,8 +14,9 @@ export interface IChatMessage {
   content: string;
   contentType: ChatContentType;
   status: ChatMessageStatus;
-  trainingQuality?: 'good' | 'bad' | 'needs_review' | null;
+  trainingQuality?: TrainingQuality | null;
   aiGenerated?: boolean;
+  tenantId?: string;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   deliveredAt?: Date;
@@ -50,10 +52,11 @@ export function createChatMessageSchema() {
       },
       trainingQuality: {
         type: String,
-        enum: ['good', 'bad', 'needs_review', null],
+        enum: [...TRAINING_QUALITY_VALUES, null],
         default: null,
       },
       aiGenerated: { type: Boolean, default: false },
+      tenantId: { type: String, index: true, sparse: true },
       metadata: { type: Schema.Types.Mixed, default: {} },
       createdAt: { type: Date, default: Date.now },
       deliveredAt: { type: Date },

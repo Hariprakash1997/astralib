@@ -1,11 +1,14 @@
 # @astralibx/email-ui
 
-Lit Web Components for email infrastructure admin UIs. Drop-in components for managing email accounts, automation rules, templates, and analytics -- built on native Custom Elements that work in any framework.
+Lit Web Components for email infrastructure admin UIs. Drop-in components for managing email accounts, analytics, and MJML template editing — built on native Custom Elements that work in any framework.
 
-Part of the [@astralibx](https://github.com/astralibx) email ecosystem:
+Rule engine components (templates, rules, run history, throttle settings) come from the shared `@astralibx/rule-engine-ui` package, which `@astralibx/email-ui` depends on. The email dashboard extends the shared rule engine dashboard by adding Accounts and Analytics tabs, and wires the MJML body editor (`<alx-email-body-editor>`) into the template editor slot.
+
+Part of the [@astralibx](https://github.com/astralibx) ecosystem:
 - `@astralibx/email-account-manager` -- account CRUD, health, warmup, SMTP, approval queues
-- `@astralibx/email-rule-engine` -- templates, rules, throttling, runner
 - `@astralibx/email-analytics` -- event recording, aggregation, time-series
+- `@astralibx/rule-engine` -- shared rule engine core (templates, rules, throttling, runner)
+- `@astralibx/rule-engine-ui` -- shared rule engine UI components (template/rule editor, run history, throttle settings)
 
 ## Install
 
@@ -23,15 +26,16 @@ import { AlxConfig } from '@astralibx/email-ui';
 // One-time setup at app bootstrap
 AlxConfig.setup({
   accountManagerApi: '/api/email-accounts',
-  ruleEngineApi: '/api/email-rules',
   analyticsApi: '/api/analytics',
   authToken: 'Bearer your-token',
   theme: 'dark',
 });
 ```
 
+Rule engine components (`<alx-template-list>`, `<alx-rule-list>`, etc.) are configured separately via `@astralibx/rule-engine-ui`. See the [rule-engine-ui README](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/README.md) for shared component setup.
+
 ```html
-<!-- Drop components anywhere in your HTML -->
+<!-- Email-specific components -->
 <alx-account-list></alx-account-list>
 <alx-analytics-overview date-from="2025-01-01" date-to="2025-01-31"></alx-analytics-overview>
 ```
@@ -87,7 +91,6 @@ export default function EmailAccounts() {
 
   AlxConfig.setup({
     accountManagerApi: 'https://api.example.com/email-accounts',
-    ruleEngineApi: 'https://api.example.com/email-rules',
     analyticsApi: 'https://api.example.com/analytics',
     authToken: 'Bearer your-token',
     theme: 'dark',
@@ -113,17 +116,15 @@ export default function EmailAccounts() {
 | `<alx-approval-queue>` | Pending drafts with approve/reject/bulk actions |
 | `<alx-global-settings>` | Timezone, dev mode, IMAP, approval, queue tuning |
 
-### Rule Engine (7)
+### Rule Engine Components (from `@astralibx/rule-engine-ui`)
+
+Rule engine components are provided by the shared `@astralibx/rule-engine-ui` package. See the [rule-engine-ui README](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/README.md) for the full component list (`<alx-template-list>`, `<alx-template-editor>`, `<alx-rule-list>`, `<alx-rule-editor>`, `<alx-run-history>`, `<alx-throttle-settings>`, `<alx-guide-panel>`).
+
+### Email Body Editor (1)
 
 | Tag | Description |
 |-----|-------------|
-| `<alx-template-list>` | Template table with category/audience/platform filters |
-| `<alx-template-editor>` | MJML + Handlebars editor with live preview |
-| `<alx-rule-list>` | Rules with active toggle, stats, dry-run button |
-| `<alx-rule-editor>` | Condition builder, behavior config, template selection |
-| `<alx-run-history>` | Execution logs with expandable per-rule breakdown |
-| `<alx-throttle-settings>` | Global throttle limits (per-user daily/weekly, gap) |
-| `<alx-guide-panel>` | Collapsible built-in documentation panel |
+| `<alx-email-body-editor>` | MJML + Handlebars editor with live preview, fills the template editor slot |
 
 ### Analytics (5)
 
@@ -140,11 +141,13 @@ export default function EmailAccounts() {
 Use the typed API clients without any UI components:
 
 ```typescript
-import { AccountAPI, RuleAPI, AnalyticsAPI } from '@astralibx/email-ui/api';
+import { AccountAPI, AnalyticsAPI } from '@astralibx/email-ui/api';
 
 const accounts = new AccountAPI('/api/email-accounts');
 const list = await accounts.list({ page: 1, limit: 20 });
 ```
+
+For rule engine API access (`RuleEngineAPI`), see [@astralibx/rule-engine-ui](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/README.md).
 
 ## Theming
 
@@ -171,9 +174,9 @@ Built-in themes: `alxDarkTheme` and `alxLightTheme` are available as Lit CSS exp
 - [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/configuration.md) -- AlxConfig setup, auth tokens, all options
 - [Theming](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/theming.md) -- CSS custom properties, dark/light themes, customization
 - [Account Components](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/account-components.md) -- All 9 account management components
-- [Rule Components](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/rule-components.md) -- All 7 rule engine components
 - [Analytics Components](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/analytics-components.md) -- All 5 analytics components
-- [API Client](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/api-client.md) -- Using AccountAPI, RuleAPI, AnalyticsAPI directly
+- [Rule Engine Components](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/README.md) -- Shared rule engine components (templates, rules, run history, throttle)
+- [API Client](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/api-client.md) -- Using AccountAPI, AnalyticsAPI directly
 - [Framework Integration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/framework-integration.md) -- Angular, React, Vue, Next.js, plain HTML
 - [Events](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/events.md) -- All custom events with names, detail types, examples
 

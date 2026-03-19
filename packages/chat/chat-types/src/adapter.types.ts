@@ -14,6 +14,14 @@ export interface AssignAgentContext {
 }
 
 // AI response adapter
+export interface AiCharacterProfile {
+  name: string;
+  tone: string;
+  personality: string;
+  rules: string[];
+  responseStyle: string;
+}
+
 export interface AiResponseInput {
   sessionId: string;
   visitorId: string;
@@ -22,6 +30,7 @@ export interface AiResponseInput {
   visitorContext: VisitorContext;
   conversationSummary?: string;
   metadata?: Record<string, unknown>;
+  aiCharacter?: AiCharacterProfile | null;
 }
 
 export interface AiResponseOutput {

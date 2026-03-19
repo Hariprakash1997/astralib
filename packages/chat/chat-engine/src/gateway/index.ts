@@ -1,4 +1,4 @@
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer, type Namespace } from 'socket.io';
 import type { Server as HttpServer } from 'http';
 import type { LogAdapter } from '@astralibx/core';
 import type { SessionService } from '../services/session.service';
@@ -8,6 +8,7 @@ import type { SettingsService } from '../services/settings.service';
 import type { PendingMessageService } from '../services/pending-message.service';
 import type { RedisService } from '../services/redis.service';
 import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
+import type { EmitDeps } from './emit';
 import { setupVisitorHandlers } from './visitor.handler';
 import { setupAgentHandlers } from './agent.handler';
 
@@ -25,6 +26,8 @@ export interface GatewayDeps {
 
 export interface GatewayResult {
   io: SocketIOServer;
+  emitDeps: EmitDeps | undefined;
+  agentNs: Namespace | undefined;
   attach: (httpServer: HttpServer) => void;
 }
 
@@ -33,6 +36,8 @@ export function createGateway(deps: GatewayDeps): GatewayResult {
   const agentPath = deps.config.socket.namespaces?.agent || '/agent';
 
   let io: SocketIOServer;
+  let currentEmitDeps: EmitDeps | undefined;
+  let currentAgentNs: Namespace | undefined;
 
   function attach(httpServer: HttpServer): void {
     io = new SocketIOServer(httpServer, {
@@ -44,7 +49,7 @@ export function createGateway(deps: GatewayDeps): GatewayResult {
     const visitorNs = io.of(visitorPath);
     const agentNs = io.of(agentPath);
 
-    const emitDeps = {
+    const emitDeps: EmitDeps = {
       visitorNs,
       agentNs,
       redisService: deps.redisService,
@@ -84,6 +89,9 @@ export function createGateway(deps: GatewayDeps): GatewayResult {
       logger: deps.logger,
     });
 
+    currentEmitDeps = emitDeps;
+    currentAgentNs = agentNs;
+
     deps.logger.info('Chat gateway attached', {
       visitorPath,
       agentPath,
@@ -93,6 +101,12 @@ export function createGateway(deps: GatewayDeps): GatewayResult {
   return {
     get io() {
       return io;
+    },
+    get emitDeps() {
+      return currentEmitDeps;
+    },
+    get agentNs() {
+      return currentAgentNs;
     },
     attach,
   };

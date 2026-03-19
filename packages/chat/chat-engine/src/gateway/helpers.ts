@@ -1,34 +1,13 @@
 import type { Socket } from 'socket.io';
 import type { LogAdapter } from '@astralibx/core';
-import type { ResolvedOptions } from '../types/config.types';
-import type { ChatSessionDocument } from '../schemas/chat-session.schema';
-import { ChatSessionStatus, SessionMode } from '@astralibx/chat-types';
-import { RateLimitError } from '../errors';
+import { SessionMode } from '@astralibx/chat-types';
+import { RateLimitError } from '../errors/index.js';
+import { ERROR_CODE, INTERNAL_EVENT } from '../constants/index.js';
 import type { RedisService } from '../services/redis.service';
 
-export function validateMessageContent(content: string, options: ResolvedOptions): string {
-  if (!content || typeof content !== 'string') {
-    throw new Error('Message content is required');
-  }
-
-  const trimmed = content.trim();
-  if (trimmed.length === 0) {
-    throw new Error('Message content cannot be empty');
-  }
-
-  if (trimmed.length > options.maxMessageLength) {
-    throw new Error(`Message exceeds maximum length of ${options.maxMessageLength} characters`);
-  }
-
-  return trimmed;
-}
-
-export function validateSessionForMessaging(session: ChatSessionDocument): void {
-  const invalidStatuses = [ChatSessionStatus.Resolved, ChatSessionStatus.Abandoned];
-  if (invalidStatuses.includes(session.status)) {
-    throw new Error(`Cannot send messages to a ${session.status} session`);
-  }
-}
+// Re-export validation functions that moved to the validation module so that
+// existing import paths from './helpers' continue to work.
+export { validateMessageContent, validateSessionForMessaging, validateAgentOwnership } from '../validation/index.js';
 
 export async function checkRateLimit(
   sessionId: string,
@@ -100,14 +79,6 @@ export function clearAllTypingThrottles(): void {
   typingLastEmit.clear();
 }
 
-// -- Agent ownership validation --
-
-export function validateAgentOwnership(session: any, connectedAgentId: string): void {
-  if (session.agentId && session.agentId.toString() !== connectedAgentId) {
-    throw new Error('Agent does not own this session');
-  }
-}
-
 // -- Circular reference / JSON safety check --
 
 export function isJsonSafe(data: unknown): boolean {
@@ -163,7 +134,7 @@ export function withSocketErrorHandler(
   return (...args: any[]) => {
     handler(...args).catch((err) => {
       const isKnownError = err instanceof Error && 'code' in err;
-      const code = isKnownError ? (err as any).code : 'INTERNAL_ERROR';
+      const code = isKnownError ? (err as any).code : ERROR_CODE.InternalError;
 
       // Log full error internally
       logger.error('Socket handler error', {
@@ -182,7 +153,7 @@ export function withSocketErrorHandler(
       if (err instanceof RateLimitError && (err as any).resetIn != null) {
         errorPayload.resetIn = (err as any).resetIn;
       }
-      socket.emit('chat:error', errorPayload);
+      socket.emit(INTERNAL_EVENT.ChatError, errorPayload);
     });
   };
 }

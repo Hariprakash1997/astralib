@@ -2,6 +2,8 @@
 
 All `@astralibx/email-ui` components read their API endpoints, auth tokens, and theme from a global singleton. Call `AlxConfig.setup()` once at application startup before any components render.
 
+> **Note:** Rule engine components (`<alx-template-list>`, `<alx-rule-list>`, etc.) are configured separately via `@astralibx/rule-engine-ui`. That package uses its own `baseUrl` prop or a `RuleEngineAPI` instance. See the [rule-engine-ui README](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/README.md) for rule engine configuration options. This document covers email-specific configuration only (`accountManagerApi`, `analyticsApi`).
+
 ## AlxConfig.setup()
 
 ```typescript
@@ -9,7 +11,6 @@ import { AlxConfig } from '@astralibx/email-ui';
 
 AlxConfig.setup({
   accountManagerApi: '/api/email-accounts',
-  ruleEngineApi: '/api/email-rules',
   analyticsApi: '/api/analytics',
   authToken: 'Bearer your-jwt-token',
   theme: 'dark',
@@ -22,7 +23,6 @@ AlxConfig.setup({
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `accountManagerApi` | `string` | `''` | Base URL for the `@astralibx/email-account-manager` REST API |
-| `ruleEngineApi` | `string` | `''` | Base URL for the `@astralibx/email-rule-engine` REST API |
 | `analyticsApi` | `string` | `''` | Base URL for the `@astralibx/email-analytics` REST API |
 | `authToken` | `string` | `undefined` | Authorization header value (e.g., `'Bearer xxx'`). Sent with every API request. |
 | `theme` | `'dark' \| 'light'` | `undefined` | Theme preference. Components ship with built-in dark and light themes. |
@@ -51,7 +51,6 @@ Returns a shallow copy of the current configuration.
 
 ```typescript
 const url = AlxConfig.getApiUrl('accountManager');  // '/api/email-accounts'
-const url = AlxConfig.getApiUrl('ruleEngine');       // '/api/email-rules'
 const url = AlxConfig.getApiUrl('analytics');         // '/api/analytics'
 ```
 
@@ -79,12 +78,6 @@ accountManagerApi: '/api/email-accounts'
   -> GET  /api/email-accounts/drafts
   -> GET  /api/email-accounts/identifiers
 
-ruleEngineApi: '/api/email-rules'
-  -> GET  /api/email-rules/templates
-  -> GET  /api/email-rules/rules
-  -> GET  /api/email-rules/runner/logs
-  -> GET  /api/email-rules/throttle
-
 analyticsApi: '/api/analytics'
   -> GET  /api/analytics/overview
   -> GET  /api/analytics/timeline
@@ -104,7 +97,6 @@ const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 export function initEmailUI(token: string) {
   AlxConfig.setup({
     accountManagerApi: `${API_BASE}/api/email-accounts`,
-    ruleEngineApi: `${API_BASE}/api/email-rules`,
     analyticsApi: `${API_BASE}/api/analytics`,
     authToken: `Bearer ${token}`,
     theme: 'dark',

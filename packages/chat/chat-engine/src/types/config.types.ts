@@ -21,6 +21,9 @@ import type {
 export type { LogAdapter };
 
 export interface ChatEngineConfig {
+  /** If provided, enables multi-tenant mode — all data is scoped to this tenant */
+  tenantId?: string;
+
   db: {
     connection: Connection;
     collectionPrefix?: string;
@@ -81,12 +84,19 @@ export interface ChatEngineConfig {
     authenticateRequest?: (req: any) => Promise<{ userId: string; permissions?: string[] } | null>;
     uploadFile?: (file: { buffer: Buffer; mimetype: string; originalname: string }) => Promise<string>;
     enrichSessionContext?: (context: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    resolveUserIdentity?: (visitorContext: VisitorContext) => Promise<string | null>;
+    fileStorage?: {
+      upload(file: Buffer, fileName: string, mimeType: string): Promise<string>;
+      delete(fileUrl: string): Promise<void>;
+      getSignedUrl?(fileUrl: string, expiresIn?: number): Promise<string>;
+    };
   };
 
   hooks?: {
     onSessionCreated?: (session: ChatSessionSummary) => void;
     onSessionResolved?: (session: ChatSessionSummary, stats: SessionStats) => void;
     onSessionAbandoned?: (session: ChatSessionSummary) => void;
+    onSessionClosed?: (session: ChatSessionSummary) => void;
     onSessionTimeout?: (session: { sessionId: string; visitorId: string; channel: string; startedAt: Date }) => Promise<void>;
     onMessageSent?: (message: ChatMessage) => void;
     onAgentTakeOver?: (sessionId: string, agentId: string) => void;

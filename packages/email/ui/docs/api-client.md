@@ -1,15 +1,17 @@
 # API Client
 
-Use `AccountAPI`, `RuleAPI`, and `AnalyticsAPI` directly to build custom UIs or integrate email management into existing components. No Lit dependency required for API-only usage.
+> **Note:** For rule engine API (templates, rules, collections, runner), see [@astralibx/rule-engine-ui](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/README.md). The `RuleEngineAPI` class is exported from that package.
+
+Use `AccountAPI` and `AnalyticsAPI` directly to build custom UIs or integrate email management into existing components. No Lit dependency required for API-only usage.
 
 ## Import
 
 ```typescript
 // Via subpath export (tree-shakeable, no component registration)
-import { AccountAPI, RuleAPI, AnalyticsAPI } from '@astralibx/email-ui/api';
+import { AccountAPI, AnalyticsAPI } from '@astralibx/email-ui/api';
 
 // Or from main entry (also registers all custom elements)
-import { AccountAPI, RuleAPI, AnalyticsAPI } from '@astralibx/email-ui';
+import { AccountAPI, AnalyticsAPI } from '@astralibx/email-ui';
 ```
 
 ## Setup
@@ -88,71 +90,6 @@ console.log(test.success, test.message);
 
 ---
 
-## RuleAPI
-
-```typescript
-const api = new RuleAPI();
-```
-
-### Methods
-
-| Method | HTTP | Path | Description |
-|--------|------|------|-------------|
-| `listTemplates(params?)` | GET | `/templates` | List templates (paginated) |
-| `createTemplate(data)` | POST | `/templates` | Create template |
-| `updateTemplate(id, data)` | PUT | `/templates/:id` | Update template |
-| `deleteTemplate(id)` | DELETE | `/templates/:id` | Delete template |
-| `previewTemplate(data)` | POST | `/templates/preview` | Render MJML preview |
-| `listRules(params?)` | GET | `/rules` | List rules (paginated) |
-| `createRule(data)` | POST | `/rules` | Create rule |
-| `updateRule(id, data)` | PUT | `/rules/:id` | Update rule |
-| `deleteRule(id)` | DELETE | `/rules/:id` | Delete rule |
-| `toggleRule(id)` | POST | `/rules/:id/toggle` | Toggle rule active/inactive |
-| `dryRun(id)` | POST | `/rules/:id/dry-run` | Dry run a rule |
-| `triggerRun()` | POST | `/runner` | Trigger rule execution |
-| `getRunHistory(params?)` | GET | `/runner/logs` | Get run history (paginated) |
-| `getThrottleSettings()` | GET | `/throttle` | Get throttle config |
-| `updateThrottleSettings(data)` | PUT | `/throttle` | Update throttle config |
-| `listCollections()` | GET | `/collections` | List registered collection schemas |
-| `getCollectionFields(name)` | GET | `/collections/:name/fields` | Get flattened fields for a collection |
-
-### Example
-
-```typescript
-const api = new RuleAPI();
-
-// List templates with filter
-const result = await api.listTemplates({ category: 'marketing', page: 1, limit: 10 });
-console.log(result.templates); // Template[]
-
-// Create a rule
-const rule = await api.createRule({
-  name: 'Welcome Email',
-  templateId: '64a1b2c3...',
-  platform: 'myapp',
-  audience: 'clients',
-  target: {
-    conditions: [
-      { field: 'status', operator: 'equals', value: 'active' },
-    ],
-  },
-  behavior: {
-    sendOnce: true,
-    resendAfterDays: null,
-    maxPerRun: 50,
-    autoApprove: true,
-    emailType: 'marketing',
-    bypassThrottle: false,
-  },
-  isActive: true,
-});
-
-// Dry run to see matches
-const preview = await api.dryRun(rule._id);
-```
-
----
-
 ## AnalyticsAPI
 
 ```typescript
@@ -212,24 +149,6 @@ console.log(drafts.total);  // 5
 
 // AccountAPI.listIdentifiers()
 // Same shape: { items: [...], total: N }
-
-// RuleAPI.listTemplates()
-// Backend returns:  { success: true, data: { templates: [...] } }
-// API client gives: { templates: [...] }
-const tpls = await ruleApi.listTemplates();
-console.log(tpls.templates); // Template[]
-
-// RuleAPI.listRules()
-// Backend returns:  { success: true, data: { rules: [...] } }
-// API client gives: { rules: [...] }
-const rules = await ruleApi.listRules();
-console.log(rules.rules); // Rule[]
-
-// RuleAPI.getRunHistory()
-// Backend returns:  { success: true, data: { logs: [...] } }
-// API client gives: { logs: [...] }
-const history = await ruleApi.getRunHistory();
-console.log(history.logs); // RunLog[]
 
 // AccountAPI.getAllHealth()
 // Backend returns:  { success: true, data: { accounts: [...] } }

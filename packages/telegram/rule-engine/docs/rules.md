@@ -1,5 +1,7 @@
 # Rules
 
+> **Note:** The rule system (schema, CRUD, targeting, dry runs, validity dates, `sendOnce`, `maxPerRun`) is provided by `@astralibx/rule-engine` core. This package uses core's rule infrastructure with Telegram-specific adapters for message delivery and account selection.
+
 Rules define **who** gets a message, **when**, and **how often**. Each rule links to a template and contains targeting conditions, frequency controls, and scheduling options.
 
 ## Rule Fields

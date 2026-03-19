@@ -1,11 +1,13 @@
 import crypto from 'crypto';
 import type { LogAdapter } from '@astralibx/core';
 import type { ChatFAQItemModel, ChatFAQItemDocument } from '../schemas/chat-faq-item.schema';
+import { withTenantFilter, withTenantId } from '../utils/helpers.js';
 
 export class FAQService {
   constructor(
     private ChatFAQItem: ChatFAQItemModel,
     private logger: LogAdapter,
+    private tenantId?: string,
   ) {}
 
   async create(data: {
@@ -18,13 +20,13 @@ export class FAQService {
     metadata?: Record<string, unknown>;
   }): Promise<ChatFAQItemDocument> {
     const itemId = crypto.randomUUID();
-    const item = await this.ChatFAQItem.create({ itemId, ...data });
+    const item = await this.ChatFAQItem.create(withTenantId({ itemId, ...data }, this.tenantId));
     this.logger.info('FAQ item created', { itemId });
     return item;
   }
 
   async findById(itemId: string): Promise<ChatFAQItemDocument | null> {
-    return this.ChatFAQItem.findOne({ itemId });
+    return this.ChatFAQItem.findOne(withTenantFilter({ itemId }, this.tenantId));
   }
 
   async update(itemId: string, data: Partial<{
@@ -49,7 +51,7 @@ export class FAQService {
   }
 
   async list(filters?: { category?: string; isActive?: boolean; search?: string }): Promise<ChatFAQItemDocument[]> {
-    const query: Record<string, unknown> = {};
+    const query: Record<string, unknown> = withTenantFilter({} as Record<string, unknown>, this.tenantId);
     if (filters?.category) query.category = filters.category;
     if (filters?.isActive !== undefined) query.isActive = filters.isActive;
     if (filters?.search) {

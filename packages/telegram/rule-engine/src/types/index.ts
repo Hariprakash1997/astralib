@@ -1,9 +1,10 @@
 export {
   DELIVERY_STATUS, type DeliveryStatus,
   ERROR_CATEGORY, type ErrorCategory,
-  SEND_STATUS, type SendStatus,
   ERROR_OPERATION, type ErrorOperation,
 } from './enums';
+
+// SEND_STATUS and SendStatus are re-exported from @astralibx/rule-engine in the main index.ts.
 
 export type {
   CreateTelegramTemplateInput, UpdateTelegramTemplateInput,
@@ -27,4 +28,4 @@ export {
   RuleNotFoundError, RunError, ThrottleError, LockError,
 } from '../errors';
 
-export { validateConfig } from '../validation/config.schema';
+export { validateConfig } from '@astralibx/rule-engine';

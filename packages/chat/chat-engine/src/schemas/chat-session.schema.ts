@@ -19,6 +19,8 @@ export interface IChatSession {
   lastMessageAt?: Date;
   startedAt: Date;
   endedAt?: Date;
+  resolvedAt?: Date;
+  closedAt?: Date;
   escalatedAt?: Date;
   visibleUntil?: Date;
   queuePosition?: number;
@@ -27,8 +29,30 @@ export interface IChatSession {
   feedback?: {
     rating?: number;
     survey?: Record<string, unknown>;
+    ratingType?: string;
+    ratingValue?: number | string;
+    followUpSelections?: string[];
+    comment?: string;
     submittedAt?: Date;
   };
+  userInfo?: {
+    name?: string | null;
+    email?: string | null;
+    mobile?: string | null;
+  };
+  analytics?: {
+    ip?: string | null;
+    browser?: string | null;
+    os?: string | null;
+    screenResolution?: string | null;
+    currentPage?: string | null;
+    currentPageTitle?: string | null;
+    location?: string | null;
+  };
+  agentNotes: string[];
+  isDeletedForUser: boolean;
+  tags: string[];
+  tenantId?: string;
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
@@ -64,6 +88,8 @@ export function createChatSessionSchema() {
       lastMessageAt: { type: Date, index: true },
       startedAt: { type: Date, default: Date.now },
       endedAt: { type: Date },
+      resolvedAt: { type: Date, index: true },
+      closedAt: { type: Date },
       escalatedAt: { type: Date, index: true },
       visibleUntil: { type: Date, index: true },
       queuePosition: { type: Number },
@@ -73,10 +99,38 @@ export function createChatSessionSchema() {
         type: {
           rating: { type: Number, min: 1, max: 5 },
           survey: { type: Schema.Types.Mixed },
+          ratingType: { type: String },
+          ratingValue: { type: Schema.Types.Mixed },
+          followUpSelections: { type: [String], default: undefined },
+          comment: { type: String },
           submittedAt: { type: Date },
         },
         _id: false,
       },
+      userInfo: {
+        type: {
+          name: { type: String, default: null },
+          email: { type: String, default: null },
+          mobile: { type: String, default: null },
+        },
+        _id: false,
+      },
+      analytics: {
+        type: {
+          ip: { type: String, default: null },
+          browser: { type: String, default: null },
+          os: { type: String, default: null },
+          screenResolution: { type: String, default: null },
+          currentPage: { type: String, default: null },
+          currentPageTitle: { type: String, default: null },
+          location: { type: String, default: null },
+        },
+        _id: false,
+      },
+      agentNotes: { type: [String], default: [] },
+      isDeletedForUser: { type: Boolean, default: false },
+      tags: { type: [String], default: [], index: true },
+      tenantId: { type: String, index: true, sparse: true },
       metadata: { type: Schema.Types.Mixed, default: {} },
     },
     {

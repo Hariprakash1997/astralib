@@ -11,6 +11,9 @@ import type { FAQService } from '../services/faq.service';
 import type { GuidedQuestionService } from '../services/guided-question.service';
 import type { CannedResponseService } from '../services/canned-response.service';
 import type { WidgetConfigService } from '../services/widget-config.service';
+import type { ExportService } from '../services/export.service';
+import type { ReportService } from '../services/report.service';
+import type { WebhookService } from '../services/webhook.service';
 import { createSessionRoutes } from './session.routes';
 import { createAgentRoutes } from './agent.routes';
 import { createSettingsRoutes } from './settings.routes';
@@ -19,6 +22,8 @@ import { createGuidedQuestionRoutes } from './guided-question.routes';
 import { createCannedResponseRoutes } from './canned-response.routes';
 import { createWidgetConfigRoutes } from './widget-config.routes';
 import { createStatsRoutes } from './stats.routes';
+import { createReportRoutes } from './reports.routes';
+import { createWebhookRoutes } from './webhook.routes';
 
 export interface RouteServices {
   sessions: SessionService;
@@ -29,6 +34,9 @@ export interface RouteServices {
   guidedQuestions: GuidedQuestionService;
   cannedResponses: CannedResponseService;
   widgetConfig: WidgetConfigService;
+  exports: ExportService;
+  reports: ReportService;
+  webhooks: WebhookService;
 }
 
 export interface ChatCapabilities {
@@ -49,12 +57,17 @@ export interface RouteOptions {
   uploadFile?: (file: { buffer: Buffer; mimetype: string; originalname: string }) => Promise<string>;
   maxUploadSizeMb?: number;
   enrichSessionContext?: (context: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  fileStorage?: {
+    upload(file: Buffer, fileName: string, mimeType: string): Promise<string>;
+    delete(fileUrl: string): Promise<void>;
+    getSignedUrl?(fileUrl: string, expiresIn?: number): Promise<string>;
+  };
   logger: LogAdapter;
 }
 
 export function createRoutes(services: RouteServices, options: RouteOptions): Router {
   const router = Router();
-  const { logger, authenticateRequest, onOfflineMessage, capabilities, uploadFile, maxUploadSizeMb, enrichSessionContext } = options;
+  const { logger, authenticateRequest, onOfflineMessage, capabilities, uploadFile, maxUploadSizeMb, enrichSessionContext, fileStorage } = options;
 
   // Build auth middleware if adapter is provided
   let authMiddleware: RequestHandler | undefined;
@@ -81,7 +94,7 @@ export function createRoutes(services: RouteServices, options: RouteOptions): Ro
   });
 
   // Widget config — GET is public, PUT is protected
-  router.use('/widget-config', createWidgetConfigRoutes(services.widgetConfig, logger, authMiddleware));
+  router.use('/widget-config', createWidgetConfigRoutes(services.widgetConfig, logger, authMiddleware, services.settings));
 
   // Offline message submission — public (visitor submits when offline)
   router.post('/offline-messages', async (req: Request, res: Response) => {
@@ -103,13 +116,17 @@ export function createRoutes(services: RouteServices, options: RouteOptions): Ro
   // All other routes are protected if authMiddleware exists
   const protectedRouter = Router();
 
-  protectedRouter.use('/sessions', createSessionRoutes(services.sessions, services.messages, logger, { enrichSessionContext }));
+  protectedRouter.use('/sessions', createSessionRoutes(services.sessions, services.messages, logger, { enrichSessionContext, fileStorage, settingsService: services.settings, exportService: services.exports, webhookService: services.webhooks }));
   protectedRouter.use('/agents', createAgentRoutes(services.agents, logger, { uploadFile, maxUploadSizeMb }));
-  protectedRouter.use('/settings', createSettingsRoutes(services.settings, logger));
+  protectedRouter.use('/settings', createSettingsRoutes(services.settings, logger, {
+    hasAiAdapter: capabilities.ai,
+  }));
   protectedRouter.use('/faq', createFAQRoutes(services.faq, logger));
   protectedRouter.use('/guided-questions', createGuidedQuestionRoutes(services.guidedQuestions, logger));
   protectedRouter.use('/canned-responses', createCannedResponseRoutes(services.cannedResponses, logger));
   protectedRouter.use('/stats', createStatsRoutes(services.sessions, services.agents, logger));
+  protectedRouter.use('/reports', createReportRoutes(services.reports, logger));
+  protectedRouter.use('/webhooks', createWebhookRoutes(services.webhooks, logger));
 
   // GET /offline-messages — protected (admin lists offline messages)
   protectedRouter.get('/offline-messages', async (req: Request, res: Response) => {

@@ -2,9 +2,11 @@
 
 All custom events dispatched by `@astralibx/email-ui` components. Every event uses `bubbles: true` and `composed: true` so they cross Shadow DOM boundaries and can be caught by parent elements.
 
+> **Note:** For rule engine component events (`alx-template-*`, `alx-rule-*`, `alx-run-*`, `alx-throttle-*`, `alx-send-log-*`), see [@astralibx/rule-engine-ui](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/README.md). This document covers events from account and analytics components only.
+
 ## Event Naming Convention
 
-All events follow the pattern `alx-{noun}-{verb}` (e.g., `alx-account-selected`, `alx-template-saved`).
+All events follow the pattern `alx-{noun}-{verb}` (e.g., `alx-account-selected`, `alx-account-saved`).
 
 ## Account Events
 
@@ -87,139 +89,6 @@ interface Detail { id: string }
 el.addEventListener('alx-account-deleted', (e) => {
   console.log('Deleted account:', e.detail.id);
   refreshAccountList();
-});
-```
-
----
-
-## Template Events
-
-### `alx-template-selected`
-
-Dispatched by `<alx-template-list>` when a row is clicked.
-
-```typescript
-interface Detail {
-  _id: string;
-  name: string;
-  slug: string;
-  category: string;
-  audience: string;
-  platform: string;
-  isActive: boolean;
-}
-```
-
-```javascript
-el.addEventListener('alx-template-selected', (e) => {
-  openTemplateEditor(e.detail._id);
-});
-```
-
-### `alx-template-create`
-
-Dispatched by `<alx-template-list>` when the "Create Template" button is clicked.
-
-```typescript
-// detail: undefined
-```
-
-### `alx-template-saved`
-
-Dispatched by `<alx-template-editor>` after a successful create or update.
-
-```typescript
-// detail: API response object (the created/updated template)
-```
-
-```javascript
-el.addEventListener('alx-template-saved', (e) => {
-  console.log('Template saved:', e.detail.name);
-  navigateToTemplateList();
-});
-```
-
-### `alx-template-deleted`
-
-Dispatched by `<alx-template-list>` or `<alx-template-editor>` when a template is deleted.
-
-```typescript
-interface Detail { id: string }
-```
-
-```javascript
-el.addEventListener('alx-template-deleted', (e) => {
-  console.log('Deleted template:', e.detail.id);
-  refreshTemplateList();
-});
-```
-
----
-
-## Rule Events
-
-### `alx-rule-selected`
-
-Dispatched by `<alx-rule-list>` when a row is clicked.
-
-```typescript
-interface Detail {
-  _id: string;
-  name: string;
-  templateName?: string;
-  templateId: string;
-  isActive: boolean;
-  lastRunAt: string | null;
-  totalSent: number;
-  totalSkipped: number;
-}
-```
-
-### `alx-rule-create`
-
-Dispatched by `<alx-rule-list>` when the "Create Rule" button is clicked.
-
-```typescript
-// detail: undefined
-```
-
-### `alx-rule-dry-run`
-
-Dispatched by `<alx-rule-list>` after a dry run completes.
-
-```typescript
-interface Detail {
-  ruleId: string;
-  result: unknown;  // API response from dry-run endpoint
-}
-```
-
-```javascript
-el.addEventListener('alx-rule-dry-run', (e) => {
-  console.log(`Dry run for rule ${e.detail.ruleId}:`, e.detail.result);
-});
-```
-
-### `alx-rule-saved`
-
-Dispatched by `<alx-rule-editor>` after a successful create or update.
-
-```typescript
-// detail: API response object (the created/updated rule)
-```
-
-### `alx-rule-deleted`
-
-Dispatched by `<alx-rule-list>` or `<alx-rule-editor>` when a rule is deleted.
-
-```typescript
-interface Detail { id: string }
-```
-
-```javascript
-el.addEventListener('alx-rule-deleted', (e) => {
-  console.log('Deleted rule:', e.detail.id);
-  refreshRuleList();
 });
 ```
 
@@ -348,18 +217,6 @@ el.addEventListener('alx-settings-saved', (e) => {
 });
 ```
 
-### `alx-throttle-saved`
-
-Dispatched by `<alx-throttle-settings>` when throttle settings are saved.
-
-```typescript
-interface Detail {
-  maxPerUserPerDay: number;
-  maxPerUserPerWeek: number;
-  minGapDays: number;
-}
-```
-
 ---
 
 ## Listening in Different Frameworks
@@ -405,20 +262,10 @@ document.querySelector('alx-account-list')
 | `alx-account-saved` | `<alx-account-form>` | API response |
 | `alx-account-cancelled` | `<alx-account-form>` | `undefined` |
 | `alx-account-deleted` | `<alx-account-list>`, `<alx-account-form>` | `{ id }` |
-| `alx-template-selected` | `<alx-template-list>` | Template object |
-| `alx-template-create` | `<alx-template-list>` | `undefined` |
-| `alx-template-saved` | `<alx-template-editor>` | API response |
-| `alx-template-deleted` | `<alx-template-list>`, `<alx-template-editor>` | `{ id }` |
-| `alx-rule-selected` | `<alx-rule-list>` | Rule object |
-| `alx-rule-create` | `<alx-rule-list>` | `undefined` |
-| `alx-rule-dry-run` | `<alx-rule-list>` | `{ ruleId, result }` |
-| `alx-rule-saved` | `<alx-rule-editor>` | API response |
-| `alx-rule-deleted` | `<alx-rule-list>`, `<alx-rule-editor>` | `{ id }` |
 | `metadata-change` | `<alx-metadata-editor>` | `Record<string, string \| string[]>` |
 | `alx-draft-approved` | `<alx-approval-queue>` | `{ id }` or `{ ids }` |
 | `alx-draft-rejected` | `<alx-approval-queue>` | `{ id }` or `{ ids }` |
 | `alx-draft-view` | `<alx-approval-queue>` | Draft object |
 | `alx-drawer-closed` | `<alx-drawer>` | `undefined` |
 | `alx-settings-saved` | `<alx-global-settings>` | `{ section, data }` |
-| `alx-throttle-saved` | `<alx-throttle-settings>` | Throttle settings |
 | `alx-auth-error` | `window` | `{ status, url }` |

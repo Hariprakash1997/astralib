@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { AgentStatus } from '@astralibx/chat-types';
 import type { AgentService } from '../services/agent.service';
 import { sendSuccess, sendError, getParam } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
@@ -44,6 +45,18 @@ export function createAgentRoutes(
     }
   });
 
+  // GET /team/:teamId — get all members of a team (before /:agentId to avoid conflict)
+  router.get('/team/:teamId', async (req: Request, res: Response) => {
+    try {
+      const agents = await agentService.getTeamMembers(getParam(req, 'teamId'));
+      sendSuccess(res, { agents });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to get team members', { error });
+      sendError(res, message, 500);
+    }
+  });
+
   // GET /:agentId
   router.get('/:agentId', async (req: Request, res: Response) => {
     try {
@@ -62,12 +75,12 @@ export function createAgentRoutes(
   // POST /
   router.post('/', async (req: Request, res: Response) => {
     try {
-      const { name, avatar, role, isAI, aiConfig, promptTemplateId, maxConcurrentChats, metadata } = req.body;
+      const { name, avatar, role, isAI, aiConfig, promptTemplateId, maxConcurrentChats, metadata, level, parentId, teamId } = req.body;
       if (!name) {
         return sendError(res, 'name is required', 400);
       }
       const agent = await agentService.create({
-        name, avatar, role, isAI, aiConfig, promptTemplateId, maxConcurrentChats, metadata,
+        name, avatar, role, isAI, aiConfig, promptTemplateId, maxConcurrentChats, metadata, level, parentId, teamId,
       });
       sendSuccess(res, { agent }, 201);
     } catch (error: unknown) {
@@ -84,7 +97,7 @@ export function createAgentRoutes(
       sendSuccess(res, { agent });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'AGENT_NOT_FOUND' ? 404 : 500;
+      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to update agent', { error });
       sendError(res, message, statusCode);
     }
@@ -109,7 +122,7 @@ export function createAgentRoutes(
       sendSuccess(res, { agent });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'AGENT_NOT_FOUND' ? 404 : 500;
+      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to toggle agent active', { error });
       sendError(res, message, statusCode);
     }
@@ -154,6 +167,77 @@ export function createAgentRoutes(
     } catch (error: unknown) {
       logger.error('Avatar upload failed', { error });
       sendError(res, error instanceof Error ? error.message : 'Upload failed', 500);
+    }
+  });
+
+  // ── Hierarchy routes ────────────────────────────────────────────────
+
+  // GET /:agentId/team-tree — get full tree below this agent
+  router.get('/:agentId/team-tree', async (req: Request, res: Response) => {
+    try {
+      const subordinates = await agentService.getTeamTree(getParam(req, 'agentId'));
+      sendSuccess(res, { subordinates });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
+      logger.error('Failed to get team tree', { error });
+      sendError(res, message, statusCode);
+    }
+  });
+
+  // GET /:agentId/reports — get direct reports
+  router.get('/:agentId/reports', async (req: Request, res: Response) => {
+    try {
+      const agents = await agentService.getDirectReports(getParam(req, 'agentId'));
+      sendSuccess(res, { agents });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
+      logger.error('Failed to get direct reports', { error });
+      sendError(res, message, statusCode);
+    }
+  });
+
+  // PUT /:agentId/hierarchy — update agent's hierarchy position
+  router.put('/:agentId/hierarchy', async (req: Request, res: Response) => {
+    try {
+      const { parentId, level, teamId } = req.body;
+      const agent = await agentService.setHierarchy(getParam(req, 'agentId'), { parentId, level, teamId });
+      sendSuccess(res, { agent });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const code = (error as any).code;
+      const statusCode = code === 'CHAT_AGENT_NOT_FOUND' ? 404
+        : code === 'CHAT_INVALID_HIERARCHY' ? 400
+        : 500;
+      logger.error('Failed to update agent hierarchy', { error });
+      sendError(res, message, statusCode);
+    }
+  });
+
+  // PUT /:agentId/status — admin force-set agent status
+  const validStatuses = new Set(Object.values(AgentStatus));
+
+  router.put('/:agentId/status', async (req: Request, res: Response) => {
+    try {
+      const agentId = getParam(req, 'agentId');
+      const { status } = req.body;
+
+      if (!status || !validStatuses.has(status)) {
+        return sendError(
+          res,
+          `Invalid status. Must be one of: ${[...validStatuses].join(', ')}`,
+          400,
+        );
+      }
+
+      const agent = await agentService.updateStatus(agentId, status as AgentStatus);
+      sendSuccess(res, { agent });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
+      logger.error('Failed to update agent status', { error });
+      sendError(res, message, statusCode);
     }
   });
 

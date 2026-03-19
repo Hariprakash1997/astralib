@@ -1,4 +1,5 @@
 import { Schema, Model, HydratedDocument } from 'mongoose';
+import { WIDGET_DEFAULT } from '../constants/index.js';
 
 export interface IChatWidgetConfig {
   key: string;
@@ -20,6 +21,7 @@ export interface IChatWidgetConfig {
   translations?: Record<string, string>;
   position?: string;
   theme?: string;
+  tenantId?: string;
   metadata?: Record<string, unknown>;
   updatedAt: Date;
   updatedBy?: string;
@@ -55,8 +57,9 @@ export function createChatWidgetConfigSchema() {
         _id: false,
       },
       translations: { type: Schema.Types.Mixed, default: {} },
-      position: { type: String, default: 'bottom-right' },
-      theme: { type: String, default: 'light' },
+      position: { type: String, default: WIDGET_DEFAULT.Position },
+      theme: { type: String, default: WIDGET_DEFAULT.Theme },
+      tenantId: { type: String, index: true, sparse: true },
       metadata: { type: Schema.Types.Mixed, default: {} },
       updatedBy: { type: String },
     },

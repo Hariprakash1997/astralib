@@ -6,6 +6,8 @@ import type { ChatSessionModel, ChatSessionDocument } from '../schemas/chat-sess
 import type { ChatMessageModel } from '../schemas/chat-message.schema';
 import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
 import { SessionNotFoundError } from '../errors';
+import { validateSessionTransition } from '../validation/state.validator.js';
+import { withTenantFilter, withTenantId } from '../utils/helpers.js';
 
 export class SessionService {
   constructor(
@@ -14,13 +16,14 @@ export class SessionService {
     private options: ResolvedOptions,
     private logger: LogAdapter,
     private hooks?: ChatEngineConfig['hooks'],
+    private tenantId?: string,
   ) {}
 
   async create(context: VisitorContext, mode: SessionMode): Promise<ChatSessionDocument> {
     const sessionId = crypto.randomUUID();
     const now = new Date();
 
-    const session = await this.ChatSession.create({
+    const session = await this.ChatSession.create(withTenantId({
       sessionId,
       visitorId: context.visitorId,
       visitorFingerprint: context.fingerprint,
@@ -32,7 +35,7 @@ export class SessionService {
       visibleUntil: new Date(now.getTime() + this.options.sessionVisibilityMs),
       preferences: context.metadata || {},
       metadata: context.metadata || {},
-    });
+    }, this.tenantId));
 
     this.logger.info('Session created', { sessionId, visitorId: context.visitorId });
     this.hooks?.onSessionCreated?.(this.toSummary(session));
@@ -41,7 +44,7 @@ export class SessionService {
   }
 
   async findById(sessionId: string): Promise<ChatSessionDocument | null> {
-    return this.ChatSession.findOne({ sessionId });
+    return this.ChatSession.findOne(withTenantFilter({ sessionId }, this.tenantId));
   }
 
   async findByIdOrFail(sessionId: string): Promise<ChatSessionDocument> {
@@ -65,6 +68,7 @@ export class SessionService {
           .sort({ createdAt: 1 });
 
         if (existing.status === ChatSessionStatus.Abandoned) {
+          validateSessionTransition(existing.sessionId, existing.status, ChatSessionStatus.Active);
           existing.status = ChatSessionStatus.Active;
           existing.endedAt = undefined;
           existing.visibleUntil = new Date(Date.now() + this.options.sessionVisibilityMs);
@@ -77,10 +81,10 @@ export class SessionService {
 
     // Gap 18: Only reuse existing active sessions when singleSessionPerVisitor is enabled
     if (this.options.singleSessionPerVisitor) {
-      const recentSession = await this.ChatSession.findOne({
+      const recentSession = await this.ChatSession.findOne(withTenantFilter({
         visitorId: context.visitorId,
         status: { $in: [ChatSessionStatus.New, ChatSessionStatus.Active, ChatSessionStatus.WaitingAgent, ChatSessionStatus.WithAgent] },
-      }).sort({ startedAt: -1 });
+      } as Record<string, unknown>, this.tenantId)).sort({ startedAt: -1 });
 
       if (recentSession) {
         const messages = await this.ChatMessage
@@ -100,9 +104,11 @@ export class SessionService {
 
   async resolve(sessionId: string): Promise<ChatSessionDocument> {
     const session = await this.findByIdOrFail(sessionId);
+    validateSessionTransition(sessionId, session.status, ChatSessionStatus.Resolved);
     const now = new Date();
 
     session.status = ChatSessionStatus.Resolved;
+    session.resolvedAt = now;
     session.endedAt = now;
     await session.save();
 
@@ -115,6 +121,7 @@ export class SessionService {
 
   async abandon(sessionId: string): Promise<ChatSessionDocument> {
     const session = await this.findByIdOrFail(sessionId);
+    validateSessionTransition(sessionId, session.status, ChatSessionStatus.Abandoned);
 
     session.status = ChatSessionStatus.Abandoned;
     session.endedAt = new Date();
@@ -124,6 +131,28 @@ export class SessionService {
     this.hooks?.onSessionAbandoned?.(this.toSummary(session));
 
     return session;
+  }
+
+  async close(sessionId: string): Promise<ChatSessionDocument> {
+    const session = await this.findByIdOrFail(sessionId);
+    validateSessionTransition(sessionId, session.status, ChatSessionStatus.Closed);
+
+    session.status = ChatSessionStatus.Closed;
+    session.closedAt = new Date();
+    await session.save();
+
+    this.logger.info('Session closed', { sessionId });
+    this.hooks?.onSessionClosed?.(this.toSummary(session));
+
+    return session;
+  }
+
+  async findResolvedForAutoClose(autoCloseAfterMs: number): Promise<ChatSessionDocument[]> {
+    const cutoff = new Date(Date.now() - autoCloseAfterMs);
+    return this.ChatSession.find(withTenantFilter({
+      status: ChatSessionStatus.Resolved,
+      resolvedAt: { $lte: cutoff },
+    } as Record<string, unknown>, this.tenantId));
   }
 
   async updateMode(sessionId: string, mode: SessionMode, takenOverBy?: string): Promise<ChatSessionDocument> {
@@ -159,6 +188,7 @@ export class SessionService {
 
   async assignAgent(sessionId: string, agentId: string): Promise<ChatSessionDocument> {
     const session = await this.findByIdOrFail(sessionId);
+    validateSessionTransition(sessionId, session.status, ChatSessionStatus.WithAgent);
 
     session.agentId = agentId;
     session.status = ChatSessionStatus.WithAgent;
@@ -169,6 +199,11 @@ export class SessionService {
   }
 
   async setQueuePosition(sessionId: string, position: number): Promise<void> {
+    const session = await this.findByIdOrFail(sessionId);
+    if (session.status !== ChatSessionStatus.WaitingAgent) {
+      validateSessionTransition(sessionId, session.status, ChatSessionStatus.WaitingAgent);
+    }
+
     await this.ChatSession.updateOne(
       { sessionId },
       {
@@ -183,15 +218,16 @@ export class SessionService {
 
   async escalate(sessionId: string, reason?: string): Promise<ChatSessionDocument> {
     const session = await this.findByIdOrFail(sessionId);
+    validateSessionTransition(sessionId, session.status, ChatSessionStatus.WaitingAgent);
 
     session.mode = SessionMode.Manual;
     session.status = ChatSessionStatus.WaitingAgent;
     session.escalatedAt = new Date();
 
     // Calculate queue position
-    const waitingCount = await this.ChatSession.countDocuments({
+    const waitingCount = await this.ChatSession.countDocuments(withTenantFilter({
       status: ChatSessionStatus.WaitingAgent,
-    });
+    } as Record<string, unknown>, this.tenantId));
     session.queuePosition = waitingCount + 1;
 
     await session.save();
@@ -205,7 +241,7 @@ export class SessionService {
 
   async submitFeedback(sessionId: string, feedback: ChatFeedback): Promise<void> {
     await this.ChatSession.updateOne(
-      { sessionId },
+      withTenantFilter({ sessionId }, this.tenantId),
       {
         $set: {
           feedback: {
@@ -222,7 +258,7 @@ export class SessionService {
 
   async updateLastMessage(sessionId: string): Promise<void> {
     await this.ChatSession.updateOne(
-      { sessionId },
+      withTenantFilter({ sessionId }, this.tenantId),
       {
         $inc: { messageCount: 1 },
         $set: {
@@ -265,6 +301,9 @@ export class SessionService {
   }
 
   async setStatus(sessionId: string, status: ChatSessionStatus): Promise<void> {
+    const session = await this.findByIdOrFail(sessionId);
+    validateSessionTransition(sessionId, session.status, status);
+
     await this.ChatSession.updateOne(
       { sessionId },
       { $set: { status } },
@@ -277,41 +316,69 @@ export class SessionService {
     limit: number,
   ): Promise<{ sessions: ChatSessionDocument[]; total: number; page: number; limit: number }> {
     const skip = (page - 1) * limit;
+    const scopedFilter = withTenantFilter({ ...filter }, this.tenantId);
     const [sessions, total] = await Promise.all([
-      this.ChatSession.find(filter).sort({ startedAt: -1 }).skip(skip).limit(limit),
-      this.ChatSession.countDocuments(filter),
+      this.ChatSession.find(scopedFilter).sort({ startedAt: -1 }).skip(skip).limit(limit),
+      this.ChatSession.countDocuments(scopedFilter),
     ]);
     return { sessions, total, page, limit };
   }
 
   async findAllWithFeedback(): Promise<ChatSessionDocument[]> {
-    return this.ChatSession.find({ 'feedback.rating': { $exists: true, $ne: null } });
+    return this.ChatSession.find(withTenantFilter({ 'feedback.rating': { $exists: true, $ne: null } } as Record<string, unknown>, this.tenantId));
   }
 
   async findActiveSessions(): Promise<ChatSessionDocument[]> {
-    return this.ChatSession.find({
+    return this.ChatSession.find(withTenantFilter({
       status: { $in: [ChatSessionStatus.New, ChatSessionStatus.Active, ChatSessionStatus.WaitingAgent, ChatSessionStatus.WithAgent] },
-    }).sort({ lastMessageAt: -1 });
+    } as Record<string, unknown>, this.tenantId)).sort({ lastMessageAt: -1 });
   }
 
   async findWaitingSessions(): Promise<ChatSessionDocument[]> {
-    return this.ChatSession.find({
+    return this.ChatSession.find(withTenantFilter({
       status: ChatSessionStatus.WaitingAgent,
-    }).sort({ queuePosition: 1, escalatedAt: 1 });
+    } as Record<string, unknown>, this.tenantId)).sort({ queuePosition: 1, escalatedAt: 1 });
+  }
+
+  /**
+   * Returns sessions that need agent attention: both WaitingAgent and
+   * unassigned Active/New sessions with messages. This is the full
+   * pending queue surfaced to agents on connect.
+   */
+  async findPendingQueue(): Promise<ChatSessionDocument[]> {
+    const baseConditions = [
+      { status: ChatSessionStatus.WaitingAgent },
+      {
+        status: { $in: [ChatSessionStatus.New, ChatSessionStatus.Active] },
+        agentId: { $in: [null, undefined] },
+        messageCount: { $gt: 0 },
+      },
+    ];
+
+    // When tenantId is set, add it to each $or branch
+    if (this.tenantId) {
+      for (const cond of baseConditions) {
+        (cond as Record<string, unknown>).tenantId = this.tenantId;
+      }
+    }
+
+    return this.ChatSession.find({
+      $or: baseConditions,
+    }).sort({ queuePosition: 1, escalatedAt: 1, lastMessageAt: 1 });
   }
 
   async findByAgent(agentId: string): Promise<ChatSessionDocument[]> {
-    return this.ChatSession.find({
+    return this.ChatSession.find(withTenantFilter({
       agentId,
       status: { $in: [ChatSessionStatus.Active, ChatSessionStatus.WithAgent] },
-    }).sort({ lastMessageAt: -1 });
+    } as Record<string, unknown>, this.tenantId)).sort({ lastMessageAt: -1 });
   }
 
   async findExpiredSessions(): Promise<ChatSessionDocument[]> {
-    return this.ChatSession.find({
+    return this.ChatSession.find(withTenantFilter({
       status: { $in: [ChatSessionStatus.New, ChatSessionStatus.Active, ChatSessionStatus.WaitingAgent, ChatSessionStatus.WithAgent] },
       visibleUntil: { $lt: new Date() },
-    });
+    } as Record<string, unknown>, this.tenantId));
   }
 
   async getSessionStats(sessionId: string): Promise<SessionStats> {
@@ -345,16 +412,16 @@ export class SessionService {
     todayStart.setHours(0, 0, 0, 0);
 
     const [activeSessions, waitingSessions, resolvedToday] = await Promise.all([
-      this.ChatSession.countDocuments({
+      this.ChatSession.countDocuments(withTenantFilter({
         status: { $in: [ChatSessionStatus.Active, ChatSessionStatus.WithAgent] },
-      }),
-      this.ChatSession.countDocuments({
+      } as Record<string, unknown>, this.tenantId)),
+      this.ChatSession.countDocuments(withTenantFilter({
         status: ChatSessionStatus.WaitingAgent,
-      }),
-      this.ChatSession.countDocuments({
+      } as Record<string, unknown>, this.tenantId)),
+      this.ChatSession.countDocuments(withTenantFilter({
         status: ChatSessionStatus.Resolved,
         endedAt: { $gte: todayStart },
-      }),
+      } as Record<string, unknown>, this.tenantId)),
     ]);
 
     return {
@@ -383,6 +450,94 @@ export class SessionService {
     };
   }
 
+  // ── Tag management ─────────────────────────────────────────────────────────
+
+  async addTag(sessionId: string, tag: string): Promise<string[]> {
+    const session = await this.findByIdOrFail(sessionId);
+    if (!session.tags.includes(tag)) {
+      session.tags.push(tag);
+      await session.save();
+    }
+    this.logger.info('Tag added', { sessionId, tag });
+    return session.tags;
+  }
+
+  async removeTag(sessionId: string, tag: string): Promise<string[]> {
+    const session = await this.findByIdOrFail(sessionId);
+    session.tags = session.tags.filter((t: string) => t !== tag);
+    await session.save();
+    this.logger.info('Tag removed', { sessionId, tag });
+    return session.tags;
+  }
+
+  async getTags(sessionId: string): Promise<string[]> {
+    const session = await this.findByIdOrFail(sessionId);
+    return session.tags;
+  }
+
+  // ── User identity merge ──────────────────────────────────────────────────
+
+  async mergeAnonymousSessions(anonymousId: string, userId: string): Promise<number> {
+    const result = await this.ChatSession.updateMany(
+      withTenantFilter({ visitorId: anonymousId }, this.tenantId),
+      { $set: { visitorId: userId } },
+    );
+    const count = result.modifiedCount;
+    if (count > 0) {
+      this.logger.info('Merged anonymous sessions', { anonymousId, userId, count });
+    }
+    return count;
+  }
+
+  // ── User info & agent notes ─────────────────────────────────────────────
+
+  async updateUserInfo(
+    sessionId: string,
+    info: { name?: string | null; email?: string | null; mobile?: string | null },
+  ): Promise<ChatSessionDocument> {
+    const session = await this.findByIdOrFail(sessionId);
+    const current = session.userInfo || { name: null, email: null, mobile: null };
+    session.userInfo = {
+      name: info.name !== undefined ? info.name : current.name,
+      email: info.email !== undefined ? info.email : current.email,
+      mobile: info.mobile !== undefined ? info.mobile : current.mobile,
+    };
+    await session.save();
+    this.logger.info('User info updated', { sessionId });
+    return session;
+  }
+
+  async addNote(sessionId: string, note: string): Promise<string[]> {
+    const session = await this.findByIdOrFail(sessionId);
+    session.agentNotes.push(note);
+    await session.save();
+    this.logger.info('Note added', { sessionId });
+    return session.agentNotes;
+  }
+
+  async removeNote(sessionId: string, index: number): Promise<string[]> {
+    const session = await this.findByIdOrFail(sessionId);
+    if (index < 0 || index >= session.agentNotes.length) {
+      throw new SessionNotFoundError(sessionId); // reuse — index out of range
+    }
+    session.agentNotes.splice(index, 1);
+    await session.save();
+    this.logger.info('Note removed', { sessionId, index });
+    return session.agentNotes;
+  }
+
+  // ── User conversation history ───────────────────────────────────────────
+
+  async getUserHistory(visitorId: string, limit: number = 5): Promise<ChatSessionDocument[]> {
+    const effectiveLimit = Math.min(Math.max(limit, 1), 5);
+    return this.ChatSession.find(withTenantFilter({
+      visitorId,
+      isDeletedForUser: { $ne: true },
+    } as Record<string, unknown>, this.tenantId))
+      .sort({ startedAt: -1 })
+      .limit(effectiveLimit);
+  }
+
   toSummary(session: ChatSessionDocument): ChatSessionSummary {
     return {
       sessionId: session.sessionId,
@@ -396,12 +551,14 @@ export class SessionService {
       endedAt: session.endedAt,
       channel: session.channel,
       queuePosition: session.queuePosition,
+      tags: session.tags,
       metadata: session.metadata,
     };
   }
 
   private canResume(session: ChatSessionDocument): boolean {
     if (session.status === ChatSessionStatus.Resolved) return false;
+    if (session.status === ChatSessionStatus.Closed) return false;
 
     if (session.status === ChatSessionStatus.Abandoned) {
       const abandonedAt = session.endedAt?.getTime() || 0;

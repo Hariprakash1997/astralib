@@ -50,6 +50,30 @@ const embeddingSchema = z.object({
   dimensions: z.number().int().positive(),
 }).optional();
 
+const vectorStoreSchema = z.object({
+  upsert: z.function(),
+  search: z.function(),
+  delete: z.function(),
+  deleteBatch: z.function(),
+  get: z.function(),
+  list: z.function(),
+  getSimilar: z.function(),
+  count: z.function(),
+}).optional();
+
+const embeddingAdapterSchema = z.object({
+  embed: z.function(),
+  embedBatch: z.function(),
+  dimensions: z.number().int().positive(),
+}).optional();
+
+const knowledgeVectorSchema = z.object({
+  dedupThreshold: z.number().min(0).max(1).optional(),
+  aiReviewEnabled: z.boolean().optional(),
+  staleDays: z.number().int().positive().optional(),
+  staleMinHits: z.number().int().nonnegative().optional(),
+}).optional();
+
 const optionsSchema = z.object({
   maxContextMessages: z.number().int().positive().optional(),
   escalationThreshold: z.number().int().positive().optional(),
@@ -61,6 +85,10 @@ const configSchema = z.object({
   memoryBackend: memoryBackendSchema,
   memorySearch: memorySearchSchema,
   knowledgeSearch: knowledgeSearchSchema,
+  vectorStore: vectorStoreSchema,
+  embeddingAdapter: embeddingAdapterSchema,
+  knowledgeVector: knowledgeVectorSchema,
+  generateAiResponse: z.function().optional(),
   embedding: embeddingSchema,
   options: optionsSchema,
   logger: loggerSchema.optional(),
