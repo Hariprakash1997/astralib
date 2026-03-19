@@ -1,5 +1,13 @@
 # @astralibx/chat-ui
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [44e3111]
+- Updated dependencies [d01dabd]
+  - @astralibx/chat-types@0.3.0
+
 ## 0.3.0
 
 ### Minor Changes

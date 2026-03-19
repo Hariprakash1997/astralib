@@ -1,5 +1,12 @@
 # @astralibx/chat-types
 
+## 0.3.0
+
+### Minor Changes
+
+- 44e3111: Features: shared rule-engine core and UI packages, chat engine with AI knowledge base and websocket gateway, telegram and email migrated to core adapters
+- d01dabd: Features: shared rule-engine core and UI packages, chat engine with AI knowledge base and websocket gateway, telegram and email migrated to core adapters
+
 ## 0.2.0
 
 ### Minor Changes

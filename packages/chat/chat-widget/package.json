@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/chat-widget",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Embeddable visitor-facing chat widget built with Lit Web Components",
   "repository": {
     "type": "git",
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "lit": "^3.0.0",
-    "@astralibx/chat-types": "^0.2.0"
+    "@astralibx/chat-types": "^0.3.0"
   },
   "peerDependencies": {
     "socket.io-client": "^4.0.0"

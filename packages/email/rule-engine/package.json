@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/email-rule-engine",
-  "version": "13.0.0",
+  "version": "14.0.0",
   "description": "Email automation engine — thin wrapper over @astralibx/rule-engine with MJML rendering",
   "repository": {
     "type": "git",
@@ -49,7 +49,7 @@
     "mjml": "^4.0.0"
   },
   "peerDependencies": {
-    "@astralibx/rule-engine": "^0.1.0",
+    "@astralibx/rule-engine": "^1.0.0",
     "express": "^4.18.0 || ^5.0.0",
     "ioredis": "^5.0.0",
     "mongoose": "^7.0.0 || ^8.0.0"
