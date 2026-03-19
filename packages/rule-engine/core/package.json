@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/rule-engine",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Platform-agnostic rule engine with templates, conditions, collection schemas, and join support",
   "repository": {
     "type": "git",
@@ -22,7 +22,9 @@
       }
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -32,7 +34,13 @@
     "lint": "eslint src/",
     "clean": "rm -rf dist"
   },
-  "keywords": ["rule-engine", "automation", "handlebars", "throttle", "conditions"],
+  "keywords": [
+    "rule-engine",
+    "automation",
+    "handlebars",
+    "throttle",
+    "conditions"
+  ],
   "license": "MIT",
   "dependencies": {
     "@astralibx/core": "*",
