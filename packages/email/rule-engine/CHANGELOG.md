@@ -1,5 +1,13 @@
 # @astralibx/email-rule-engine
 
+## 14.0.3
+
+### Patch Changes
+
+- 3e23687: Fixes: TypeScript declarations for UI packages - renamed AlxConfig to RuleEngineUIConfig - added changelog links to READMEs
+- Updated dependencies [3e23687]
+  - @astralibx/rule-engine@1.0.2
+
 ## 14.0.2
 
 ### Patch Changes
@@ -20,18 +28,18 @@
 
 ### Breaking Changes (v12 → v14)
 
-| Old (v12) | New (v14) | Notes |
-|-----------|-----------|-------|
+| Old (v12)                                                    | New (v14)                                              | Notes                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------ |
 | `import { RuleService } from '@astralibx/email-rule-engine'` | `import { RuleService } from '@astralibx/rule-engine'` | Core types now imported from the core package directly |
-| `RuleRunStats.errorCount` | `RuleRunStats.failed` | Unified stats shape across platforms |
-| `RuleRunStats.skippedByThrottle` | `RuleRunStats.throttled` | Unified stats shape |
-| `AgentSelection.email` | `AgentSelection.contactValue` | Platform-agnostic naming |
-| `SendEmailParams` | `EmailSendParams` | Renamed for clarity |
-| `onSend` hook `email` field | `contactValue` field | Platform-agnostic naming |
-| `emailType` on rules | `ruleType` | Platform-agnostic naming |
-| `EMAIL_TYPE` constant | `RULE_TYPE` | Platform-agnostic naming |
-| `email_rules` collection | `rules` collection | Shared collections with `platform` field |
-| `email_templates` collection | `templates` collection | Shared collections with `platform` field |
+| `RuleRunStats.errorCount`                                    | `RuleRunStats.failed`                                  | Unified stats shape across platforms                   |
+| `RuleRunStats.skippedByThrottle`                             | `RuleRunStats.throttled`                               | Unified stats shape                                    |
+| `AgentSelection.email`                                       | `AgentSelection.contactValue`                          | Platform-agnostic naming                               |
+| `SendEmailParams`                                            | `EmailSendParams`                                      | Renamed for clarity                                    |
+| `onSend` hook `email` field                                  | `contactValue` field                                   | Platform-agnostic naming                               |
+| `emailType` on rules                                         | `ruleType`                                             | Platform-agnostic naming                               |
+| `EMAIL_TYPE` constant                                        | `RULE_TYPE`                                            | Platform-agnostic naming                               |
+| `email_rules` collection                                     | `rules` collection                                     | Shared collections with `platform` field               |
+| `email_templates` collection                                 | `templates` collection                                 | Shared collections with `platform` field               |
 
 ### Major Changes
 

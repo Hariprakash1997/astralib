@@ -1,5 +1,11 @@
 # @astralibx/rule-engine
 
+## 1.0.2
+
+### Patch Changes
+
+- 3e23687: Fixes: TypeScript declarations for UI packages - renamed AlxConfig to RuleEngineUIConfig - added changelog links to READMEs
+
 ## 1.0.1
 
 ### Patch Changes

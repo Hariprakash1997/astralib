@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/rule-engine-ui",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Shared Lit Web Components for @astralibx rule engine admin UIs",
   "repository": {
     "type": "git",

@@ -1,5 +1,13 @@
 # @astralibx/email-ui
 
+## 4.0.1
+
+### Patch Changes
+
+- 3e23687: Fixes: TypeScript declarations for UI packages - renamed AlxConfig to RuleEngineUIConfig - added changelog links to READMEs
+- Updated dependencies [3e23687]
+  - @astralibx/rule-engine-ui@1.0.2
+
 ## 4.0.0
 
 ### Major Changes
