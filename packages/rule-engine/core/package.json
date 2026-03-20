@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/rule-engine",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Platform-agnostic rule engine with templates, conditions, collection schemas, and join support",
   "repository": {
     "type": "git",
