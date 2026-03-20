@@ -24,22 +24,22 @@ import type {
   LeaveChatPayload,
   WatchChatPayload,
 } from '@astralibx/chat-types';
-import type { SessionService } from '../services/session.service';
-import type { MessageService } from '../services/message.service';
-import type { AgentService } from '../services/agent.service';
-import type { SettingsService } from '../services/settings.service';
-import type { RedisService } from '../services/redis.service';
-import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
-import type { EmitDeps } from './emit';
-import { emitToVisitor, emitToAgent } from './emit';
-import type { NotificationDeps } from './notifications';
+import type { SessionService } from '../services/session.service.js';
+import type { MessageService } from '../services/message.service.js';
+import type { AgentService } from '../services/agent.service.js';
+import type { SettingsService } from '../services/settings.service.js';
+import type { RedisService } from '../services/redis.service.js';
+import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types.js';
+import type { EmitDeps } from './emit.js';
+import { emitToVisitor, emitToAgent } from './emit.js';
+import type { NotificationDeps } from './notifications.js';
 import {
   broadcastStatsUpdate,
   broadcastSessionUpdate,
   broadcastModeChange,
   broadcastQueuePositions,
-} from './notifications';
-import { clearAiDebounce } from './ai-debounce';
+} from './notifications.js';
+import { clearAiDebounce } from './ai-debounce.js';
 import {
   validateMessageContent,
   validateSessionForMessaging,
@@ -47,9 +47,9 @@ import {
   setTypingTimeout,
   clearTypingTimeout,
   withSocketErrorHandler,
-} from './helpers';
+} from './helpers.js';
 import { validateEscalation } from '../validation/escalation.validator.js';
-import { ERROR_CODE, ERROR_MESSAGE, INTERNAL_EVENT, SYSTEM_MESSAGE } from '../constants/index.js';
+import { ERROR_CODE, ERROR_MESSAGE, INTERNAL_EVENT, SYSTEM_MESSAGE, SYSTEM_MESSAGE_FN } from '../constants/index.js';
 import { resolveAiMode, resolveAiCharacter } from '../utils/ai-resolver.js';
 
 export interface AgentHandlerDeps {
@@ -130,6 +130,7 @@ export function setupAgentHandlers(
       ]);
 
       socket.emit(ServerToAgentEvent.Connected, {
+        agentId: payload.agentId,
         stats: { ...dashStats, totalAgents, activeAgents },
         waitingChats: waitingChats.map(s => deps.sessionService.toSummary(s)),
         assignedChats: assignedChats.map(s => deps.sessionService.toSummary(s)),
@@ -183,7 +184,7 @@ export function setupAgentHandlers(
 
       await deps.messageService.createSystemMessage(
         payload.sessionId,
-        `${agent.name} joined the conversation`,
+        SYSTEM_MESSAGE_FN.agentJoined(agent.name),
       );
 
       broadcastSessionUpdate(deps.notificationDeps, payload.sessionId, 'accepted', {
@@ -194,7 +195,11 @@ export function setupAgentHandlers(
       const accepted = await deps.sessionService.findById(payload.sessionId);
       if (accepted?.queuePosition != null) {
         const updates = await deps.sessionService.recalculateQueuePositions(accepted.queuePosition);
-        await broadcastQueuePositions(updates, deps.emitDeps, deps.logger);
+        const enriched = await Promise.all(updates.map(async (u) => ({
+          ...u,
+          estimatedWaitMinutes: await deps.sessionService.estimateWaitTime(u.queuePosition),
+        })));
+        await broadcastQueuePositions(enriched, deps.emitDeps, deps.logger);
       }
     }));
 
@@ -299,7 +304,7 @@ export function setupAgentHandlers(
 
       await deps.messageService.createSystemMessage(
         payload.sessionId,
-        'Conversation has been resolved',
+        SYSTEM_MESSAGE.ConversationResolved,
       );
 
       await emitToVisitor(deps.emitDeps, payload.sessionId, ServerToVisitorEvent.Status, {
@@ -336,7 +341,11 @@ export function setupAgentHandlers(
       // Gap 9: Recalculate queue positions for sessions behind the resolved one
       if (preQueuePosition != null) {
         const updates = await deps.sessionService.recalculateQueuePositions(preQueuePosition);
-        await broadcastQueuePositions(updates, deps.emitDeps, deps.logger);
+        const enriched = await Promise.all(updates.map(async (u) => ({
+          ...u,
+          estimatedWaitMinutes: await deps.sessionService.estimateWaitTime(u.queuePosition),
+        })));
+        await broadcastQueuePositions(enriched, deps.emitDeps, deps.logger);
       }
     }));
 
@@ -357,7 +366,7 @@ export function setupAgentHandlers(
 
       await deps.messageService.createSystemMessage(
         payload.sessionId,
-        `${agent.name} took over the conversation`,
+        SYSTEM_MESSAGE_FN.agentTookOver(agent.name),
       );
 
       const agentInfo = deps.agentService.toAgentInfo(agent);
@@ -396,7 +405,7 @@ export function setupAgentHandlers(
 
       await deps.messageService.createSystemMessage(
         payload.sessionId,
-        'Conversation handed back to AI',
+        SYSTEM_MESSAGE.HandedBackToAi,
       );
 
       await emitToVisitor(deps.emitDeps, payload.sessionId, ServerToVisitorEvent.AgentLeave, {});
@@ -424,7 +433,7 @@ export function setupAgentHandlers(
     }));
 
     socket.on(AgentEvent.UpdateSettings, withSocketErrorHandler(socket, deps.logger, async (payload: Record<string, unknown>) => {
-      const settings = await deps.settingsService.update(payload as any);
+      const settings = await deps.settingsService.update(payload as Parameters<SettingsService['update']>[0]);
       deps.notificationDeps.agentNs.emit(ServerToAgentEvent.SettingsUpdated, { settings });
     }));
 
@@ -480,7 +489,7 @@ export function setupAgentHandlers(
 
       await deps.messageService.createSystemMessage(
         payload.sessionId,
-        `Conversation transferred to ${targetAgent.name}`,
+        SYSTEM_MESSAGE_FN.conversationTransferred(targetAgent.name),
       );
 
       const messages = await deps.messageService.findBySession(payload.sessionId, deps.options.maxSessionHistory);

@@ -20,19 +20,19 @@ import type {
   SetPreferredAgentPayload,
   SupportPersonsPayload,
 } from '@astralibx/chat-types';
-import type { SessionService } from '../services/session.service';
-import type { MessageService } from '../services/message.service';
-import type { AgentService } from '../services/agent.service';
-import type { SettingsService } from '../services/settings.service';
-import type { PendingMessageService } from '../services/pending-message.service';
-import type { RedisService } from '../services/redis.service';
-import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
-import type { EmitDeps } from './emit';
-import { emitToVisitor, emitToAgent } from './emit';
-import type { NotificationDeps } from './notifications';
-import { notifyAgentsNewChat, notifyAgentsNewMessage, broadcastStatsUpdate } from './notifications';
-import { scheduleAiResponse, clearAiDebounce } from './ai-debounce';
-import type { AiDebounceDeps } from './ai-debounce';
+import type { SessionService } from '../services/session.service.js';
+import type { MessageService } from '../services/message.service.js';
+import type { AgentService } from '../services/agent.service.js';
+import type { SettingsService } from '../services/settings.service.js';
+import type { PendingMessageService } from '../services/pending-message.service.js';
+import type { RedisService } from '../services/redis.service.js';
+import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types.js';
+import type { EmitDeps } from './emit.js';
+import { emitToVisitor, emitToAgent } from './emit.js';
+import type { NotificationDeps } from './notifications.js';
+import { notifyAgentsNewChat, notifyAgentsNewMessage, broadcastStatsUpdate } from './notifications.js';
+import { scheduleAiResponse, clearAiDebounce } from './ai-debounce.js';
+import type { AiDebounceDeps } from './ai-debounce.js';
 import {
   validateMessageContent,
   validateSessionForMessaging,
@@ -44,9 +44,10 @@ import {
   isTypingThrottled,
   clearTypingThrottle,
   withSocketErrorHandler,
-} from './helpers';
-import { ERROR_CODE, ERROR_MESSAGE, SYSTEM_MESSAGE, AGENT_VISIBILITY, CHAT_MODE, USER_EVENT_TYPE } from '../constants/index.js';
+} from './helpers.js';
+import { ERROR_CODE, ERROR_MESSAGE, SYSTEM_MESSAGE, SYSTEM_MESSAGE_FN, AGENT_VISIBILITY, CHAT_MODE, USER_EVENT_TYPE, RATING_TYPE } from '../constants/index.js';
 import type { IAnalyticsConfig } from '../schemas/chat-settings.schema.js';
+import type { IChatSession } from '../schemas/chat-session.schema.js';
 import type { VisitorAnalytics } from '@astralibx/chat-types';
 import { resolveAiMode, resolveAiCharacter } from '../utils/ai-resolver.js';
 
@@ -165,7 +166,7 @@ export function setupVisitorHandlers(
       if (context.analytics) {
         const strippedAnalytics = stripAnalytics(context.analytics, settings.analyticsConfig);
         if (strippedAnalytics) {
-          session.analytics = strippedAnalytics as any;
+          session.analytics = strippedAnalytics as IChatSession['analytics'];
         }
       }
 
@@ -174,7 +175,7 @@ export function setupVisitorHandlers(
       }
       await session.save();
 
-      const messagePayloads = messages.map((m: any) => deps.messageService.toPayload(m));
+      const messagePayloads = messages.map((m) => deps.messageService.toPayload(m));
 
       let agentInfo;
       if (session.agentId) {
@@ -242,14 +243,28 @@ export function setupVisitorHandlers(
       // Resolve user identity — merge anonymous sessions if a known user is identified
       if (deps.config.adapters.resolveUserIdentity) {
         try {
-          const resolvedUserId = await deps.config.adapters.resolveUserIdentity(context);
-          if (resolvedUserId && resolvedUserId !== context.visitorId) {
-            await deps.sessionService.mergeAnonymousSessions(context.visitorId, resolvedUserId);
-            deps.logger.info('User identity resolved', {
-              sessionId: session.sessionId,
-              anonymousId: context.visitorId,
-              userId: resolvedUserId,
-            });
+          const resolved = await deps.config.adapters.resolveUserIdentity(context);
+          if (resolved) {
+            const resolvedUserId = typeof resolved === 'string' ? resolved : resolved.userId;
+            const resolvedCategory = typeof resolved === 'object' ? resolved.userCategory : undefined;
+
+            if (resolvedUserId && resolvedUserId !== context.visitorId) {
+              await deps.sessionService.mergeAnonymousSessions(context.visitorId, resolvedUserId);
+              deps.logger.info('User identity resolved', {
+                sessionId: session.sessionId,
+                anonymousId: context.visitorId,
+                userId: resolvedUserId,
+              });
+            }
+
+            if (resolvedCategory) {
+              session.userCategory = resolvedCategory;
+              await session.save();
+              deps.logger.info('User category auto-set from identity', {
+                sessionId: session.sessionId,
+                userCategory: resolvedCategory,
+              });
+            }
           }
         } catch (err) {
           deps.logger.error('resolveUserIdentity failed', { error: err, visitorId: context.visitorId });
@@ -421,9 +436,7 @@ export function setupVisitorHandlers(
 
       await deps.messageService.createSystemMessage(
         sessionId,
-        payload.reason
-          ? `Visitor requested human agent: ${payload.reason}`
-          : 'Visitor requested human agent',
+        SYSTEM_MESSAGE_FN.visitorRequestedHuman(payload.reason),
       );
 
       const assignedAgent = deps.config.adapters.assignAgent
@@ -563,12 +576,12 @@ export function setupVisitorHandlers(
         }
 
         // Validate ratingValue range
-        if (payload.ratingType === 'thumbs') {
+        if (payload.ratingType === RATING_TYPE.Thumbs) {
           if (payload.ratingValue !== 0 && payload.ratingValue !== 1) {
             socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidRating, message: ERROR_MESSAGE.RatingThumbsRange });
             return;
           }
-        } else if (payload.ratingType === 'stars' || payload.ratingType === 'emoji') {
+        } else if (payload.ratingType === RATING_TYPE.Stars || payload.ratingType === RATING_TYPE.Emoji) {
           const numVal = Number(payload.ratingValue);
           if (!Number.isInteger(numVal) || numVal < 1 || numVal > 5) {
             socket.emit(ServerToVisitorEvent.Error, { code: ERROR_CODE.InvalidRating, message: ERROR_MESSAGE.RatingStarsRange });

@@ -1,16 +1,16 @@
 import { Server as SocketIOServer, type Namespace } from 'socket.io';
 import type { Server as HttpServer } from 'http';
 import type { LogAdapter } from '@astralibx/core';
-import type { SessionService } from '../services/session.service';
-import type { MessageService } from '../services/message.service';
-import type { AgentService } from '../services/agent.service';
-import type { SettingsService } from '../services/settings.service';
-import type { PendingMessageService } from '../services/pending-message.service';
-import type { RedisService } from '../services/redis.service';
-import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
-import type { EmitDeps } from './emit';
-import { setupVisitorHandlers } from './visitor.handler';
-import { setupAgentHandlers } from './agent.handler';
+import type { SessionService } from '../services/session.service.js';
+import type { MessageService } from '../services/message.service.js';
+import type { AgentService } from '../services/agent.service.js';
+import type { SettingsService } from '../services/settings.service.js';
+import type { PendingMessageService } from '../services/pending-message.service.js';
+import type { RedisService } from '../services/redis.service.js';
+import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types.js';
+import type { EmitDeps } from './emit.js';
+import { setupVisitorHandlers } from './visitor.handler.js';
+import { setupAgentHandlers } from './agent.handler.js';
 
 export interface GatewayDeps {
   sessionService: SessionService;
@@ -112,9 +112,9 @@ export function createGateway(deps: GatewayDeps): GatewayResult {
   };
 }
 
-export { setupVisitorHandlers } from './visitor.handler';
-export { setupAgentHandlers } from './agent.handler';
-export { emitToVisitor, emitToAgent } from './emit';
-export { notifyAgentsNewChat, notifyAgentsNewMessage, broadcastStatsUpdate, broadcastSessionUpdate, broadcastModeChange, broadcastQueuePositions } from './notifications';
-export { scheduleAiResponse, resetAiDebounce, clearAiDebounce } from './ai-debounce';
-export * from './helpers';
+export { setupVisitorHandlers } from './visitor.handler.js';
+export { setupAgentHandlers } from './agent.handler.js';
+export { emitToVisitor, emitToAgent } from './emit.js';
+export { notifyAgentsNewChat, notifyAgentsNewMessage, broadcastStatsUpdate, broadcastSessionUpdate, broadcastModeChange, broadcastQueuePositions } from './notifications.js';
+export { scheduleAiResponse, resetAiDebounce, clearAiDebounce } from './ai-debounce.js';
+export * from './helpers.js';

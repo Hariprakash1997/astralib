@@ -138,7 +138,7 @@ export class RuleRunnerService {
         return true;
       });
 
-      this.config.hooks?.onRunStart?.({ rulesCount: activeRules.length, triggeredBy, runId });
+      try { this.config.hooks?.onRunStart?.({ rulesCount: activeRules.length, triggeredBy, runId }); } catch (err) { this.logger.error('onRunStart hook error', { error: (err as Error).message }); }
 
       await updateRunProgress(this.redis, this.keyPrefix, runId, {
         progress: { rulesTotal: activeRules.length, rulesCompleted: 0, sent: 0, failed: 0, skipped: 0, invalid: 0 }
@@ -243,7 +243,7 @@ export class RuleRunnerService {
 
       await updateRunProgress(this.redis, this.keyPrefix, runId, { status: runStatus, currentRule: '', elapsed: Date.now() - runStartTime } as Partial<RunStatusResponse>);
 
-      this.config.hooks?.onRunComplete?.({ duration: Date.now() - runStartTime, totalStats, perRuleStats, runId });
+      try { this.config.hooks?.onRunComplete?.({ duration: Date.now() - runStartTime, totalStats, perRuleStats, runId }); } catch (err) { this.logger.error('onRunComplete hook error', { error: (err as Error).message }); }
 
       this.logger.info('Rule run completed', {
         triggeredBy,
@@ -338,7 +338,7 @@ export class RuleRunnerService {
       $set: { lastRunAt: new Date(), lastRunStats: stats },
       $inc: { totalSent: stats.sent, totalSkipped: stats.skipped }
     });
-    this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats, templateId, runId: runId || '' });
+    try { this.config.hooks?.onRuleComplete?.({ ruleId, ruleName: rule.name, stats, templateId, runId: runId || '' }); } catch (err) { this.logger.error('onRuleComplete hook error', { error: (err as Error).message }); }
   }
 
   private async executeListMode(
@@ -362,7 +362,7 @@ export class RuleRunnerService {
     const ruleId = rule._id.toString();
     const templateId = rule.templateId.toString();
 
-    this.config.hooks?.onRuleStart?.({ ruleId, ruleName: rule.name, matchedCount: contactValuesToProcess.length, templateId, runId: runId || '' });
+    try { this.config.hooks?.onRuleStart?.({ ruleId, ruleName: rule.name, matchedCount: contactValuesToProcess.length, templateId, runId: runId || '' }); } catch (err) { this.logger.error('onRuleStart hook error', { error: (err as Error).message }); }
     if (contactValuesToProcess.length === 0) return stats;
 
     const identifierMap = await this.resolveIdentifiers(contactValuesToProcess);
@@ -458,7 +458,7 @@ export class RuleRunnerService {
     }
 
     stats.matched = rawUsers.length;
-    this.config.hooks?.onRuleStart?.({ ruleId: rule._id.toString(), ruleName: rule.name, matchedCount: rawUsers.length, templateId: rule.templateId.toString(), runId: runId || '' });
+    try { this.config.hooks?.onRuleStart?.({ ruleId: rule._id.toString(), ruleName: rule.name, matchedCount: rawUsers.length, templateId: rule.templateId.toString(), runId: runId || '' }); } catch (err) { this.logger.error('onRuleStart hook error', { error: (err as Error).message }); }
     if (rawUsers.length === 0) return stats;
 
     const userIds = rawUsers.map(u => (u._id as any)?.toString()).filter(Boolean);

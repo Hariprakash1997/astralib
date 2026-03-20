@@ -43,7 +43,7 @@ export function validateSessionForMessaging(session: ChatSessionDocument): void 
  * Validates that the connected agent owns the session. Throws
  * InvalidSessionStateError when the session is assigned to a different agent.
  */
-export function validateAgentOwnership(session: any, connectedAgentId: string): void {
+export function validateAgentOwnership(session: { agentId?: string; sessionId?: string }, connectedAgentId: string): void {
   if (session.agentId && session.agentId.toString() !== connectedAgentId) {
     throw new InvalidSessionStateError(
       session.sessionId ?? 'unknown',

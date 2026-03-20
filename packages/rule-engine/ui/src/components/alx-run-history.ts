@@ -430,12 +430,12 @@ export class AlxRunHistory extends LitElement {
                       <th>Status</th>
                       <th>Triggered By</th>
                       <th>Duration</th>
-                      <th>Rules</th>
+                      <th>Rules Run</th>
                       <th>Matched</th>
                       <th>Sent</th>
-                      <th>Skipped</th>
-                      <th>Throttled</th>
-                      <th>Failed</th>
+                      <th title="Recipients already sent to (send-once) or with invalid data">Skipped</th>
+                      <th title="Recipients who hit daily/weekly send limits">Throttled</th>
+                      <th title="Messages that failed to deliver">Failed</th>
                       <th></th>
                     </tr>
                   </thead>

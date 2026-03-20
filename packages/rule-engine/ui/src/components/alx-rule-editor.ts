@@ -52,6 +52,7 @@ export class AlxRuleEditor extends LitElement {
   @state() private _previewResult: { matchedCount: number; sample: any[] } | null = null;
   @state() private _previewing = false;
   @state() private _showCustomCron = false;
+  @state() private _success = '';
 
   private _apiInstance?: RuleEngineAPI;
 
@@ -183,9 +184,12 @@ export class AlxRuleEditor extends LitElement {
     return this._collectionFields.find(f => f.path === fieldPath)?.type;
   }
 
-  private _getOperatorsForField(fieldPath: string): string[] {
+  private _getOperatorsForField(fieldPath: string): Array<{ value: string; label: string }> {
     const fieldType = this._getFieldType(fieldPath);
-    if (fieldType && TYPE_OPERATORS[fieldType]) return TYPE_OPERATORS[fieldType];
+    if (fieldType && TYPE_OPERATORS[fieldType]) {
+      const allowed = TYPE_OPERATORS[fieldType];
+      return OPERATORS.filter(op => allowed.includes(op.value));
+    }
     return OPERATORS;
   }
 
@@ -223,7 +227,7 @@ export class AlxRuleEditor extends LitElement {
     if (field === 'field' && this._collectionFields.length > 0) {
       const fieldDef = this._collectionFields.find(f => f.path === value);
       if (fieldDef) {
-        const validOps = TYPE_OPERATORS[fieldDef.type] || OPERATORS;
+        const validOps = TYPE_OPERATORS[fieldDef.type] || OPERATORS.map(op => op.value);
         if (!validOps.includes(conditions[index].operator)) {
           conditions[index] = { ...conditions[index], operator: validOps[0] };
         }
@@ -257,7 +261,7 @@ export class AlxRuleEditor extends LitElement {
 
   private _isCronCustom(): boolean {
     const cron = this._form.schedule?.cron ?? '';
-    return cron !== '' && !['0 9 * * *', '0 9 * * 1-5', '0 9 * * 1', '0 9 1 * *'].includes(cron);
+    return cron !== '' && !['0 9 * * *', '0 9 * * 1-5', '0 9 * * 1', '0 18 * * *', '0 9 1 * *', '0 9 15 * *'].includes(cron);
   }
 
   private _cronDescription(): string {
@@ -267,7 +271,9 @@ export class AlxRuleEditor extends LitElement {
       '0 9 * * *': `Every day at 9:00 AM (${tz})`,
       '0 9 * * 1-5': `Weekdays at 9:00 AM (${tz})`,
       '0 9 * * 1': `Every Monday at 9:00 AM (${tz})`,
+      '0 18 * * *': `Every day at 6:00 PM (${tz})`,
       '0 9 1 * *': `1st of every month at 9:00 AM (${tz})`,
+      '0 9 15 * *': `15th of every month at 9:00 AM (${tz})`,
     };
     return map[cron] || (cron ? `Custom: ${cron} (${tz})` : 'No schedule set');
   }
@@ -340,6 +346,8 @@ export class AlxRuleEditor extends LitElement {
         result = await this._api.createRule(payload);
       }
 
+      this._success = 'Rule saved successfully';
+      setTimeout(() => { this._success = ''; }, 3000);
       this.dispatchEvent(new CustomEvent('alx-rule-saved', { detail: result, bubbles: true, composed: true }));
     } catch (err) {
       this._error = err instanceof Error ? err.message : 'Failed to save rule';
@@ -350,7 +358,7 @@ export class AlxRuleEditor extends LitElement {
 
   private _renderConditionRow(c: Condition, i: number) {
     const hasFields = this._collectionFields.length > 0;
-    const operators = hasFields ? this._getOperatorsForField(c.field) : OPERATORS;
+    const operators: Array<{ value: string; label: string }> = hasFields ? this._getOperatorsForField(c.field) : OPERATORS;
     const fieldDef = this._collectionFields.find(f => f.path === c.field);
     const hasEnum = fieldDef?.enumValues && fieldDef.enumValues.length > 0;
     const isBool = fieldDef?.type === 'boolean';
@@ -380,7 +388,7 @@ export class AlxRuleEditor extends LitElement {
           .value=${c.operator}
           @change=${(e: Event) => this._updateCondition(i, 'operator', (e.target as HTMLSelectElement).value)}
         >
-          ${operators.map(op => html`<option value=${op} ?selected=${c.operator === op}>${op}</option>`)}
+          ${operators.map(op => html`<option value=${op.value} ?selected=${c.operator === op.value}>${op.label}</option>`)}
         </select>
         ${noValue ? html`<span class="condition-no-value"></span>` :
           hasEnum ? html`
@@ -474,6 +482,7 @@ export class AlxRuleEditor extends LitElement {
         </div>
 
         ${this._error ? html`<div class="alx-error">${this._error}</div>` : nothing}
+        ${this._success ? html`<div class="success-msg" style="color:var(--alx-success,#16a34a);font-size:13px;margin-bottom:8px">${this._success}</div>` : nothing}
 
         <div class="form-grid">
           <!-- 1. Name -->
@@ -534,11 +543,11 @@ export class AlxRuleEditor extends LitElement {
             <label
               class="mode-option ${this._form.targetMode !== 'list' ? 'active' : ''}"
               @click=${() => this._updateField('targetMode', 'query')}
-            >Query</label>
+            >Filter by conditions</label>
             <label
               class="mode-option ${this._form.targetMode === 'list' ? 'active' : ''}"
               @click=${() => this._updateField('targetMode', 'list')}
-            >List</label>
+            >Specific contacts</label>
           </div>
 
           <!-- 5/6. Query or List mode content -->
@@ -618,6 +627,7 @@ export class AlxRuleEditor extends LitElement {
               <option value="automated" ?selected=${this._form.behavior.ruleType === 'automated'}>Automated</option>
               <option value="transactional" ?selected=${this._form.behavior.ruleType === 'transactional'}>Transactional</option>
             </select>
+            <small class="field-help">Automated: subject to throttle limits. Transactional: bypasses throttle (use for confirmations, receipts).</small>
           </div>
 
           <div class="form-group">
@@ -668,6 +678,7 @@ export class AlxRuleEditor extends LitElement {
               />
               <label for="autoApprove" style="margin-bottom:0">Auto Approve</label>
             </div>
+            <small class="field-help">When enabled, messages are sent immediately. When disabled, messages require manual approval before sending.</small>
           </div>
 
           <div class="form-group">
@@ -709,19 +720,31 @@ export class AlxRuleEditor extends LitElement {
           ${this._form.schedule?.enabled ? html`
             <div class="form-group form-group-full">
               <label>Schedule</label>
-              <div class="cron-presets">
-                <button class="cron-btn ${this._form.schedule?.cron === '0 9 * * *' ? 'active' : ''}" @click=${() => this._setCron('0 9 * * *')}>Daily 9AM</button>
-                <button class="cron-btn ${this._form.schedule?.cron === '0 9 * * 1-5' ? 'active' : ''}" @click=${() => this._setCron('0 9 * * 1-5')}>Weekdays 9AM</button>
-                <button class="cron-btn ${this._form.schedule?.cron === '0 9 * * 1' ? 'active' : ''}" @click=${() => this._setCron('0 9 * * 1')}>Monday 9AM</button>
-                <button class="cron-btn ${this._form.schedule?.cron === '0 9 1 * *' ? 'active' : ''}" @click=${() => this._setCron('0 9 1 * *')}>1st of Month</button>
-                <button class="cron-btn ${this._isCronCustom() ? 'active' : ''}" @click=${() => { this._showCustomCron = true; }}>Custom</button>
-              </div>
+              <select @change=${(e: Event) => {
+                const val = (e.target as HTMLSelectElement).value;
+                if (val === 'custom') {
+                  this._showCustomCron = true;
+                } else {
+                  this._showCustomCron = false;
+                  this._setCron(val);
+                }
+              }}>
+                <option value="" ?selected=${!this._form.schedule?.cron}>Select schedule...</option>
+                <option value="0 9 * * *" ?selected=${this._form.schedule?.cron === '0 9 * * *'}>Every day at 9:00 AM</option>
+                <option value="0 9 * * 1-5" ?selected=${this._form.schedule?.cron === '0 9 * * 1-5'}>Weekdays at 9:00 AM</option>
+                <option value="0 9 * * 1" ?selected=${this._form.schedule?.cron === '0 9 * * 1'}>Every Monday at 9:00 AM</option>
+                <option value="0 18 * * *" ?selected=${this._form.schedule?.cron === '0 18 * * *'}>Every day at 6:00 PM</option>
+                <option value="0 9 1 * *" ?selected=${this._form.schedule?.cron === '0 9 1 * *'}>1st of every month at 9:00 AM</option>
+                <option value="0 9 15 * *" ?selected=${this._form.schedule?.cron === '0 9 15 * *'}>15th of every month at 9:00 AM</option>
+                <option value="custom" ?selected=${this._showCustomCron || this._isCronCustom()}>Custom...</option>
+              </select>
               ${this._showCustomCron || this._isCronCustom() ? html`
                 <input
                   type="text"
                   .value=${this._form.schedule?.cron ?? ''}
                   @input=${(e: Event) => this._setCron((e.target as HTMLInputElement).value)}
                   placeholder="0 9 * * 1"
+                  style="margin-top:4px"
                 />
               ` : nothing}
               <span class="helper-text">${this._cronDescription()}</span>

@@ -1,6 +1,6 @@
 import type { LogAdapter } from '@astralibx/core';
-import type { PendingMessageModel, PendingMessageDocument } from '../schemas/pending-message.schema';
-import type { ResolvedOptions } from '../types/config.types';
+import type { PendingMessageModel, PendingMessageDocument } from '../schemas/pending-message.schema.js';
+import type { ResolvedOptions } from '../types/config.types.js';
 
 export class PendingMessageService {
   constructor(

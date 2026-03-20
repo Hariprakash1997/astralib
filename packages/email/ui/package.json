@@ -34,7 +34,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "lit": "^3.0.0"
+    "lit": "^3.0.0",
+    "@astralibx/rule-engine-ui": "*"
   },
   "devDependencies": {
     "vite": "^6.0.0",

@@ -84,7 +84,7 @@ export interface ChatEngineConfig {
     authenticateRequest?: (req: any) => Promise<{ userId: string; permissions?: string[] } | null>;
     uploadFile?: (file: { buffer: Buffer; mimetype: string; originalname: string }) => Promise<string>;
     enrichSessionContext?: (context: Record<string, unknown>) => Promise<Record<string, unknown>>;
-    resolveUserIdentity?: (visitorContext: VisitorContext) => Promise<string | null>;
+    resolveUserIdentity?: (visitorContext: VisitorContext) => Promise<{ userId: string; userCategory?: string } | string | null>;
     fileStorage?: {
       upload(file: Buffer, fileName: string, mimeType: string): Promise<string>;
       delete(fileUrl: string): Promise<void>;

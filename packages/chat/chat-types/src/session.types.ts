@@ -15,6 +15,7 @@ export interface ChatSessionSummary {
   endedAt?: Date;
   channel?: string;
   queuePosition?: number;
+  userCategory?: string | null;
   tags?: string[];
   metadata?: Record<string, unknown>;
 }

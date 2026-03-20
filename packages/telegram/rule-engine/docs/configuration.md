@@ -169,6 +169,21 @@ interface LogAdapter {
 }
 ```
 
+## Collections Created
+
+These MongoDB collections are created by `@astralibx/rule-engine` core when the engine initializes:
+
+| Collection | Purpose | Key Indexes |
+|-----------|---------|-------------|
+| `templates` | Message templates with variants | `slug` (unique), `{category, isActive}`, `{audience, platform, isActive}` |
+| `rules` | Automation rules with targeting | `templateId`, `{isActive, sortOrder}`, `{platform, isActive}` |
+| `send_logs` | Per-message delivery records | `{ruleId, userId, sentAt}`, `{userId, sentAt}`, `{ruleId, sentAt}`, `{status, sentAt}` |
+| `run_logs` | Per-run execution records | `runId` (unique), `runAt` (TTL: 90 days) |
+| `error_logs` | Error tracking per rule | `ruleId`, `createdAt` |
+| `throttle_config` | Global throttle settings | (singleton) |
+
+When `collectionPrefix` is set (e.g., `'myapp_'`), collections become `myapp_templates`, `myapp_rules`, `myapp_send_logs`, etc.
+
 ## Collections & Joins
 
 Collections define the data source schema (fields + types) for the UI condition builder. They enable field validation, operator-type compatibility checks, and a variable picker in admin UIs. Joins let templates reference data from related collections (e.g., subscription status from a separate `subscriptions` collection).

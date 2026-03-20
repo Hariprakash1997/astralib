@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import type { GuidedQuestionService } from '../services/guided-question.service';
+import type { GuidedQuestionService } from '../services/guided-question.service.js';
 import { sendSuccess, sendError, getParam } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
 

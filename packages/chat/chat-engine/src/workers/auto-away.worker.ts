@@ -1,9 +1,9 @@
 import type { Namespace } from 'socket.io';
 import type { LogAdapter } from '@astralibx/core';
 import { AgentStatus, ServerToAgentEvent } from '@astralibx/chat-types';
-import type { AgentService } from '../services/agent.service';
-import type { SettingsService } from '../services/settings.service';
-import type { RedisService } from '../services/redis.service';
+import type { AgentService } from '../services/agent.service.js';
+import type { SettingsService } from '../services/settings.service.js';
+import type { RedisService } from '../services/redis.service.js';
 import { AGENT_ACTIVITY } from '../constants/index.js';
 
 export interface AutoAwayWorkerDeps {

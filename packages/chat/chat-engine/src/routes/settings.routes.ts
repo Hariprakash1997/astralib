@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import type { SettingsService } from '../services/settings.service';
+import type { SettingsService } from '../services/settings.service.js';
 import { sendSuccess, sendError } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
 import { InvalidConfigError } from '../errors/index.js';
@@ -100,6 +100,38 @@ export function createSettingsRoutes(
       }
       const message = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Failed to update available tags', { error });
+      sendError(res, message, 500);
+    }
+  });
+
+  // GET /user-categories
+  router.get('/user-categories', async (_req: Request, res: Response) => {
+    try {
+      const settings = await settingsService.get();
+      sendSuccess(res, { availableUserCategories: settings.availableUserCategories });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to get user categories', { error });
+      sendError(res, message, 500);
+    }
+  });
+
+  // PUT /user-categories
+  router.put('/user-categories', async (req: Request, res: Response) => {
+    try {
+      const { availableUserCategories } = req.body;
+      if (!Array.isArray(availableUserCategories)) {
+        return sendError(res, 'availableUserCategories must be an array of strings', 400);
+      }
+      const settings = await settingsService.update({ availableUserCategories });
+      sendSuccess(res, { availableUserCategories: settings.availableUserCategories });
+    } catch (error: unknown) {
+      if (error instanceof InvalidConfigError) {
+        sendError(res, error.message, 400);
+        return;
+      }
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to update user categories', { error });
       sendError(res, message, 500);
     }
   });

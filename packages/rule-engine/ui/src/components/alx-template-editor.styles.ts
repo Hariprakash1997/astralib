@@ -227,4 +227,12 @@ export const templateEditorStyles = css`
     font-size: 13px;
     margin-bottom: 8px;
   }
+
+  .field-help {
+    display: block;
+    font-size: 0.65rem;
+    color: var(--alx-text-muted);
+    margin-top: 0.15rem;
+    font-weight: normal;
+  }
 `;

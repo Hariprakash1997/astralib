@@ -101,6 +101,7 @@ export interface StatusPayload {
   status: ChatSessionStatus;
   agent?: ChatAgentInfo;
   queuePosition?: number;
+  estimatedWaitMinutes?: number;
 }
 
 export interface AgentConnectedPayload {
@@ -228,4 +229,11 @@ export interface LeaveChatPayload {
 // Manager watch chat (read-only monitoring)
 export interface WatchChatPayload {
   sessionId: string;
+}
+
+// Rating prompt from server to visitor
+export interface RatingPromptPayload {
+  sessionId: string;
+  ratingType?: string;
+  followUpOptions?: Record<string, string[]>;
 }

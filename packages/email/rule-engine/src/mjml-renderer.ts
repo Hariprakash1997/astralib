@@ -34,9 +34,9 @@ export function renderMjml(body: string): string {
   });
 
   if (result.errors?.length) {
-    const critical = result.errors.filter((e: any) => e.tagName !== undefined);
-    if (critical.length > 0) {
-      throw new Error(`MJML compilation errors: ${critical.map((e: any) => e.message).join('; ')}`);
+    // Log all MJML warnings/errors for debugging
+    for (const err of result.errors) {
+      console.warn(`MJML warning: ${(err as any).message || JSON.stringify(err)}`);
     }
   }
 

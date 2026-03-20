@@ -41,7 +41,7 @@ const engine = createEmailRuleEngine({
         text: params.textBody,
       });
     },
-    selectAgent: async () => ({ accountId: 'default', email: 'noreply@myapp.com', metadata: {} }),
+    selectAgent: async () => ({ accountId: 'default', contactValue: 'noreply@myapp.com', metadata: {} }),
     findIdentifier: async (email) => {
       const contact = await Contact.findOne({ email });
       return contact ? { id: contact._id.toString(), contactId: contact._id.toString() } : null;

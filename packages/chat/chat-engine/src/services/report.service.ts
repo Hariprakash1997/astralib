@@ -1,7 +1,7 @@
 import type { LogAdapter } from '@astralibx/core';
 import { ChatSessionStatus, ChatSenderType, SessionMode } from '@astralibx/chat-types';
-import type { ChatSessionModel } from '../schemas/chat-session.schema';
-import type { ChatMessageModel } from '../schemas/chat-message.schema';
+import type { ChatSessionModel } from '../schemas/chat-session.schema.js';
+import type { ChatMessageModel } from '../schemas/chat-message.schema.js';
 
 export interface DateRange {
   from?: string;
@@ -25,6 +25,11 @@ export interface OverallReport {
   faqDeflectionRate: number;
   totalSessions: number;
   resolvedSessions: number;
+}
+
+interface AggregationIdCount {
+  _id: string | number;
+  count: number;
 }
 
 export class ReportService {
@@ -171,9 +176,9 @@ export class ReportService {
     const faqData = faqResult[0] || { total: 0, resolved: 0, deflected: 0 };
 
     return {
-      chatVolumeByDay: volumeResult.map((r: any) => ({ date: r._id, count: r.count })),
-      peakHours: peakResult.map((r: any) => ({ hour: r._id, count: r.count })),
-      tagDistribution: tagResult.map((r: any) => ({ tag: r._id, count: r.count })),
+      chatVolumeByDay: volumeResult.map((r: AggregationIdCount) => ({ date: String(r._id), count: r.count })),
+      peakHours: peakResult.map((r: AggregationIdCount) => ({ hour: Number(r._id), count: r.count })),
+      tagDistribution: tagResult.map((r: AggregationIdCount) => ({ tag: String(r._id), count: r.count })),
       faqDeflectionRate: faqData.total > 0
         ? Math.round((faqData.deflected / faqData.total) * 10000) / 100
         : 0,

@@ -156,3 +156,15 @@ All hooks are optional. They fire after the corresponding event is processed.
 | `onAccountBanned` | `{ accountId, phone, errorCode }` |
 | `onHealthChange` | `{ accountId, phone, oldScore, newScore }` |
 | `onWarmupComplete` | `{ accountId, phone }` |
+
+## Collections Created
+
+The following MongoDB collections are created when `createTelegramAccountManager()` initializes:
+
+| Collection | Purpose | Key Indexes |
+|-----------|---------|-------------|
+| `telegram_accounts` | Account records with session, health, warmup | `phone` (unique), `status`, `{warmup.enabled, status}`, `tags`, `{status, quarantinedUntil}`, `{status, healthScore}` |
+| `telegram_daily_stats` | Per-account daily send/fail/skip counters | `{accountId, date}` (unique) |
+| `telegram_identifiers` | Telegram user/contact records | `telegramUserId` (unique), `contactId`, `status`, `phone` (sparse) |
+
+When `collectionPrefix` is set (e.g., `'myapp_'`), collections become `myapp_telegram_accounts`, `myapp_telegram_daily_stats`, `myapp_telegram_identifiers`.

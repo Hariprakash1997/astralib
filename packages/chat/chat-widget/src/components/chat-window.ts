@@ -1,4 +1,4 @@
-import { LitElement, html, css } from 'lit';
+import { LitElement, html, css, nothing } from 'lit';
 import { property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import type { ChatMessage } from '@astralibx/chat-types';
@@ -122,6 +122,93 @@ export class AlxChatWindow extends LitElement {
         overflow: hidden;
       }
 
+      /* --- Queue Banner --- */
+
+      .queue-banner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: var(--alx-chat-primary-light);
+        color: var(--alx-chat-text);
+        font-size: 13px;
+        font-weight: 500;
+        border-bottom: 1px solid var(--alx-chat-border);
+        animation: alx-fadeInUp 0.25s var(--alx-chat-spring-smooth);
+      }
+
+      .queue-banner svg {
+        color: var(--alx-chat-primary);
+        flex-shrink: 0;
+      }
+
+      .queue-wait {
+        color: var(--alx-chat-text-muted);
+      }
+
+      /* --- Connection Status Banner --- */
+
+      .connection-banner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 8px 16px;
+        font-size: 12px;
+        font-weight: 500;
+        border-bottom: 1px solid var(--alx-chat-border);
+        animation: alx-fadeInUp 0.2s var(--alx-chat-spring-smooth);
+      }
+
+      .connection-banner.connecting {
+        background: color-mix(in srgb, var(--alx-chat-warning) 12%, var(--alx-chat-surface));
+        color: var(--alx-chat-warning);
+      }
+
+      .connection-banner.reconnecting {
+        background: color-mix(in srgb, var(--alx-chat-warning) 12%, var(--alx-chat-surface));
+        color: var(--alx-chat-warning);
+      }
+
+      .connection-banner.disconnected {
+        background: color-mix(in srgb, var(--alx-chat-danger) 12%, var(--alx-chat-surface));
+        color: var(--alx-chat-danger);
+      }
+
+      @keyframes alx-ellipsis {
+        0% { content: ''; }
+        33% { content: '.'; }
+        66% { content: '..'; }
+        100% { content: '...'; }
+      }
+
+      .connection-dots::after {
+        content: '';
+        animation: alx-ellipsis 1.5s steps(4) infinite;
+      }
+
+      /* --- History Link --- */
+
+      .history-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-top: 1px solid var(--alx-chat-border);
+        background: var(--alx-chat-surface);
+        color: var(--alx-chat-text-muted);
+        font-size: 12px;
+        cursor: pointer;
+        transition: color 0.15s, background 0.15s;
+      }
+
+      .history-link:hover {
+        color: var(--alx-chat-primary);
+        background: var(--alx-chat-surface-alt);
+      }
+
       /* --- Mobile Responsive --- */
 
       @media (max-width: 480px) {
@@ -149,6 +236,13 @@ export class AlxChatWindow extends LitElement {
   @property() typingLabel = 'Agent is typing...';
   @property() inputPlaceholder = 'Type a message...';
   @property({ type: Boolean }) inputDisabled = false;
+  @property({ type: Boolean }) showAttach = false;
+  @property({ type: Array }) allowedFileTypes: string[] = [];
+  @property({ type: Number }) maxFileSizeMb = 5;
+  @property({ type: Boolean }) showHistoryLink = false;
+  @property({ type: Number }) queuePosition: number | null = null;
+  @property({ type: Number }) estimatedWaitMinutes: number | null = null;
+  @property() connectionStatusLabel = '';
 
   private _closing = false;
 
@@ -189,6 +283,30 @@ export class AlxChatWindow extends LitElement {
           @minimize=${this.handleMinimize}
           @end-chat=${this.handleEndChat}
         ></alx-chat-header>
+        ${this.queuePosition != null && this.queuePosition > 0 ? html`
+          <div class="queue-banner">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
+              <polyline points="8 4 8 8 11 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>You're #${this.queuePosition} in the queue${this.estimatedWaitMinutes != null && this.estimatedWaitMinutes > 0
+              ? html` <span class="queue-wait">&mdash; about ${this.estimatedWaitMinutes} min wait</span>`
+              : nothing}</span>
+          </div>
+        ` : nothing}
+        ${this.connectionStatus === 'connecting' ? html`
+          <div class="connection-banner connecting">
+            <span>Connecting you<span class="connection-dots"></span></span>
+          </div>
+        ` : this.connectionStatus === 'reconnecting' ? html`
+          <div class="connection-banner reconnecting">
+            <span>Connection lost. Reconnecting<span class="connection-dots"></span></span>
+          </div>
+        ` : this.connectionStatus === 'disconnected' && this.connectionStatusLabel ? html`
+          <div class="connection-banner disconnected">
+            <span>${this.connectionStatusLabel}</span>
+          </div>
+        ` : nothing}
         <div class="messages-area">
           <alx-chat-messages
             .messages=${this.messages}
@@ -199,9 +317,21 @@ export class AlxChatWindow extends LitElement {
         <alx-chat-input
           .placeholder=${this.inputPlaceholder}
           .disabled=${this.inputDisabled}
+          .showAttach=${this.showAttach}
+          .allowedFileTypes=${this.allowedFileTypes}
+          .maxFileSizeMb=${this.maxFileSizeMb}
           @send=${this.handleSend}
           @typing=${this.handleTyping}
         ></alx-chat-input>
+        ${this.showHistoryLink ? html`
+          <div class="history-link" @click=${this.handleHistoryClick}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.2"/>
+              <polyline points="7 4 7 7 9.5 8.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Previous conversations
+          </div>
+        ` : nothing}
       </div>
     `;
   }
@@ -239,6 +369,12 @@ export class AlxChatWindow extends LitElement {
         bubbles: true,
         composed: true,
       }),
+    );
+  }
+
+  private handleHistoryClick() {
+    this.dispatchEvent(
+      new CustomEvent('show-history', { bubbles: true, composed: true }),
     );
   }
 }

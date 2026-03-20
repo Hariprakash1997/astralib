@@ -25,6 +25,24 @@ export {
 } from './api/index.js';
 export type { PaginationParams, ApiResponse, PaginatedResponse, CursorPaginatedResponse } from './api/index.js';
 
+export { ChatApiClient } from './api/chat-api-client.js';
+export type {
+  TeamTreeNode,
+  HierarchyData,
+  AiSettings,
+  AiCharacterProfile,
+  RatingConfig,
+  BusinessHours,
+  BusinessHoursSchedule,
+  BusinessHoursResponse,
+  WebhookConfig,
+  AgentPerformanceReport,
+  AgentPerformanceEntry,
+  OverallAnalytics,
+  ReportFilters,
+  ExportFilters,
+} from './api/chat-api-client.js';
+
 export { AlxChatSessionList } from './components/sessions/alx-chat-session-list.js';
 export { AlxChatSessionMessages } from './components/sessions/alx-chat-session-messages.js';
 export { AlxChatSessionDetail } from './components/sessions/alx-chat-session-detail.js';
@@ -51,6 +69,14 @@ export { AlxChatFeedbackStats } from './components/analytics/alx-chat-feedback-s
 export { AlxChatOfflineMessages } from './components/analytics/alx-chat-offline-messages.js';
 
 export { AlxChatSettings } from './components/settings/alx-chat-settings.js';
+export { AlxChatTeamHierarchy } from './components/settings/alx-chat-team-hierarchy.js';
+export { AlxChatAiSettings } from './components/settings/alx-chat-ai-settings.js';
+export { AlxChatRatingSettings } from './components/settings/alx-chat-rating-settings.js';
+export { AlxChatBusinessHours } from './components/settings/alx-chat-business-hours.js';
+export { AlxChatGeneralSettings } from './components/settings/alx-chat-general-settings.js';
+export { AlxChatWebhooks } from './components/settings/alx-chat-webhooks.js';
+
+export { AlxChatReports } from './components/reports/alx-chat-reports.js';
 
 export { AlxChatDrawer } from './components/shared/alx-chat-drawer.js';
 export { AlxChatDashboard } from './components/shared/alx-chat-dashboard.js';

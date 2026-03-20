@@ -102,6 +102,40 @@ The `variables` array on the template declares which keys are expected. It is us
 
 If the `resolveData` adapter does not return `appName`, the static value from `fields` is used instead.
 
+### Dynamic URLs
+
+Use Handlebars variables directly inside URLs in template bodies. No special syntax needed — variables are interpolated before the content is delivered.
+
+**CTA buttons with UTM tracking:**
+```html
+<a href="https://example.com/apply?utm_source=email&utm_campaign={{rule_id}}&user={{candidate_id}}&ref={{template_id}}">
+  Apply Now
+</a>
+```
+
+**WhatsApp links:**
+```
+https://wa.me/{{contact_number_clean}}?text=Hi%20{{name}}
+```
+
+**Unsubscribe links with tokens:**
+```html
+<a href="https://example.com/unsubscribe?token={{unsubscribe_token}}&email={{email}}">
+  Unsubscribe
+</a>
+```
+
+**Registration forms with pre-filled data:**
+```
+https://example.com/register?name={{name}}&email={{email}}&plan={{subscription.plan}}
+```
+
+**Tips:**
+- URL-encode static special characters manually (`%20` for spaces, `%26` for `&` in values)
+- Handlebars variables in query values are rendered as-is — if user data may contain `&` or `=`, encode it in your `resolveData` adapter using `encodeURIComponent()`
+- Use `template.fields` for static URL parts that might change (e.g. `{ "baseUrl": "https://example.com" }`) then reference as `{{baseUrl}}/apply?user={{id}}`
+- The variable picker in the UI helps insert `{{variable}}` names — just place them inside your URL
+
 ---
 
 ## Rules

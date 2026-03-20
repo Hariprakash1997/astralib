@@ -51,6 +51,7 @@ export interface IChatSession {
   };
   agentNotes: string[];
   isDeletedForUser: boolean;
+  userCategory?: string | null;
   tags: string[];
   tenantId?: string;
   metadata?: Record<string, unknown>;
@@ -78,6 +79,7 @@ export function createChatSessionSchema() {
         type: String,
         enum: Object.values(SessionMode),
         default: SessionMode.AI,
+        index: true,
       },
       channel: { type: String, required: true, index: true },
       agentId: { type: String, index: true },
@@ -92,7 +94,7 @@ export function createChatSessionSchema() {
       closedAt: { type: Date },
       escalatedAt: { type: Date, index: true },
       visibleUntil: { type: Date, index: true },
-      queuePosition: { type: Number },
+      queuePosition: { type: Number, index: true },
       conversationSummary: { type: String },
       preferences: { type: Schema.Types.Mixed, default: {} },
       feedback: {
@@ -129,6 +131,7 @@ export function createChatSessionSchema() {
       },
       agentNotes: { type: [String], default: [] },
       isDeletedForUser: { type: Boolean, default: false },
+      userCategory: { type: String, default: null, index: true },
       tags: { type: [String], default: [], index: true },
       tenantId: { type: String, index: true, sparse: true },
       metadata: { type: Schema.Types.Mixed, default: {} },

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response, RequestHandler } from 'express';
-import type { WidgetConfigService } from '../services/widget-config.service';
-import type { SettingsService } from '../services/settings.service';
+import type { WidgetConfigService } from '../services/widget-config.service.js';
+import type { SettingsService } from '../services/settings.service.js';
 import { sendSuccess, sendError } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
 

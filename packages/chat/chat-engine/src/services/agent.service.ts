@@ -1,9 +1,9 @@
 import type { LogAdapter } from '@astralibx/core';
 import type { ChatAgentInfo } from '@astralibx/chat-types';
 import { AgentStatus } from '@astralibx/chat-types';
-import type { ChatAgentModel, ChatAgentDocument } from '../schemas/chat-agent.schema';
-import type { ResolvedOptions } from '../types/config.types';
-import type { CreateAgentInput, UpdateAgentInput } from '../types/service.types';
+import type { ChatAgentModel, ChatAgentDocument } from '../schemas/chat-agent.schema.js';
+import type { ResolvedOptions } from '../types/config.types.js';
+import type { CreateAgentInput, UpdateAgentInput } from '../types/service.types.js';
 import { AgentNotFoundError, InvalidHierarchyError } from '../errors/index.js';
 import { AGENT_VISIBILITY } from '../constants/index.js';
 import { filterUpdateableFields, withTenantFilter, withTenantId } from '../utils/helpers.js';
@@ -12,6 +12,12 @@ export interface SetHierarchyInput {
   parentId?: string | null;
   level?: number;
   teamId?: string | null;
+}
+
+export interface TeamTreeNode extends Record<string, unknown> {
+  _id: unknown;
+  name: string;
+  depth: number;
 }
 
 const AGENT_UPDATEABLE_FIELDS = new Set([
@@ -159,7 +165,7 @@ export class AgentService {
       isActive: true,
       visibility: AGENT_VISIBILITY.Public,
     } as Record<string, unknown>, this.tenantId)).lean();
-    return agents.map((a: any) => this.toAgentInfo(a));
+    return agents.map((a) => this.toAgentInfo(a as unknown as ChatAgentDocument));
   }
 
   toAgentInfo(agent: ChatAgentDocument): ChatAgentInfo {
@@ -182,7 +188,7 @@ export class AgentService {
    * Returns the manager document with a `subordinates` array containing
    * all descendants (recursively) down to L1.
    */
-  async getTeamTree(managerId: string): Promise<any[]> {
+  async getTeamTree(managerId: string): Promise<TeamTreeNode[]> {
     const manager = await this.findByIdOrFail(managerId);
 
     const results = await this.ChatAgent.aggregate([

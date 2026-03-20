@@ -2,11 +2,14 @@
 
 Lit Web Components for Telegram account management, campaigns, inbox, and bot analytics -- built on native Custom Elements that work in any framework.
 
+Rule-engine components (templates, rules, throttle, run history) are provided by `@astralibx/rule-engine-ui` and re-exported from this package. Telegram-specific components (accounts, inbox, bot) are built here.
+
 Part of the [@astralibx](https://github.com/astralibx) telegram ecosystem:
 - `@astralibx/telegram-account-manager` -- account CRUD, sessions, health, capacity
-- `@astralibx/telegram-rule-engine` -- templates, rules, throttling, runner
+- `@astralibx/telegram-rule-engine` -- templates, rules, throttling, runner (wraps `@astralibx/rule-engine`)
 - `@astralibx/telegram-inbox` -- conversations, messages, sessions
 - `@astralibx/telegram-bot` -- bot status, user analytics
+- `@astralibx/rule-engine-ui` -- shared rule-engine UI components (templates, rules, throttle, run history)
 
 ## Install
 

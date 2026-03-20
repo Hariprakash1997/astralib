@@ -11,7 +11,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
-      external: (id: string) => id === 'lit' || id.startsWith('lit/'),
+      external: (id: string) => id === 'lit' || id.startsWith('lit/') || id.startsWith('@astralibx/'),
     },
     sourcemap: true,
     minify: false,

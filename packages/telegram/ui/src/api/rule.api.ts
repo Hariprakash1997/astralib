@@ -101,21 +101,15 @@ export class TelegramRuleAPI {
     return this.http.put('/settings/throttle', data);
   }
 
-  // Analytics
+  // Send Logs
 
-  getSendLogs(params?: Record<string, unknown>): Promise<any> {
-    return this.http.get('/analytics/send-logs', params);
+  getSendLogs(params?: PaginationParams & Record<string, unknown>): Promise<any> {
+    return this.http.get('/sends', params);
   }
 
-  getErrorLogs(params?: Record<string, unknown>): Promise<any> {
-    return this.http.get('/analytics/error-logs', params);
-  }
+  // Run Logs
 
   getRunLogs(params?: PaginationParams & Record<string, unknown>): Promise<any> {
-    return this.http.get('/analytics/run-logs', params);
-  }
-
-  getStats(params?: Record<string, unknown>): Promise<any> {
-    return this.http.get('/analytics/stats', params);
+    return this.http.get('/runner/logs', params);
   }
 }

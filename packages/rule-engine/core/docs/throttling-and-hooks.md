@@ -111,7 +111,7 @@ Rules with `ruleType: "transactional"` automatically bypass all throttle checks,
 
 ## Lifecycle Hooks
 
-Hooks are optional callbacks registered in `RuleEngineConfig.hooks`. They fire synchronously during a run (except `beforeSend`, which is `async`). Throwing inside a hook does not abort the run — hook errors are not caught by the engine, so wrap your hook code in try/catch if it can fail.
+Hooks are optional callbacks registered in `RuleEngineConfig.hooks`. They fire synchronously during a run (except `beforeSend`, which is `async`). Hook errors are caught internally and logged. Fire-and-forget hooks (`onRunStart`, `onRuleStart`, `onSend`, `onRuleComplete`, `onRunComplete`) never crash the send loop. `beforeSend` uses the original unmodified content if the hook throws.
 
 ### `onRunStart`
 

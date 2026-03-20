@@ -55,14 +55,17 @@ export {
   AlxTgAccountForm,
 } from './components/account/index.js';
 
+// Re-export core rule-engine UI components for consumers
 export {
-  AlxTgTemplateList,
-  AlxTgTemplateEditor,
-  AlxTgRuleList,
-  AlxTgRuleEditor,
-  AlxTgRunHistory,
-  AlxTgThrottleSettings,
-} from './components/rules/index.js';
+  AlxTemplateList,
+  AlxTemplateEditor,
+  AlxRuleList,
+  AlxRuleEditor,
+  AlxRunHistory,
+  AlxThrottleSettings,
+  AlxSendLog,
+  RuleEngineAPI,
+} from '@astralibx/rule-engine-ui';
 
 export { AlxTgInbox } from './components/inbox/index.js';
 

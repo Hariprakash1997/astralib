@@ -44,7 +44,19 @@ export const TYPE_OPERATORS: Record<string, string[]> = {
   object: ['exists', 'not_exists'],
 };
 
-export const OPERATORS = ['eq', 'neq', 'contains', 'gt', 'gte', 'lt', 'lte', 'in', 'not_in', 'exists', 'not_exists'];
+export const OPERATORS: Array<{ value: string; label: string }> = [
+  { value: 'eq', label: 'equals' },
+  { value: 'neq', label: 'does not equal' },
+  { value: 'gt', label: 'greater than' },
+  { value: 'gte', label: 'greater than or equal' },
+  { value: 'lt', label: 'less than' },
+  { value: 'lte', label: 'less than or equal' },
+  { value: 'contains', label: 'contains' },
+  { value: 'in', label: 'is one of' },
+  { value: 'not_in', label: 'is not one of' },
+  { value: 'exists', label: 'exists' },
+  { value: 'not_exists', label: 'does not exist' },
+];
 
 export interface TemplateData {
   _id?: string;

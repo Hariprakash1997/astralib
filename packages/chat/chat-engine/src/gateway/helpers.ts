@@ -1,9 +1,9 @@
 import type { Socket } from 'socket.io';
 import type { LogAdapter } from '@astralibx/core';
 import { SessionMode } from '@astralibx/chat-types';
-import { RateLimitError } from '../errors/index.js';
+import { RateLimitError, AlxChatError } from '../errors/index.js';
 import { ERROR_CODE, INTERNAL_EVENT } from '../constants/index.js';
-import type { RedisService } from '../services/redis.service';
+import type { RedisService } from '../services/redis.service.js';
 
 // Re-export validation functions that moved to the validation module so that
 // existing import paths from './helpers' continue to work.
@@ -17,7 +17,7 @@ export async function checkRateLimit(
   if (!allowed) {
     const resetIn = await redisService.getRateLimitTTL(sessionId);
     const err = new RateLimitError(sessionId);
-    (err as any).resetIn = resetIn > 0 ? resetIn : 60;
+    err.resetIn = resetIn > 0 ? resetIn : 60;
     throw err;
   }
 }
@@ -129,12 +129,12 @@ export function resolveAiEnabled(
 export function withSocketErrorHandler(
   socket: Socket,
   logger: LogAdapter,
-  handler: (...args: any[]) => Promise<void>,
-): (...args: any[]) => void {
-  return (...args: any[]) => {
-    handler(...args).catch((err) => {
-      const isKnownError = err instanceof Error && 'code' in err;
-      const code = isKnownError ? (err as any).code : ERROR_CODE.InternalError;
+  handler: (...args: unknown[]) => Promise<void>,
+): (...args: unknown[]) => void {
+  return (...args: unknown[]) => {
+    handler(...args).catch((err: unknown) => {
+      const isKnownError = err instanceof AlxChatError;
+      const code = isKnownError ? err.code : ERROR_CODE.InternalError;
 
       // Log full error internally
       logger.error('Socket handler error', {
@@ -146,12 +146,12 @@ export function withSocketErrorHandler(
 
       // Send sanitized error to client — don't expose internals
       const clientMessage = isKnownError
-        ? (err as Error).message
+        ? err.message
         : 'An unexpected error occurred';
 
       const errorPayload: Record<string, unknown> = { code, message: clientMessage };
-      if (err instanceof RateLimitError && (err as any).resetIn != null) {
-        errorPayload.resetIn = (err as any).resetIn;
+      if (err instanceof RateLimitError && err.resetIn != null) {
+        errorPayload.resetIn = err.resetIn;
       }
       socket.emit(INTERNAL_EVENT.ChatError, errorPayload);
     });

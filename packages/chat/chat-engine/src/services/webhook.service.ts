@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { LogAdapter } from '@astralibx/core';
-import type { ChatWebhookModel, ChatWebhookDocument } from '../schemas/chat-webhook.schema';
+import type { ChatWebhookModel, ChatWebhookDocument } from '../schemas/chat-webhook.schema.js';
 import { WebhookNotFoundError } from '../errors/index.js';
 import { WEBHOOK_EVENT } from '../constants/index.js';
 

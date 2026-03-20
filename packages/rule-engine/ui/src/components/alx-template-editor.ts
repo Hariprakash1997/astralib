@@ -40,6 +40,7 @@ export class AlxTemplateEditor extends LitElement {
   @state() private _loading = false;
   @state() private _saving = false;
   @state() private _error = '';
+  @state() private _success = '';
   @state() private _collections: CollectionSummary[] = [];
   @state() private _availableJoins: JoinOption[] = [];
   @state() private _collectionFields: CollectionField[] = [];
@@ -287,6 +288,8 @@ export class AlxTemplateEditor extends LitElement {
         result = await this._api.createTemplate(payload);
       }
 
+      this._success = 'Template saved successfully';
+      setTimeout(() => { this._success = ''; }, 3000);
       this.dispatchEvent(
         new CustomEvent('alx-template-saved', {
           detail: result,
@@ -359,6 +362,7 @@ export class AlxTemplateEditor extends LitElement {
           </div>
           <div class="form-row">
             <label>Slug</label>
+            <small class="field-help">A unique URL-friendly identifier (auto-generated from name)</small>
             <input
               type="text"
               .value=${this._form.slug}
@@ -396,6 +400,7 @@ export class AlxTemplateEditor extends LitElement {
           <div class="sidebar-section collection-section">
             <div class="form-row">
               <label>Collection</label>
+              <small class="field-help">Choose which data source to use for targeting conditions</small>
               <select
                 .value=${this._form.collectionName}
                 @change=${this._onCollectionChange}
@@ -412,6 +417,7 @@ export class AlxTemplateEditor extends LitElement {
             ${this._availableJoins.length > 0 ? html`
               <div>
                 <label>Joins</label>
+                <small class="field-help">Include related data (e.g., subscription status) for richer conditions</small>
                 <div class="join-checkboxes">
                   ${this._availableJoins.map(j => html`
                     <label class="join-checkbox">
@@ -432,6 +438,7 @@ export class AlxTemplateEditor extends LitElement {
         <!-- Subjects -->
         <div class="sidebar-section">
           <label>Subjects</label>
+          <small class="field-help">Add multiple variants for A/B testing — one is randomly selected per send</small>
           ${this._form.subjects.map((subj, i) => html`
             <div class="form-row" style="display:flex;gap:4px;align-items:center">
               <input
@@ -452,6 +459,7 @@ export class AlxTemplateEditor extends LitElement {
         <!-- Variables -->
         <div class="sidebar-section variables-section">
           <label>Variables</label>
+          <small class="field-help">Dynamic fields that get replaced with each recipient's data (e.g., first name)</small>
           <div class="variable-tags">
             ${this._form.variables.map(v => html`
               <span class="variable-tag">
@@ -531,6 +539,7 @@ export class AlxTemplateEditor extends LitElement {
 
     return html`
       ${this._error ? html`<div class="error-msg">${this._error}</div>` : nothing}
+      ${this._success ? html`<div class="success-msg" style="color:var(--alx-success,#16a34a);font-size:13px;margin-bottom:8px">${this._success}</div>` : nothing}
 
       <div class="editor-layout">
         ${this._renderSidebar()}

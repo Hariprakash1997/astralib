@@ -1,6 +1,6 @@
 import type { LogAdapter } from '@astralibx/core';
-import type { ChatSessionModel, ChatSessionDocument } from '../schemas/chat-session.schema';
-import type { ChatMessageModel, ChatMessageDocument } from '../schemas/chat-message.schema';
+import type { ChatSessionModel, ChatSessionDocument } from '../schemas/chat-session.schema.js';
+import type { ChatMessageModel, ChatMessageDocument } from '../schemas/chat-message.schema.js';
 import { SessionNotFoundError } from '../errors/index.js';
 
 export type ExportFormat = 'json' | 'csv';

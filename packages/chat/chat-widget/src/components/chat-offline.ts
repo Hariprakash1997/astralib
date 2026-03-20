@@ -77,6 +77,15 @@ export class AlxChatOffline extends LitElement {
         max-width: 280px;
       }
 
+      .reopen-message {
+        font-size: 13px;
+        color: var(--alx-chat-primary);
+        font-weight: 500;
+        margin-top: 12px;
+        max-width: 280px;
+        line-height: 1.4;
+      }
+
       /* -- Form mode -- */
 
       .form-header {
@@ -269,6 +278,7 @@ export class AlxChatOffline extends LitElement {
   @property() mode: 'form' | 'message' = 'message';
   @property() title = 'We are currently offline';
   @property() message = 'Our team is not available right now. Please leave a message and we will get back to you.';
+  @property() reopenMessage = '';
   @property({ type: Array }) formFields: FormField[] = [];
 
   @state() private formData: Record<string, string> = {};
@@ -310,6 +320,7 @@ export class AlxChatOffline extends LitElement {
           </div>
           <h2 class="offline-title">${this.title}</h2>
           <p class="offline-message">${this.message}</p>
+          ${this.reopenMessage ? html`<p class="reopen-message">${this.reopenMessage}</p>` : nothing}
         </div>
       </div>
     `;

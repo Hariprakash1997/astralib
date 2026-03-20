@@ -75,6 +75,21 @@ export const SYSTEM_MESSAGE = {
   AgentEscalated: 'Chat escalated',
   AgentLeft: 'Agent left the chat',
   AutoClosed: 'This chat was closed due to inactivity',
+  ConversationResolved: 'Conversation has been resolved',
+  HandedBackToAi: 'Conversation handed back to AI',
+} as const;
+
+// System Message Functions (for messages that need dynamic interpolation)
+export const SYSTEM_MESSAGE_FN = {
+  agentJoined: (name: string) => `${name} joined the conversation`,
+  agentTookOver: (name: string) => `${name} took over the conversation`,
+  conversationTransferred: (name: string) => `Conversation transferred to ${name}`,
+  visitorRequestedHuman: (reason?: string) => reason ? `Visitor requested human agent: ${reason}` : 'Visitor requested human agent',
+} as const;
+
+// Agent Defaults
+export const AGENT_DEFAULTS = {
+  MaxConcurrentChats: 5,
 } as const;
 
 // Auto-Close Defaults

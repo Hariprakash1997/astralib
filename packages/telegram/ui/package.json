@@ -40,6 +40,9 @@
   "peerDependencies": {
     "lit": "^3.0.0"
   },
+  "dependencies": {
+    "@astralibx/rule-engine-ui": "*"
+  },
   "devDependencies": {
     "lit": "^3.2.0",
     "vite": "^6.0.0",

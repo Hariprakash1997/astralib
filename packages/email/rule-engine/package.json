@@ -49,8 +49,8 @@
     "mjml": "^4.0.0"
   },
   "peerDependencies": {
-    "@astralibx/rule-engine": "^1.0.0",
     "express": "^4.18.0 || ^5.0.0",
+    "handlebars": "^4.7.0",
     "ioredis": "^5.0.0",
     "mongoose": "^7.0.0 || ^8.0.0"
   },
@@ -60,9 +60,7 @@
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^3.0.0",
     "express": "^5.0.0",
-    "html-to-text": "^9.0.5",
     "ioredis": "^5.4.2",
-    "mjml": "^4.15.3",
     "mongodb-memory-server": "^10.0.0",
     "mongoose": "^8.12.1",
     "typescript": "^5.8.2",

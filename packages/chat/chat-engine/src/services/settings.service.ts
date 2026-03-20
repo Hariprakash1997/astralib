@@ -1,5 +1,5 @@
 import type { LogAdapter } from '@astralibx/core';
-import type { ChatSettingsModel, ChatSettingsDocument, IBusinessHours, IAiCharacterConfig, IAiCharacterProfile, IRatingConfig } from '../schemas/chat-settings.schema';
+import type { ChatSettingsModel, ChatSettingsDocument, IBusinessHours, IAiCharacterConfig, IAiCharacterProfile, IRatingConfig } from '../schemas/chat-settings.schema.js';
 import { InvalidConfigError } from '../errors/index.js';
 import { OUTSIDE_HOURS_BEHAVIOR_VALUES, AGENT_ACTIVITY, AUTO_CLOSE, CHAT_MODE_VALUES, AI_MODE_VALUES, AI_MODE, RATING_TYPE_VALUES } from '../constants/index.js';
 import type { ChatMode, AiMode, RatingType } from '../constants/index.js';
@@ -57,6 +57,7 @@ export class SettingsService {
     allowPerAgentMode: boolean;
     chatMode: ChatMode;
     availableTags: string[];
+    availableUserCategories: string[];
     autoAwayTimeoutMinutes: number;
     autoCloseAfterMinutes: number;
     aiMode: AiMode;
@@ -70,6 +71,7 @@ export class SettingsService {
     if (data.autoAwayTimeoutMinutes != null) validateIntegerRange(data.autoAwayTimeoutMinutes, 'autoAwayTimeoutMinutes', AGENT_ACTIVITY.MinAutoAwayMinutes, AGENT_ACTIVITY.MaxAutoAwayMinutes);
     if (data.chatMode != null) validateEnumValue(data.chatMode, 'chatMode', CHAT_MODE_VALUES);
     if (data.availableTags != null) validateArrayOfStrings(data.availableTags, 'availableTags');
+    if (data.availableUserCategories != null) validateArrayOfStrings(data.availableUserCategories, 'availableUserCategories');
     if (data.autoCloseAfterMinutes != null) validateIntegerRange(data.autoCloseAfterMinutes, 'autoCloseAfterMinutes', AUTO_CLOSE.MinMinutes, AUTO_CLOSE.MaxMinutes);
     if (data.aiMode != null) validateEnumValue(data.aiMode, 'aiMode', AI_MODE_VALUES);
 

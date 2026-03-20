@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { LogAdapter } from '@astralibx/core';
-import type { ChatGuidedQuestionModel, ChatGuidedQuestionDocument, IChatGuidedQuestionOption } from '../schemas/chat-guided-question.schema';
+import type { ChatGuidedQuestionModel, ChatGuidedQuestionDocument, IChatGuidedQuestionOption } from '../schemas/chat-guided-question.schema.js';
 
 export class GuidedQuestionService {
   constructor(

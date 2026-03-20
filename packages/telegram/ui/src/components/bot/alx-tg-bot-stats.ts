@@ -188,7 +188,7 @@ export class AlxTgBotStats extends LitElement {
               <div class="alx-table-wrap"><table>
                 <thead>
                   <tr>
-                    <th>ID</th>
+                    <th>Telegram ID</th>
                     <th>USERNAME</th>
                     <th>NAME</th>
                     <th>STATUS</th>

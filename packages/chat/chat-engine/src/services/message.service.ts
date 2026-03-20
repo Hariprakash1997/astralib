@@ -6,8 +6,8 @@ import {
   ChatContentType,
   ChatMessageStatus,
 } from '@astralibx/chat-types';
-import type { ChatMessageModel, ChatMessageDocument } from '../schemas/chat-message.schema';
-import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
+import type { ChatMessageModel, ChatMessageDocument } from '../schemas/chat-message.schema.js';
+import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types.js';
 import { SYSTEM_MESSAGE } from '../constants/index.js';
 import { withTenantFilter, withTenantId } from '../utils/helpers.js';
 

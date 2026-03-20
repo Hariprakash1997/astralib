@@ -6,7 +6,11 @@ const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   year: 'numeric',
 };
 
+let registered = false;
+
 export function registerEmailHelpers(): void {
+  if (registered) return;
+  registered = true;
   Handlebars.registerHelper('currency', (val: any) => {
     const num = Number(val);
     if (isNaN(num)) return String(val ?? '');

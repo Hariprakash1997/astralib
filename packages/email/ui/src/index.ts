@@ -40,6 +40,7 @@ export {
   AlxMetadataEditor,
 } from './components/account/index.js';
 
+// Re-export shared rule engine components
 export {
   AlxTemplateList,
   AlxTemplateEditor,
@@ -47,9 +48,12 @@ export {
   AlxRuleEditor,
   AlxRunHistory,
   AlxThrottleSettings,
-  AlxGuidePanel,
   AlxSendLog,
-} from './components/rules/index.js';
+  AlxDrawer,
+} from '@astralibx/rule-engine-ui';
+
+// Email-specific components
+export { AlxEmailBodyEditor } from './components/email/index.js';
 
 export {
   AlxAnalyticsOverview,
@@ -61,8 +65,8 @@ export {
   AlxAnalyticsVariants,
 } from './components/analytics/index.js';
 
-export { AlxDrawer, AlxEmailDashboard } from './components/shared/index.js';
+export { AlxEmailDashboard } from './components/shared/index.js';
 
-export type { TemplateData } from './components/rules/alx-template-editor.types.js';
-export type { RuleData, Condition } from './components/rules/alx-rule-editor.types.js';
+// Re-export shared types
+export type { TemplateData, RuleData, Condition } from '@astralibx/rule-engine-ui';
 export type { Settings } from './components/account/alx-global-settings.types.js';

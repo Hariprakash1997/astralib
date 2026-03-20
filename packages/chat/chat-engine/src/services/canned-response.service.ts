@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { LogAdapter } from '@astralibx/core';
-import type { ChatCannedResponseModel, ChatCannedResponseDocument } from '../schemas/chat-canned-response.schema';
+import type { ChatCannedResponseModel, ChatCannedResponseDocument } from '../schemas/chat-canned-response.schema.js';
 import { withTenantFilter, withTenantId } from '../utils/helpers.js';
 
 export class CannedResponseService {
@@ -65,5 +65,9 @@ export class CannedResponseService {
       ];
     }
     return this.ChatCannedResponse.find(query).sort({ order: 1 });
+  }
+
+  substituteVariables(content: string, context: { userName?: string; agentName?: string; [key: string]: string | undefined }): string {
+    return content.replace(/\{\{(\w+)\}\}/g, (match, key) => context[key] ?? match);
   }
 }

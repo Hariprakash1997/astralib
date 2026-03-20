@@ -160,6 +160,7 @@ export class AlxTgAccountList extends LitElement {
   }
 
   private async onConnectAll(): Promise<void> {
+    if (!confirm('Connect all disconnected accounts? This will activate them for sending.')) return;
     try {
       const res = await this.api.connectAll() as { connected: number; errors: number };
       this.load();
@@ -173,7 +174,7 @@ export class AlxTgAccountList extends LitElement {
   }
 
   private async onDisconnectAll(): Promise<void> {
-    if (!confirm('Disconnect all accounts?')) return;
+    if (!confirm('Disconnect all accounts? This will stop all active sending.')) return;
     try {
       await this.api.disconnectAll();
       this.load();
@@ -218,7 +219,7 @@ export class AlxTgAccountList extends LitElement {
 
   private async onDelete(e: Event, account: TgAccount): Promise<void> {
     e.stopPropagation();
-    if (!confirm(`Delete account "${account.phone}"?`)) return;
+    if (!confirm(`Delete account "${account.phone}"? This will remove all account data and cannot be undone.`)) return;
     try {
       await this.api.deleteAccount(account._id);
       this.dispatchEvent(
@@ -263,6 +264,28 @@ export class AlxTgAccountList extends LitElement {
         return 'alx-badge alx-badge-info';
       default:
         return 'alx-badge alx-badge-muted';
+    }
+  }
+
+  private statusTooltip(status: string): string {
+    switch (status) {
+      case 'connected': return 'Account is active and ready to send';
+      case 'disconnected': return 'Account is offline — click Connect to activate';
+      case 'quarantined': return 'Temporarily paused due to Telegram rate limits — will auto-resume';
+      case 'banned': return 'Account has been banned by Telegram — cannot be used';
+      case 'warmup': return 'New account gradually increasing send volume for safety';
+      case 'error': return 'Account encountered an error — try reconnecting';
+      default: return status;
+    }
+  }
+
+  private async onRelease(e: Event, account: TgAccount): Promise<void> {
+    e.stopPropagation();
+    try {
+      await this.api.releaseAccount(account._id);
+      this.load();
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : 'Failed to release';
     }
   }
 
@@ -317,7 +340,7 @@ export class AlxTgAccountList extends LitElement {
                       <th>NAME</th>
                       <th>PHONE</th>
                       <th>STATUS</th>
-                      <th>HEALTH</th>
+                      <th title="Account reliability score (0-100). Decreases on errors, increases on successful sends">HEALTH</th>
                       <th>SENT TODAY / LIMIT</th>
                       <th></th>
                     </tr>
@@ -336,7 +359,7 @@ export class AlxTgAccountList extends LitElement {
                           </td>
                           <td>${a.phone}</td>
                           <td>
-                            <span class=${this.statusBadgeClass(a.status)}>
+                            <span class=${this.statusBadgeClass(a.status)} title=${this.statusTooltip(a.status)}>
                               ${a.status}
                             </span>
                           </td>
@@ -364,6 +387,12 @@ export class AlxTgAccountList extends LitElement {
                                 : a.status === 'connected'
                                   ? html`<button class="alx-btn-sm" @click=${(e: Event) => this.onDisconnect(e, a)}>${iconDisconnect(14)} Disconnect</button>`
                                   : ''}
+                              ${a.status === 'quarantined'
+                                ? html`<button class="alx-btn-sm alx-btn-warning" @click=${(e: Event) => this.onRelease(e, a)}>Release</button>`
+                                : ''}
+                              ${a.status === 'error'
+                                ? html`<button class="alx-btn-sm" @click=${(e: Event) => this.onConnect(e, a)}>Reconnect</button>`
+                                : ''}
                               <button
                                 class="alx-btn-icon"
                                 title="Edit"

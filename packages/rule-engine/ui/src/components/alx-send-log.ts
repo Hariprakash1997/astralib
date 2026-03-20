@@ -30,6 +30,18 @@ interface SendLog {
   failureReason?: string;
 }
 
+function statusTooltip(status: string): string {
+  switch (status) {
+    case 'sent': return 'Message delivered successfully';
+    case 'error': return 'Message failed to deliver';
+    case 'failed': return 'Message delivery failed';
+    case 'skipped': return 'Recipient already received this message or had invalid data';
+    case 'throttled': return 'Recipient hit daily/weekly send limits';
+    case 'invalid': return 'Recipient data was invalid or incomplete';
+    default: return status;
+  }
+}
+
 function renderStatusBadge(status?: string) {
   if (!status) return nothing;
   const map: Record<string, string> = {
@@ -41,7 +53,7 @@ function renderStatusBadge(status?: string) {
     throttled: 'alx-badge-warning',
   };
   const cls = map[status] ?? 'alx-badge-default';
-  return html`<span class="alx-badge ${cls}">${status}</span>`;
+  return html`<span class="alx-badge ${cls}" title="${statusTooltip(status)}">${status}</span>`;
 }
 
 export class AlxSendLog extends LitElement {
@@ -180,7 +192,7 @@ export class AlxSendLog extends LitElement {
 
           <input
             type="text"
-            placeholder="Filter by Rule ID..."
+            placeholder="Rule name or ID..."
             .value=${this._filterRuleId}
             @input=${(e: Event) => {
               this._filterRuleId = (e.target as HTMLInputElement).value;
@@ -248,7 +260,7 @@ export class AlxSendLog extends LitElement {
                         <tr>
                           <td>${send.contactValue ?? send.userId}</td>
                           <td>${renderStatusBadge(send.status)}</td>
-                          <td class="text-muted text-small">${send.ruleId ?? '--'}</td>
+                          <td class="text-muted text-small" title="${send.ruleId ?? ''}">${send.ruleId ? send.ruleId.slice(0, 8) + '...' : '--'}</td>
                           <td>${formatDate(send.sentAt)}</td>
                           <td>
                             ${send.failureReason

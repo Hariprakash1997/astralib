@@ -136,7 +136,7 @@ export class RuleService {
       willProcess: Math.min(users.length, effectiveLimit),
       ruleId: id,
       sample: users.slice(0, 10).map((u: any) => ({
-        contactValue: u.email || u.phone || u.userId || '',
+        contactValue: u.contactValue || u.email || u.phone || u.userId || '',
         name: u.name || u.firstName || '',
         ...(u._id ? { id: String(u._id) } : {}),
       })),
@@ -178,7 +178,7 @@ export class RuleService {
     return {
       matchedCount: users.length,
       sample: users.slice(0, 10).map((u: any) => ({
-        contactValue: u.email || u.phone || u.userId || '',
+        contactValue: u.contactValue || u.email || u.phone || u.userId || '',
         name: u.name || u.firstName || '',
         ...(u._id ? { id: String(u._id) } : {}),
       })),

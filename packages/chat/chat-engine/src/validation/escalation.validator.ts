@@ -1,4 +1,4 @@
-import type { ChatAgentDocument } from '../schemas/chat-agent.schema';
+import type { ChatAgentDocument } from '../schemas/chat-agent.schema.js';
 import { EscalationError } from '../errors/index.js';
 
 /**

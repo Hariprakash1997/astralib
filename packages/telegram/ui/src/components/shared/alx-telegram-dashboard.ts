@@ -3,14 +3,17 @@ import { state, property } from 'lit/decorators.js';
 import { safeRegister } from '../../utils/safe-register.js';
 import { alxBaseStyles } from '../../styles/theme.js';
 import { alxDensityStyles, alxButtonStyles } from '../../styles/shared.js';
+import { AlxTelegramConfig } from '../../config.js';
 
-// Import all components so they register
+// Import telegram-specific components
 import '../account/index.js';
-import '../rules/index.js';
 import '../inbox/index.js';
 import '../bot/index.js';
 import '../analytics/index.js';
 import './alx-drawer.js';
+
+// Import core rule-engine UI components (registers alx-template-list, alx-rule-list, etc.)
+import '@astralibx/rule-engine-ui';
 
 type TabId = 'accounts' | 'templates' | 'rules' | 'runs' | 'inbox' | 'bot-stats' | 'analytics' | 'settings';
 
@@ -185,6 +188,10 @@ export class AlxTelegramDashboard extends LitElement {
     '--alx-shadow-sm': '0 1px 2px rgba(0,0,0,0.2)',
   };
 
+  private get ruleEngineUrl(): string {
+    return AlxTelegramConfig.getApiUrl('ruleEngine');
+  }
+
   private _applyTheme(): void {
     if (this.theme === 'dark') {
       for (const [prop, val] of Object.entries(AlxTelegramDashboard.DARK_VARS)) {
@@ -269,32 +276,22 @@ export class AlxTelegramDashboard extends LitElement {
     this._openDrawer('account', 'Add Account');
   };
 
-  private _onTemplateSelected = (e: Event): void => {
-    const id = (e as CustomEvent).detail?._id || (e as CustomEvent).detail?.id;
+  private _onTemplateEdit = (e: Event): void => {
+    const id = (e as CustomEvent).detail?.templateId;
     if (id) this._openDrawer('template', 'Edit Template', id);
   };
 
-  private _onTemplateCreate = (): void => {
+  private _onTemplateCreated = (): void => {
     this._openDrawer('template', 'Create Template');
   };
 
-  private _onRuleSelected = (e: Event): void => {
-    const id = (e as CustomEvent).detail?._id || (e as CustomEvent).detail?.id;
+  private _onRuleEdit = (e: Event): void => {
+    const id = (e as CustomEvent).detail?.ruleId;
     if (id) this._openDrawer('rule', 'Edit Rule', id);
   };
 
-  private _onRuleCreate = (): void => {
+  private _onRuleCreated = (): void => {
     this._openDrawer('rule', 'Create Rule');
-  };
-
-  private _onTemplateCloned = (e: Event): void => {
-    const name = (e as CustomEvent).detail?.name;
-    this._showToast(`Template cloned${name ? `: ${name}` : ''}`);
-  };
-
-  private _onRuleCloned = (e: Event): void => {
-    const name = (e as CustomEvent).detail?.name;
-    this._showToast(`Rule cloned${name ? `: ${name}` : ''}`);
   };
 
   private _onThrottleSaved = (): void => {
@@ -303,13 +300,13 @@ export class AlxTelegramDashboard extends LitElement {
 
   private _onSaved = (): void => {
     this._closeDrawer();
-    this._refreshCurrentList();
+    this._refreshActiveTab();
     this._showToast('Saved successfully');
   };
 
   private _onDeleted = (): void => {
     this._closeDrawer();
-    this._refreshCurrentList();
+    this._refreshActiveTab();
     this._showToast('Deleted');
   };
 
@@ -317,15 +314,19 @@ export class AlxTelegramDashboard extends LitElement {
     this._closeDrawer();
   };
 
-  private _refreshCurrentList(): void {
+  private _refreshActiveTab(): void {
     const root = this.shadowRoot;
     if (!root) return;
-    const accountList = root.querySelector('alx-tg-account-list') as any;
-    const templateList = root.querySelector('alx-tg-template-list') as any;
-    const ruleList = root.querySelector('alx-tg-rule-list') as any;
-    accountList?.load?.();
-    templateList?.load?.();
-    ruleList?.load?.();
+    const selectors: Partial<Record<TabId, string>> = {
+      accounts: 'alx-tg-account-list',
+      templates: 'alx-template-list',
+      rules: 'alx-rule-list',
+    };
+    const sel = selectors[this._activeTab];
+    if (sel) {
+      const el = root.querySelector(sel) as any;
+      el?.load?.();
+    }
   }
 
   // --- Density ---
@@ -396,24 +397,24 @@ export class AlxTelegramDashboard extends LitElement {
           @alx-deleted=${this._onDeleted}
           @alx-cancelled=${this._onCancelled}
         ></alx-tg-account-form>
-        <alx-tg-template-editor
-          style="display:${this._drawerType === 'template' ? 'block' : 'none'}"
-          hide-header
-          .density=${this.density}
-          template-id=${this._drawerType === 'template' ? this._editId : ''}
-          @alx-template-saved=${this._onSaved}
-          @alx-template-deleted=${this._onDeleted}
-          @alx-template-cancelled=${this._onCancelled}
-        ></alx-tg-template-editor>
-        <alx-tg-rule-editor
-          style="display:${this._drawerType === 'rule' ? 'block' : 'none'}"
-          hide-header
-          .density=${this.density}
-          rule-id=${this._drawerType === 'rule' ? this._editId : ''}
-          @alx-rule-saved=${this._onSaved}
-          @alx-rule-deleted=${this._onDeleted}
-          @alx-rule-cancelled=${this._onCancelled}
-        ></alx-tg-rule-editor>
+        ${this._drawerType === 'template' ? html`
+          <alx-template-editor
+            .baseUrl=${this.ruleEngineUrl}
+            .platforms=${['telegram']}
+            template-id=${this._editId || ''}
+            @alx-template-saved=${this._onSaved}
+            @alx-template-cancelled=${this._onCancelled}
+          ></alx-template-editor>
+        ` : nothing}
+        ${this._drawerType === 'rule' ? html`
+          <alx-rule-editor
+            .baseUrl=${this.ruleEngineUrl}
+            .platforms=${['telegram']}
+            .ruleId=${this._editId || undefined}
+            @alx-rule-saved=${this._onSaved}
+            @alx-rule-cancel=${this._onCancelled}
+          ></alx-rule-editor>
+        ` : nothing}
       </alx-tg-drawer>
     `;
   }
@@ -437,29 +438,34 @@ export class AlxTelegramDashboard extends LitElement {
 
       ${this._loadedTabs.has('templates') ? html`
         <div class="panel ${this._activeTab === 'templates' ? 'active' : ''}">
-          <alx-tg-template-list
+          <alx-template-list
+            .baseUrl=${this.ruleEngineUrl}
+            .platforms=${['telegram']}
             .density=${this.density}
-            @alx-template-selected=${this._onTemplateSelected}
-            @alx-template-create=${this._onTemplateCreate}
-            @alx-template-cloned=${this._onTemplateCloned}
-          ></alx-tg-template-list>
+            @alx-template-edit=${this._onTemplateEdit}
+            @alx-template-created=${this._onTemplateCreated}
+          ></alx-template-list>
         </div>
       ` : nothing}
 
       ${this._loadedTabs.has('rules') ? html`
         <div class="panel ${this._activeTab === 'rules' ? 'active' : ''}">
-          <alx-tg-rule-list
+          <alx-rule-list
+            .baseUrl=${this.ruleEngineUrl}
+            .platforms=${['telegram']}
             .density=${this.density}
-            @alx-rule-selected=${this._onRuleSelected}
-            @alx-rule-create=${this._onRuleCreate}
-            @alx-rule-cloned=${this._onRuleCloned}
-          ></alx-tg-rule-list>
+            @alx-rule-edit=${this._onRuleEdit}
+            @alx-rule-created=${this._onRuleCreated}
+          ></alx-rule-list>
         </div>
       ` : nothing}
 
       ${this._loadedTabs.has('runs') ? html`
         <div class="panel ${this._activeTab === 'runs' ? 'active' : ''}">
-          <alx-tg-run-history .density=${this.density}></alx-tg-run-history>
+          <alx-run-history
+            .baseUrl=${this.ruleEngineUrl}
+            .density=${this.density}
+          ></alx-run-history>
         </div>
       ` : nothing}
 
@@ -483,10 +489,11 @@ export class AlxTelegramDashboard extends LitElement {
 
       ${this._loadedTabs.has('settings') ? html`
         <div class="panel ${this._activeTab === 'settings' ? 'active' : ''}">
-          <alx-tg-throttle-settings
+          <alx-throttle-settings
+            .baseUrl=${this.ruleEngineUrl}
             .density=${this.density}
             @alx-throttle-saved=${this._onThrottleSaved}
-          ></alx-tg-throttle-settings>
+          ></alx-throttle-settings>
         </div>
       ` : nothing}
 

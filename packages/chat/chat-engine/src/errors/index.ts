@@ -111,6 +111,8 @@ export class EscalationError extends AlxChatError {
 }
 
 export class RateLimitError extends AlxChatError {
+  resetIn?: number;
+
   constructor(public readonly identifier: string) {
     super(`Rate limit exceeded: ${identifier}`, 'CHAT_RATE_LIMIT_EXCEEDED', { identifier });
     this.name = 'RateLimitError';

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import type { CannedResponseService } from '../services/canned-response.service';
+import type { CannedResponseService } from '../services/canned-response.service.js';
 import { sendSuccess, sendError, getParam } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
 

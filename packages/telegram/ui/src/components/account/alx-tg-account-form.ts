@@ -40,6 +40,12 @@ export class AlxTgAccountForm extends LitElement {
         display: flex;
         gap: 0.5rem;
       }
+      .field-help {
+        display: block;
+        font-size: 0.65rem;
+        color: var(--alx-text-muted);
+        margin-top: 0.15rem;
+      }
     `,
   ];
 
@@ -108,6 +114,10 @@ export class AlxTgAccountForm extends LitElement {
     e.preventDefault();
     if (!this.phone) {
       this.error = 'Phone number is required';
+      return;
+    }
+    if (this.delayMin > this.delayMax) {
+      this.error = 'Delay Min cannot be greater than Delay Max';
       return;
     }
 
@@ -218,7 +228,8 @@ export class AlxTgAccountForm extends LitElement {
             </div>
 
             <div class="form-group full">
-              <label>Session (StringSession)</label>
+              <label>Session Key</label>
+              <small class="field-help">Authentication token for this Telegram account. Generated via the session setup flow (phone verification + OTP code).</small>
               <textarea
                 rows="3"
                 .value=${this.session}
@@ -236,6 +247,7 @@ export class AlxTgAccountForm extends LitElement {
                 @input=${(e: Event) => (this.dailyLimit = Number((e.target as HTMLInputElement).value))}
                 min="1"
               />
+              <small class="field-help">Recommended: 10-50 for new accounts, up to 100 for established ones</small>
             </div>
             <div class="form-group">
               <label>Delay Min (seconds)</label>
@@ -245,6 +257,7 @@ export class AlxTgAccountForm extends LitElement {
                 @input=${(e: Event) => (this.delayMin = Number((e.target as HTMLInputElement).value))}
                 min="1"
               />
+              <small class="field-help">Seconds between messages. Recommended: 30-90s minimum</small>
             </div>
             <div class="form-group">
               <label>Delay Max (seconds)</label>

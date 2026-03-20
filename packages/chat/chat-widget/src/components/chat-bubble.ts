@@ -210,6 +210,41 @@ export class AlxChatBubble extends LitElement {
         animation: alx-fadeInUp 0.2s var(--alx-chat-spring-smooth);
       }
 
+      /* Event message (inline activity badge) */
+      .bubble-row.event {
+        justify-content: center;
+      }
+
+      .event-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--alx-chat-text-muted);
+        background: var(--alx-chat-surface-alt);
+        border: 1px solid var(--alx-chat-border);
+        border-radius: 12px;
+        padding: 4px 12px;
+        margin: 2px auto;
+        opacity: 0.7;
+        animation: alx-fadeInUp 0.2s var(--alx-chat-spring-smooth);
+      }
+
+      .event-badge svg {
+        flex-shrink: 0;
+        opacity: 0.6;
+      }
+
+      .event-badge a {
+        color: var(--alx-chat-primary);
+        text-decoration: none;
+        font-weight: 500;
+      }
+
+      .event-badge a:hover {
+        text-decoration: underline;
+      }
+
       /* -- Meta row (timestamp + status) -- */
       .meta {
         display: flex;
@@ -351,6 +386,11 @@ export class AlxChatBubble extends LitElement {
     const isVisitor = this.senderType === ChatSenderType.Visitor;
     const isSystem = this.senderType === ChatSenderType.System;
     const isAgent = this.senderType === ChatSenderType.Agent || this.senderType === ChatSenderType.AI;
+    const isEvent = this.contentType === ChatContentType.Event;
+
+    if (isEvent) {
+      return this._renderEventBadge();
+    }
 
     if (isSystem) {
       return html`
@@ -405,6 +445,42 @@ export class AlxChatBubble extends LitElement {
             `}
           </div>
         </div>
+      </div>
+    `;
+  }
+
+  private _renderEventBadge() {
+    const eventType = (this.metadata?.eventType as string) || '';
+    const pageTitle = (this.metadata?.pageTitle as string) || '';
+    const pageUrl = (this.metadata?.pageUrl as string) || '';
+
+    if (eventType === 'page_view' && pageTitle) {
+      return html`
+        <div class="bubble-row event">
+          <span class="event-badge">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1"/>
+              <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
+            </svg>
+            Viewed: ${pageUrl
+              ? html`<a href=${pageUrl} target="_blank" rel="noopener">${pageTitle}</a>`
+              : pageTitle}
+          </span>
+        </div>
+      `;
+    }
+
+    // Generic event display
+    const label = this.content || eventType.replace(/_/g, ' ');
+    return html`
+      <div class="bubble-row event">
+        <span class="event-badge">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <circle cx="6" cy="6" r="5" stroke="currentColor" stroke-width="1"/>
+            <circle cx="6" cy="6" r="1.5" fill="currentColor"/>
+          </svg>
+          ${label}
+        </span>
       </div>
     `;
   }

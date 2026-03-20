@@ -1,6 +1,6 @@
 import { Schema, Types, Model, HydratedDocument } from 'mongoose';
 import { AgentStatus } from '@astralibx/chat-types';
-import { MODE_OVERRIDE_VALUES, AGENT_VISIBILITY_VALUES, AGENT_VISIBILITY, type ModeOverride, type AgentVisibility } from '../constants/index.js';
+import { MODE_OVERRIDE_VALUES, AGENT_VISIBILITY_VALUES, AGENT_VISIBILITY, AGENT_DEFAULTS, type ModeOverride, type AgentVisibility } from '../constants/index.js';
 import type { IAiCharacterProfile } from './chat-settings.schema.js';
 
 export interface IChatAgent {
@@ -53,7 +53,7 @@ export function createChatAgentSchema() {
       isAI: { type: Boolean, default: false },
       aiConfig: { type: Schema.Types.Mixed },
       promptTemplateId: { type: String },
-      maxConcurrentChats: { type: Number, default: 5 },
+      maxConcurrentChats: { type: Number, default: AGENT_DEFAULTS.MaxConcurrentChats },
       activeChats: { type: Number, default: 0 },
       totalChatsHandled: { type: Number, default: 0 },
       modeOverride: { type: String, enum: [...MODE_OVERRIDE_VALUES, null], default: null },

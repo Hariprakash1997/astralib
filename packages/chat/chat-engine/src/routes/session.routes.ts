@@ -1,15 +1,21 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import type { SessionService } from '../services/session.service';
-import type { MessageService } from '../services/message.service';
-import type { SettingsService } from '../services/settings.service';
+import type { SessionService } from '../services/session.service.js';
+import type { MessageService } from '../services/message.service.js';
+import type { SettingsService } from '../services/settings.service.js';
 import { sendSuccess, sendError, getParam } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
-import type { ExportService } from '../services/export.service';
-import type { ExportFormat } from '../services/export.service';
-import type { WebhookService } from '../services/webhook.service';
+import type { ExportService } from '../services/export.service.js';
+import type { ExportFormat } from '../services/export.service.js';
+import type { WebhookService } from '../services/webhook.service.js';
 import { ERROR_CODE, RATING_TYPE, WEBHOOK_EVENT } from '../constants/index.js';
+import { InvalidConfigError, AlxChatError } from '../errors/index.js';
 import type { RatingType } from '../constants/index.js';
+
+function getErrorCode(error: unknown): string | undefined {
+  if (error instanceof AlxChatError) return error.code;
+  return undefined;
+}
 
 export interface SessionRouteOptions {
   enrichSessionContext?: (context: Record<string, unknown>) => Promise<Record<string, unknown>>;
@@ -123,13 +129,14 @@ export function createSessionRoutes(
   // GET / — paginated session list
   router.get('/', async (req: Request, res: Response) => {
     try {
-      const { status, channel, mode, tag, search, dateFrom, dateTo, page, limit } = req.query;
+      const { status, channel, mode, tag, userCategory, search, dateFrom, dateTo, page, limit } = req.query;
       const filter: Record<string, unknown> = {};
 
       if (status) filter.status = status;
       if (channel) filter.channel = channel;
       if (mode) filter.mode = mode;
       if (tag) filter.tags = tag;
+      if (userCategory) filter.userCategory = userCategory;
       if (search) {
         const escaped = String(search).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         filter.$or = [
@@ -227,7 +234,7 @@ export function createSessionRoutes(
       sendSuccess(res, context);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to get session context', { error });
       sendError(res, message, statusCode);
     }
@@ -240,7 +247,7 @@ export function createSessionRoutes(
       sendSuccess(res, { session: sessionService.toSummary(session) });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to resolve session', { error });
       sendError(res, message, statusCode);
     }
@@ -253,7 +260,7 @@ export function createSessionRoutes(
       sendSuccess(res, { tags });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to get tags', { error });
       sendError(res, message, statusCode);
     }
@@ -270,7 +277,7 @@ export function createSessionRoutes(
       sendSuccess(res, { tags });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to add tag', { error });
       sendError(res, message, statusCode);
     }
@@ -283,7 +290,7 @@ export function createSessionRoutes(
       sendSuccess(res, { tags });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to remove tag', { error });
       sendError(res, message, statusCode);
     }
@@ -300,8 +307,33 @@ export function createSessionRoutes(
       sendSuccess(res, { userInfo: session.userInfo });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to update user info', { error });
+      sendError(res, message, statusCode);
+    }
+  });
+
+  // PUT /:sessionId/user-category — set user category on a session
+  router.put('/:sessionId/user-category', async (req: Request, res: Response) => {
+    try {
+      const { category } = req.body;
+      if (category !== null && (typeof category !== 'string' || category.trim() === '')) {
+        return sendError(res, 'category must be a non-empty string or null', 400);
+      }
+      const userCategory = await sessionService.setUserCategory(
+        getParam(req, 'sessionId'),
+        category,
+        options?.settingsService,
+      );
+      sendSuccess(res, { userCategory });
+    } catch (error: unknown) {
+      if (error instanceof InvalidConfigError) {
+        sendError(res, error.message, 400);
+        return;
+      }
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      const statusCode = getErrorCode(error) === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
+      logger.error('Failed to set user category', { error });
       sendError(res, message, statusCode);
     }
   });
@@ -317,7 +349,7 @@ export function createSessionRoutes(
       sendSuccess(res, { notes });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to add note', { error });
       sendError(res, message, statusCode);
     }
@@ -334,7 +366,7 @@ export function createSessionRoutes(
       sendSuccess(res, { notes });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_SESSION_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to remove note', { error });
       sendError(res, message, statusCode);
     }

@@ -50,6 +50,7 @@ export class AlxTemplateList extends LitElement {
         gap: 0.35rem;
         align-items: center;
       }
+      .toggle-label { font-size: 0.7rem; color: var(--alx-text-muted); margin-left: 0.25rem; }
     `,
   ];
 
@@ -259,7 +260,7 @@ export class AlxTemplateList extends LitElement {
                   <thead>
                     <tr>
                       <th>Name</th>
-                      <th>Slug</th>
+                      <th title="Unique identifier for this template">ID</th>
                       <th>Category</th>
                       <th>Platform</th>
                       <th>Status</th>
@@ -285,6 +286,7 @@ export class AlxTemplateList extends LitElement {
                               />
                               <span class="toggle-slider"></span>
                             </label>
+                            <span class="toggle-label">${t.isActive ? 'Active' : 'Inactive'}</span>
                           </td>
                           <td class="text-muted text-small">${t.version != null ? `v${t.version}` : '--'}</td>
                           <td>

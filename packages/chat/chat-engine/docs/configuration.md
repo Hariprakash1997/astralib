@@ -2,6 +2,14 @@
 
 `createChatEngine(config)` accepts a `ChatEngineConfig` object. This page documents every option.
 
+## `tenantId` (optional)
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `tenantId` | `string` | `undefined` | Enables multi-tenant mode -- all data is scoped to this tenant |
+
+See [Multi-Tenant](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/multi-tenant.md) for details.
+
 ## `db` (required)
 
 | Option | Type | Default | Description |
@@ -84,6 +92,62 @@ Global chat behavior. Change at runtime via `PUT /settings`:
 | `requireAgentForChat` | `boolean` | `false` | `false` = chats work without agents (solo/inbox mode) |
 | `visitorAgentSelection` | `boolean` | `false` | `true` = visitors can browse and pick agents |
 | `allowPerAgentMode` | `boolean` | `false` | `true` = agents can override global mode |
+| `aiMode` | `'manual' \| 'ai' \| 'agent-wise'` | `'agent-wise'` | Two-layer AI control (see below) |
+| `chatMode` | `'switchable' \| 'fixed'` | `'switchable'` | `'fixed'` = visitors cannot switch agents mid-chat |
+| `autoAwayTimeoutMinutes` | `number` | `15` | Idle timeout before agent auto-set to away (1-480) |
+| `autoCloseAfterMinutes` | `number` | `30` | Auto-close idle sessions (1-1440) |
+| `availableTags` | `string[]` | `[]` | Tag pool for session tagging |
+| `availableUserCategories` | `string[]` | `[]` | User category pool |
+| `showAiTag` | `boolean` | `true` | Show AI tag on AI-generated messages |
+| `userHistoryEnabled` | `boolean` | `true` | Enable user conversation history lookup |
+| `userHistoryLimit` | `number` | `5` | Max past sessions returned (1-5) |
+
+### AI Mode (Two-Layer Control)
+
+The `aiMode` setting provides global AI behavior control via `PUT /settings/ai`:
+
+| Mode | Behavior |
+|------|----------|
+| `manual` | All agents forced to manual mode |
+| `ai` | All agents forced to AI mode (requires `globalCharacter` configured) |
+| `agent-wise` | Each agent's `modeOverride` is respected |
+
+### Business Hours
+
+Configurable via `PUT /settings/business-hours`:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Enable business hours checking |
+| `timezone` | `string` | `'UTC'` | Timezone for schedule |
+| `schedule` | `array` | Mon-Fri 09:00-18:00 | Per-day open/close times |
+| `holidayDates` | `string[]` | `[]` | ISO date strings (e.g., `'2026-12-25'`) |
+| `outsideHoursMessage` | `string` | Default message | Message shown outside hours |
+| `outsideHoursBehavior` | `string` | `'offline-message'` | `'offline-message'`, `'faq-only'`, or `'hide-widget'` |
+
+### File Sharing
+
+Configurable via `PUT /settings` (nested under `fileSharing`):
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Enable file sharing |
+| `maxFileSizeMb` | `number` | `5` | Max upload size in MB |
+| `allowedTypes` | `string[]` | `['image/*', 'application/pdf']` | Allowed MIME patterns |
+
+See [File Uploads](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/file-uploads.md) for adapter setup.
+
+### Rating Config
+
+Configurable via `PUT /settings/rating`:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | `boolean` | `false` | Enable rating prompt |
+| `ratingType` | `'thumbs' \| 'stars' \| 'emoji'` | `'thumbs'` | Rating input type |
+| `followUpOptions` | `Record<string, string[]>` | `{}` | Follow-up options per rating value |
+
+See [Rating & Feedback](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/rating-feedback.md) for details.
 
 ## ChatAgent Fields (per-agent overrides)
 

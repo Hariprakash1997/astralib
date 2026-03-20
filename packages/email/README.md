@@ -57,6 +57,17 @@ Production-ready email automation ecosystem for Node.js -- account management, r
 - **Hooks** -- Lifecycle callbacks (`onSend`, `onBounce`, `onHealthChange`, etc.) for side effects without modifying library internals.
 - **Zero business logic** -- Packages handle infrastructure; your adapters define targeting, data mapping, and delivery.
 
+## Install
+
+```bash
+npm install @astralibx/email-account-manager @astralibx/email-rule-engine @astralibx/email-analytics
+```
+
+For the admin UI:
+```bash
+npm install @astralibx/email-ui
+```
+
 ## Consumer Integration
 
 Wire all three backend packages together in a single Express app:
@@ -93,7 +104,7 @@ const engine = createEmailRuleEngine({
     selectAgent: async () => {
       const account = await eam.capacity.getBestAccount();
       if (!account) return null;
-      return { accountId: account._id.toString(), email: account.email, metadata: account.metadata || {} };
+      return { accountId: account._id.toString(), contactValue: account.email, metadata: account.metadata || {} };
     },
     findIdentifier: async (email) => { /* lookup contact */ },
   },

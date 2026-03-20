@@ -49,14 +49,14 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): RuleEngine
           textBody: text,
           ruleId: params.ruleId,
           autoApprove: params.autoApprove,
-          attachments: (params.metadata?.attachments as any[]) ?? undefined,
+          attachments: Array.isArray(params.metadata?.attachments) ? params.metadata.attachments : undefined,
         });
       },
       sendTest: config.adapters.sendTestEmail
         ? async (to: string, body: string, subject?: string, metadata?: Record<string, unknown>) => {
             const html = renderMjml(body);
             const text = htmlToPlainText(html);
-            await config.adapters.sendTestEmail!(to, subject || '', html, text, (metadata?.attachments as any[]) ?? undefined);
+            await config.adapters.sendTestEmail!(to, subject || '', html, text, Array.isArray(metadata?.attachments) ? metadata.attachments : undefined);
           }
         : undefined,
     },

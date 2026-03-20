@@ -82,7 +82,7 @@ curl -X POST http://localhost:3000/api/email/rules/templates \
     "slug": "welcome-email",
     "category": "onboarding",
     "audience": "customer",
-    "platform": "web",
+    "platform": "email",
     "subjects": [
       "Welcome to {{company}}, {{firstName}}!",
       "Hi {{firstName}} -- glad to have you"
@@ -208,7 +208,7 @@ curl -X POST http://localhost:3000/api/email/rules/rules \
     "target": {
       "mode": "query",
       "role": "customer",
-      "platform": "web",
+      "platform": "email",
       "conditions": [
         { "field": "createdAt", "operator": "gte", "value": "2026-03-01" }
       ]

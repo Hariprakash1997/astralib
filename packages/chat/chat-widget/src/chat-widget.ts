@@ -1,4 +1,5 @@
 import { LitElement, html, css, nothing } from 'lit';
+import { unsafeHTML } from 'lit/directives/unsafe-html.js';
 import { property, state } from 'lit/decorators.js';
 import type {
   ChatMessage,
@@ -24,6 +25,10 @@ import type {
   AgentDisconnectedPayload,
   SupportPersonsPayload,
   ChatWidgetFeatures,
+  RatingPromptPayload,
+  WidgetFileSharingConfig,
+  WidgetBusinessHoursConfig,
+  WidgetRatingConfig,
 } from '@astralibx/chat-types';
 import {
   ChatSenderType,
@@ -48,6 +53,8 @@ import './components/chat-prechat-form.js';
 import './components/chat-agent-selector.js';
 import './components/chat-feedback.js';
 import './components/chat-offline.js';
+import './components/chat-rating.js';
+import './components/chat-history.js';
 
 const DEFAULT_TRANSLATIONS: ChatTranslations = {
   welcomeTitle: 'Chat Support',
@@ -116,22 +123,6 @@ export class AlxChatWidget extends LitElement {
         background: var(--alx-chat-surface);
         border-color: var(--alx-chat-primary);
       }
-      .queue-status {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        padding: 10px 16px;
-        background: var(--alx-chat-primary-light);
-        color: var(--alx-chat-text);
-        font-size: 13px;
-        font-weight: 500;
-        border-bottom: 1px solid var(--alx-chat-border);
-      }
-      .queue-status svg {
-        color: var(--alx-chat-primary);
-        flex-shrink: 0;
-      }
     `,
   ];
 
@@ -156,7 +147,8 @@ export class AlxChatWidget extends LitElement {
   @state() private unreadCount = 0;
   @state() private connectionStatus: 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed' = 'disconnected';
   @state() private queuePosition: number | null = null;
-  @state() private currentView: 'flow' | 'chat' | 'feedback' | 'offline' = 'chat';
+  @state() private estimatedWaitMinutes: number | null = null;
+  @state() private currentView: 'flow' | 'chat' | 'feedback' | 'offline' | 'rating' | 'history' = 'chat';
   @state() private currentFlowStep: FlowStep | null = null;
   @state() private _resolvedTheme: 'dark' | 'light' = 'dark';
 
@@ -173,6 +165,11 @@ export class AlxChatWidget extends LitElement {
   private branding: { primaryColor?: string; companyName?: string; logoUrl?: string } = {};
   private offlineConfig: OfflineConfig | null = null;
   private postChatConfig: PostChatConfig | null = null;
+  private fileSharingConfig: WidgetFileSharingConfig | null = null;
+  private businessHoursConfig: WidgetBusinessHoursConfig | null = null;
+  private ratingConfig: WidgetRatingConfig | null = null;
+  private ratingPromptPayload: RatingPromptPayload | null = null;
+  private reopenMessage = '';
 
   // -- Theme --
 
@@ -191,6 +188,7 @@ export class AlxChatWidget extends LitElement {
   private storageManager: ChatStorageManager | null = null;
   private notificationManager: ChatNotificationManager | null = null;
   private flowManager = new FlowManager();
+  private _timers: ReturnType<typeof setTimeout>[] = [];
 
   // -- Temp ID counter --
   private tempIdCounter = 0;
@@ -232,6 +230,15 @@ export class AlxChatWidget extends LitElement {
     }
     if (config.postChat) {
       this.postChatConfig = config.postChat;
+    }
+    if (config.fileSharing) {
+      this.fileSharingConfig = config.fileSharing;
+    }
+    if (config.businessHours) {
+      this.businessHoursConfig = config.businessHours;
+    }
+    if (config.ratingConfig) {
+      this.ratingConfig = config.ratingConfig;
     }
 
     // Apply custom style overrides
@@ -276,16 +283,37 @@ export class AlxChatWidget extends LitElement {
 
     // Handle message retry from chat-bubble
     this.addEventListener('message-retry', this._handleMessageRetry as EventListener);
+
+    // Handle file-error from chat-input
+    this.addEventListener('file-error', this._handleFileError as EventListener);
+
+    // Handle show-history from chat-window
+    this.addEventListener('show-history', this._handleShowHistory as EventListener);
+
+    // Handle history-close from chat-history
+    this.addEventListener('history-close', this._handleHistoryClose as EventListener);
+
+    // Handle rating-submitted from chat-rating
+    this.addEventListener('rating-submitted', this._handleRatingSubmitted as EventListener);
+
+    // Check business hours on init
+    this._checkBusinessHours();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
+    this._timers.forEach(t => clearTimeout(t));
+    this._timers = [];
     this._mediaQuery?.removeEventListener('change', this._handleThemeChange);
     this.socketManager?.disconnect();
     this.notificationManager?.destroy();
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     this.removeEventListener('attach-click', this.handleAttachClick as EventListener);
     this.removeEventListener('message-retry', this._handleMessageRetry as EventListener);
+    this.removeEventListener('file-error', this._handleFileError as EventListener);
+    this.removeEventListener('show-history', this._handleShowHistory as EventListener);
+    this.removeEventListener('history-close', this._handleHistoryClose as EventListener);
+    this.removeEventListener('rating-submitted', this._handleRatingSubmitted as EventListener);
   }
 
   updated(changedProps: Map<string, unknown>) {
@@ -331,23 +359,14 @@ export class AlxChatWidget extends LitElement {
         <div class="connection-failed">
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
             <circle cx="20" cy="20" r="16" stroke="currentColor" stroke-width="2"/>
-            <line x1="14" y1="14" x2="26" y2="26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <line x1="26" y1="14" x2="14" y2="26" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <line x1="20" y1="13" x2="20" y2="22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="20" cy="26" r="1.5" fill="currentColor"/>
           </svg>
-          <p class="connection-failed-text">Unable to connect to chat server</p>
+          <p class="connection-failed-text">We're having trouble connecting. Your messages are saved.</p>
           <button class="retry-connection-btn" @click=${this._retryConnection}>Try Again</button>
         </div>
       ` : html`
-        ${this.status === ChatSessionStatusEnum.WaitingAgent && this.queuePosition != null ? html`
-          <div class="queue-status">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/>
-              <polyline points="8 4 8 8 11 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>You're #${this.queuePosition} in queue</span>
-          </div>
-        ` : nothing}
-        <alx-chat-window
+          <alx-chat-window
           .open=${this.isOpen && this.currentView === 'chat'}
           .position=${this.position}
           .messages=${this.messages}
@@ -358,6 +377,13 @@ export class AlxChatWidget extends LitElement {
           .typingLabel=${this.agent?.name ? `${this.agent.name} is typing...` : 'Agent is typing...'}
           .inputPlaceholder=${this.translations.inputPlaceholder}
           .inputDisabled=${this.connectionStatus !== 'connected'}
+          .showAttach=${!!this.fileSharingConfig?.enabled}
+          .allowedFileTypes=${this.fileSharingConfig?.allowedTypes ?? []}
+          .maxFileSizeMb=${this.fileSharingConfig?.maxFileSizeMb ?? 5}
+          .showHistoryLink=${!!this.storageManager?.getVisitorId()}
+          .queuePosition=${this.status === ChatSessionStatusEnum.WaitingAgent ? this.queuePosition : null}
+          .estimatedWaitMinutes=${this.estimatedWaitMinutes}
+          .connectionStatusLabel=${this.connectionStatus === 'disconnected' && this.sessionId ? "We're having trouble connecting. Your messages are saved." : ''}
           @minimize=${this.handleToggle}
           @end-chat=${this.handleEndChat}
           @send=${this.handleSend}
@@ -382,6 +408,10 @@ export class AlxChatWidget extends LitElement {
         return this.renderFeedback();
       case 'offline':
         return this.renderOffline();
+      case 'rating':
+        return this.renderRating();
+      case 'history':
+        return this.renderHistory();
       default:
         return nothing;
     }
@@ -480,8 +510,9 @@ export class AlxChatWidget extends LitElement {
       }
 
       case 'custom': {
+        // WARNING: custom HTML from developer config — ensure content is trusted
         return html`
-          <div .innerHTML=${step.html}></div>
+          <div>${unsafeHTML(step.html)}</div>
           ${step.ctaText
             ? html`<button @click=${this.handleStepComplete}>${step.ctaText}</button>`
             : nothing}
@@ -513,9 +544,37 @@ export class AlxChatWidget extends LitElement {
         .mode=${this.offlineConfig?.mode ?? 'message'}
         .title=${this.offlineConfig?.offlineTitle ?? 'We are currently offline'}
         .message=${this.offlineConfig?.offlineMessage ?? 'Our team is not available right now. Please leave a message and we will get back to you.'}
+        .reopenMessage=${this.reopenMessage}
         .formFields=${this.offlineConfig?.formFields ?? []}
         @offline-message-submitted=${this.handleOfflineMessage}
       ></alx-chat-offline>
+    `;
+  }
+
+  private renderRating() {
+    const ratingType = this.ratingConfig?.ratingType
+      ?? (this.ratingPromptPayload?.ratingType as 'thumbs' | 'stars' | 'emoji')
+      ?? 'thumbs';
+    const followUpOptions = this.ratingConfig?.followUpOptions
+      ?? this.ratingPromptPayload?.followUpOptions
+      ?? {};
+
+    return html`
+      <alx-chat-rating
+        .ratingType=${ratingType}
+        .question=${'How was your experience?'}
+        .followUpOptions=${followUpOptions}
+      ></alx-chat-rating>
+    `;
+  }
+
+  private renderHistory() {
+    return html`
+      <alx-chat-history
+        .socketUrl=${this.socketUrl}
+        .visitorId=${this.storageManager?.getVisitorId() ?? ''}
+        .limit=${5}
+      ></alx-chat-history>
     `;
   }
 
@@ -592,13 +651,13 @@ export class AlxChatWidget extends LitElement {
     }));
 
     // Close widget after a short delay for thank-you message
-    setTimeout(() => {
+    this._timers.push(setTimeout(() => {
       this.socketManager?.disconnect();
       this.connectionStatus = 'disconnected';
       this.isOpen = false;
       this.storageManager?.setWidgetOpen(false);
       this.currentView = 'chat';
-    }, 2000);
+    }, 2000));
   };
 
   private handleOfflineMessage = (e: CustomEvent<{ data: Record<string, unknown> }>) => {
@@ -648,11 +707,15 @@ export class AlxChatWidget extends LitElement {
       this.notificationManager?.stopTitleFlash();
       this.fireEvent('chat:widget-opened');
 
+      // Send analytics
+      this.socketManager?.trackWidgetOpened();
+
       // If flow is enabled and not complete, show flow
       if (this.flowManager.isFlowEnabled() && !this.flowManager.isFlowComplete()) {
         this.currentView = 'flow';
         this.currentFlowStep = this.flowManager.getCurrentStep();
-      } else if (this.currentView === 'chat') {
+      } else if (this.currentView === 'chat' || this.currentView === 'history') {
+        this.currentView = 'chat';
         // Connect if not already connected
         if (!this.socketManager?.isConnected && this.socketUrl) {
           this.initSocket();
@@ -660,6 +723,8 @@ export class AlxChatWidget extends LitElement {
       }
     } else {
       this.fireEvent('chat:widget-closed');
+      // Send analytics
+      this.socketManager?.trackWidgetMinimized();
     }
   };
 
@@ -705,26 +770,87 @@ export class AlxChatWidget extends LitElement {
     this.socketManager?.sendTyping(e.detail.isTyping);
   };
 
-  private handleAttachClick = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*,application/pdf,.doc,.docx,.txt';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
+  private handleAttachClick = async (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const file = detail?.file as File | undefined;
+    if (!file || !this.sessionId) return;
 
-      this.dispatchEvent(new CustomEvent('chat:file-selected', {
-        bubbles: true,
-        composed: true,
-        detail: { file, name: file.name, type: file.type, size: file.size },
-      }));
-    };
-    input.click();
+    this.fireEvent('chat:file-selected', {
+      file,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+    });
+
+    // Upload file via REST API
+    try {
+      const baseUrl = this.socketUrl.replace(/\/$/, '');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(
+        `${baseUrl}/sessions/${encodeURIComponent(this.sessionId)}/upload`,
+        { method: 'POST', body: formData },
+      );
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({ message: `Upload failed (${res.status})` }));
+        throw new Error(errJson.message || `Upload failed (${res.status})`);
+      }
+
+      const json = await res.json();
+      const fileUrl = json.data?.url || json.url;
+      const fileName = json.data?.fileName || json.fileName || file.name;
+
+      // Determine content type
+      const isImage = file.type.startsWith('image/');
+      const contentType = isImage ? ChatContentType.Image : ChatContentType.File;
+
+      const tempId = `temp-${++this.tempIdCounter}-${Date.now()}`;
+
+      // Optimistic file message
+      const optimisticMessage: ChatMessage = {
+        _id: tempId,
+        messageId: tempId,
+        sessionId: this.sessionId ?? '',
+        senderType: ChatSenderType.Visitor,
+        content: fileUrl,
+        contentType,
+        status: ChatMessageStatus.Sending,
+        metadata: { filename: fileName },
+        createdAt: new Date(),
+      };
+
+      this.messages = [...this.messages, optimisticMessage];
+
+      // Send file message via socket
+      this.socketManager
+        ?.sendMessage(fileUrl, contentType, tempId, { filename: fileName })
+        .then(() => {
+          // Status will be updated via MessageStatus event
+        })
+        .catch(() => {
+          this.messages = this.messages.map((m) =>
+            m.messageId === tempId
+              ? { ...m, status: ChatMessageStatus.Failed }
+              : m,
+          );
+        });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'File upload failed';
+      this.fireEvent('chat:file-error', { error: message });
+    }
   };
 
   private handleEndChat = () => {
     if (this.sessionId) {
       this.fireEvent('chat:session-ended', { sessionId: this.sessionId });
+    }
+
+    // Check if two-step rating is enabled (takes priority)
+    if (this.ratingConfig?.enabled) {
+      this.currentView = 'rating';
+      return;
     }
 
     // Check if post-chat feedback is enabled
@@ -791,12 +917,65 @@ export class AlxChatWidget extends LitElement {
       });
   };
 
+  private _handleFileError = (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    this.fireEvent('chat:file-error', { error: detail?.error });
+  };
+
+  private _handleShowHistory = () => {
+    this.currentView = 'history';
+  };
+
+  private _handleHistoryClose = () => {
+    this.currentView = 'chat';
+  };
+
+  private _handleRatingSubmitted = (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+
+    if (detail.skipped) {
+      this.socketManager?.disconnect();
+      this.connectionStatus = 'disconnected';
+      this.currentView = 'chat';
+      return;
+    }
+
+    // Send rich feedback via socket
+    this.socketManager?.sendRichFeedback({
+      ratingType: detail.ratingType,
+      ratingValue: detail.ratingValue,
+      followUpSelections: detail.followUpSelections,
+      comment: detail.comment,
+    });
+
+    this.dispatchEvent(new CustomEvent('chat:rating-submitted', {
+      bubbles: true,
+      composed: true,
+      detail,
+    }));
+
+    // Close widget after thank-you delay
+    this._timers.push(setTimeout(() => {
+      this.socketManager?.disconnect();
+      this.connectionStatus = 'disconnected';
+      this.isOpen = false;
+      this.storageManager?.setWidgetOpen(false);
+      this.currentView = 'chat';
+      this.ratingPromptPayload = null;
+    }, 2000));
+  };
+
   private handleVisibilityChange = () => {
     if (!document.hidden) {
       this.notificationManager?.stopTitleFlash();
       if (this.isOpen) {
         this.unreadCount = 0;
       }
+      // Track page view when page becomes visible
+      this.socketManager?.trackPageView(
+        document.title,
+        window.location.href,
+      );
     }
   };
 
@@ -820,6 +999,7 @@ export class AlxChatWidget extends LitElement {
       onAgentDisconnected: this.onSocketAgentDisconnected,
       onSupportPersons: this.onSocketSupportPersons,
       onError: this.onSocketError,
+      onRatingPrompt: this.onSocketRatingPrompt,
       onConnectionChange: (status) => {
         this.connectionStatus = status;
       },
@@ -916,6 +1096,7 @@ export class AlxChatWidget extends LitElement {
       this.agent = payload.agent;
     }
     this.queuePosition = payload.queuePosition ?? null;
+    this.estimatedWaitMinutes = (payload as StatusPayload & { estimatedWaitMinutes?: number }).estimatedWaitMinutes ?? null;
   };
 
   private onSocketAgentJoin = (agent: ChatAgentInfo) => {
@@ -923,12 +1104,41 @@ export class AlxChatWidget extends LitElement {
   };
 
   private onSocketAgentLeave = () => {
+    const agentName = this.agent?.name ?? 'Your agent';
     this.agent = null;
+
+    // Add a system message so the visitor isn't confused
+    const systemMsg: ChatMessage = {
+      _id: `sys-leave-${Date.now()}`,
+      messageId: `sys-leave-${Date.now()}`,
+      sessionId: this.sessionId ?? '',
+      senderType: ChatSenderType.System,
+      content: `${agentName} has left the chat. You can continue the conversation or start a new chat.`,
+      contentType: ChatContentType.Text,
+      status: ChatMessageStatus.Delivered,
+      createdAt: new Date(),
+    };
+    this.messages = [...this.messages, systemMsg];
   };
 
   private onSocketAgentDisconnected = (payload: AgentDisconnectedPayload) => {
     // Agent went offline — clear the agent and notify user
+    const agentName = payload.agentName ?? this.agent?.name ?? 'Your agent';
     this.agent = null;
+
+    // Add a system message so the visitor knows what happened
+    const systemMsg: ChatMessage = {
+      _id: `sys-disconnect-${Date.now()}`,
+      messageId: `sys-disconnect-${Date.now()}`,
+      sessionId: this.sessionId ?? '',
+      senderType: ChatSenderType.System,
+      content: `${agentName} has disconnected. Please wait for another agent or leave a message.`,
+      contentType: ChatContentType.Text,
+      status: ChatMessageStatus.Delivered,
+      createdAt: new Date(),
+    };
+    this.messages = [...this.messages, systemMsg];
+
     this.fireEvent('chat:agent-disconnected', {
       agentId: payload.agentId,
       agentName: payload.agentName,
@@ -937,6 +1147,20 @@ export class AlxChatWidget extends LitElement {
 
   private onSocketSupportPersons = (payload: SupportPersonsPayload) => {
     this.fireEvent('chat:support-persons', { agents: payload.agents });
+  };
+
+  private onSocketRatingPrompt = (payload: RatingPromptPayload) => {
+    this.ratingPromptPayload = payload;
+
+    // If rating config is enabled, show the two-step rating UI
+    if (this.ratingConfig?.enabled) {
+      this.currentView = 'rating';
+    } else {
+      // Fall back to the legacy post-chat feedback if configured
+      if (this.postChatConfig?.enabled) {
+        this.currentView = 'feedback';
+      }
+    }
   };
 
   private onSocketError = (_payload: ChatErrorPayload) => {
@@ -953,6 +1177,170 @@ export class AlxChatWidget extends LitElement {
         composed: true,
       }),
     );
+  }
+
+  /**
+   * Check business hours configuration and switch to offline view if outside hours.
+   */
+  private _checkBusinessHours(): void {
+    const bh = this.businessHoursConfig;
+    if (!bh || !bh.enabled) return;
+
+    const now = new Date();
+    // Convert to the configured timezone
+    let localHour: number;
+    let localMinute: number;
+    let localDay: number;
+
+    try {
+      const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: bh.timezone,
+        hour: 'numeric',
+        minute: 'numeric',
+        weekday: 'short',
+        hour12: false,
+      }).formatToParts(now);
+
+      localHour = Number(parts.find(p => p.type === 'hour')?.value ?? now.getHours());
+      localMinute = Number(parts.find(p => p.type === 'minute')?.value ?? now.getMinutes());
+      const weekday = parts.find(p => p.type === 'weekday')?.value ?? '';
+      const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+      localDay = dayMap[weekday] ?? now.getDay();
+    } catch {
+      // Fallback to local time if timezone is invalid
+      localHour = now.getHours();
+      localMinute = now.getMinutes();
+      localDay = now.getDay();
+    }
+
+    // Check holiday
+    const todayStr = now.toISOString().split('T')[0];
+    const isHoliday = bh.holidayDates?.includes(todayStr) ?? false;
+    if (isHoliday) {
+      this._applyOutsideHours(bh, 'holiday', localDay);
+      return;
+    }
+
+    // Check schedule
+    const daySchedule = bh.schedule.find(s => s.day === localDay);
+    if (!daySchedule || !daySchedule.isOpen) {
+      this._applyOutsideHours(bh, 'closed-day', localDay);
+      return;
+    }
+
+    const [openH, openM] = daySchedule.open.split(':').map(Number);
+    const [closeH, closeM] = daySchedule.close.split(':').map(Number);
+    const currentMinutes = localHour * 60 + localMinute;
+    const openMinutes = openH * 60 + openM;
+    const closeMinutes = closeH * 60 + closeM;
+
+    if (currentMinutes < openMinutes) {
+      // Before opening today
+      this._applyOutsideHours(bh, 'before-open', localDay, daySchedule.open);
+    } else if (currentMinutes >= closeMinutes) {
+      // After closing today
+      this._applyOutsideHours(bh, 'after-close', localDay);
+    }
+  }
+
+  private _applyOutsideHours(
+    bh: WidgetBusinessHoursConfig,
+    reason: 'holiday' | 'closed-day' | 'before-open' | 'after-close' = 'closed-day',
+    currentDay = 0,
+    todayOpenTime?: string,
+  ): void {
+    const behavior = bh.outsideHoursBehavior ?? 'offline-message';
+
+    switch (behavior) {
+      case 'hide-widget':
+        // Hide the entire widget
+        this.style.display = 'none';
+        break;
+
+      case 'faq-only':
+        // If we have a pre-chat flow with FAQ, show it; otherwise show offline
+        if (this.flowManager.isFlowEnabled()) {
+          this.currentView = 'flow';
+          this.currentFlowStep = this.flowManager.getCurrentStep();
+        } else {
+          this._showOfflineFromBusinessHours(bh, reason, currentDay, todayOpenTime);
+        }
+        break;
+
+      case 'offline-message':
+      default:
+        this._showOfflineFromBusinessHours(bh, reason, currentDay, todayOpenTime);
+        break;
+    }
+  }
+
+  private _showOfflineFromBusinessHours(
+    bh: WidgetBusinessHoursConfig,
+    reason: 'holiday' | 'closed-day' | 'before-open' | 'after-close' = 'closed-day',
+    currentDay = 0,
+    todayOpenTime?: string,
+  ): void {
+    // Calculate reopen message based on reason
+    this.reopenMessage = this._calcReopenMessage(bh, reason, currentDay, todayOpenTime);
+
+    const customMsg = bh.outsideHoursMessage;
+    const defaultTitle = reason === 'holiday' ? 'We\'re closed today' : 'We\'re offline right now';
+    const defaultMsg = reason === 'holiday'
+      ? 'Our team is taking a day off.'
+      : 'Our team is not available right now.';
+
+    if (!this.offlineConfig) {
+      this.offlineConfig = {
+        mode: 'message',
+        offlineMessage: customMsg ?? defaultMsg,
+        offlineTitle: defaultTitle,
+      };
+    } else {
+      this.offlineConfig = {
+        ...this.offlineConfig,
+        offlineTitle: this.offlineConfig.offlineTitle ?? defaultTitle,
+        offlineMessage: customMsg ?? this.offlineConfig.offlineMessage ?? defaultMsg,
+      };
+    }
+    this.currentView = 'offline';
+  }
+
+  /**
+   * Calculate a friendly "Back at ..." or "Back on ..." message from the schedule.
+   */
+  private _calcReopenMessage(
+    bh: WidgetBusinessHoursConfig,
+    reason: string,
+    currentDay: number,
+    todayOpenTime?: string,
+  ): string {
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    // If before opening today, we can show today's open time
+    if (reason === 'before-open' && todayOpenTime) {
+      return `Back at ${this._formatTime(todayOpenTime)}`;
+    }
+
+    // Find the next open day
+    for (let offset = 1; offset <= 7; offset++) {
+      const nextDay = (currentDay + offset) % 7;
+      const sched = bh.schedule.find(s => s.day === nextDay);
+      if (sched && sched.isOpen) {
+        if (offset === 1) {
+          return `Back tomorrow at ${this._formatTime(sched.open)}`;
+        }
+        return `Back on ${dayNames[nextDay]} at ${this._formatTime(sched.open)}`;
+      }
+    }
+
+    return '';
+  }
+
+  private _formatTime(time: string): string {
+    const [h, m] = time.split(':').map(Number);
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return m === 0 ? `${hour12} ${period}` : `${hour12}:${String(m).padStart(2, '0')} ${period}`;
   }
 
   /**

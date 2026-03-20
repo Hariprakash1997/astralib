@@ -109,14 +109,21 @@ const engine = createChatEngine({
 - **Real-time messaging** -- Socket.IO gateway with visitor and agent namespaces, typing indicators, read receipts, and pending message delivery. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/socket-events.md)
 - **Session lifecycle** -- Create, resume, resolve, abandon sessions with idle timeout, reconnect window, and feedback collection. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **Agent management** -- CRUD agents, online/offline tracking, concurrent chat limits, chat transfer between agents. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
-- **AI mode** -- Pluggable AI response generation with automatic debouncing and typing simulation. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md)
+- **Team hierarchy & escalation** -- Multi-level agent hierarchy with teams, direct reports, and tree views for structured escalation paths. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
+- **Two-layer AI control** -- Global AI mode (`manual`, `ai`, `agent-wise`) with per-agent overrides, AI character profiles, and configurable response behavior. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md)
 - **Escalation** -- Visitor-initiated escalation from AI to human agent with auto-assignment. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/socket-events.md)
+- **Webhooks** -- 8 event types with HMAC signature verification, retry logic, and REST management API. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/webhooks.md)
+- **Multi-tenant** -- Shared database with automatic tenant scoping on all queries and creates. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/multi-tenant.md)
+- **File uploads** -- Pluggable file storage adapter (S3, GCS, local disk) with admin controls for size/type restrictions. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/file-uploads.md)
+- **Rating & feedback** -- Configurable rating types (thumbs/stars/emoji) with two-step follow-up flow. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/rating-feedback.md)
+- **Business hours** -- Per-day schedule with timezone support, holiday dates, and configurable outside-hours behavior. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/configuration.md)
+- **Analytics & reports** -- Agent performance reports, overall chat reports, session export (JSON/CSV), and visitor analytics collection. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **FAQ and guided questions** -- CRUD, reorder, import, category filtering. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **Canned responses** -- Pre-built agent replies with category and search support. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **Widget config** -- Public endpoint for client widget configuration. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **Rate limiting** -- Per-session message rate limiting via Redis. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/configuration.md)
-- **Lifecycle hooks** -- 16 hooks for session events, messages, escalation, metrics, and errors. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/hooks.md)
-- **Pluggable adapters** -- Authentication, agent assignment, AI generation, visitor identification, event tracking. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md)
+- **Lifecycle hooks** -- 20+ hooks for session events, messages, escalation, AI lifecycle, memory, metrics, and errors. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/hooks.md)
+- **Pluggable adapters** -- Authentication, agent assignment, AI generation, visitor identification, file storage, event tracking. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md)
 - **Error classes** -- Typed errors with codes for every failure scenario. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/error-handling.md)
 
 ## Architecture
@@ -133,8 +140,10 @@ All services are also available programmatically via the returned `engine` objec
 ## Getting Started Guide
 
 1. [Configuration](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/configuration.md) -- Set up database, Redis, socket, and options
-2. [Adapters](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md) -- Implement agent assignment, AI, and authentication
+2. [Adapters](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md) -- Implement agent assignment, AI, authentication, and file storage
 3. [Hooks](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/hooks.md) -- Wire up analytics, logging, and monitoring
+
+Guides: [Webhooks](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/webhooks.md) | [Multi-Tenant](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/multi-tenant.md) | [File Uploads](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/file-uploads.md) | [Rating & Feedback](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/rating-feedback.md)
 
 Reference: [API Routes](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md) | [Socket Events](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/socket-events.md) | [Error Handling](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/error-handling.md)
 

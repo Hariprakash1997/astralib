@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type { LogAdapter } from '@astralibx/core';
-import type { ChatFAQItemModel, ChatFAQItemDocument } from '../schemas/chat-faq-item.schema';
+import type { ChatFAQItemModel, ChatFAQItemDocument } from '../schemas/chat-faq-item.schema.js';
 import { withTenantFilter, withTenantId } from '../utils/helpers.js';
 
 export class FAQService {

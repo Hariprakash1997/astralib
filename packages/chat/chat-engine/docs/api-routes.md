@@ -14,20 +14,49 @@ All routes are mounted on the router returned by `engine.routes`. All responses 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/sessions` | Paginated list (query: `status`, `channel`, `mode`, `search`, `dateFrom`, `dateTo`, `page`, `limit`) |
+| `GET` | `/sessions` | Paginated list (query: `status`, `channel`, `mode`, `tag`, `userCategory`, `search`, `dateFrom`, `dateTo`, `page`, `limit`) |
 | `GET` | `/sessions/:sessionId` | Single session |
 | `GET` | `/sessions/:sessionId/messages` | Message history (query: `before`, `limit`) |
+| `GET` | `/sessions/:sessionId/context` | Rich session context (runs `enrichSessionContext` adapter if provided) |
+| `GET` | `/sessions/:sessionId/export` | Export single session transcript (query: `format=json\|csv`) |
 | `POST` | `/sessions/:sessionId/resolve` | End session |
-| `POST` | `/sessions/:sessionId/feedback` | Submit feedback (body: `{ rating?, survey? }`) |
-| `GET` | `/sessions/:sessionId/context` | Rich session context (session + messages + metadata). Runs `enrichSessionContext` adapter if provided |
-| `GET` | `/sessions/feedback-stats` | Aggregate feedback ratings |
+| `POST` | `/sessions/:sessionId/feedback` | Submit feedback (two-step or legacy format) |
+| `POST` | `/sessions/:sessionId/upload` | Upload file via multipart/form-data (requires `fileStorage` adapter) |
+| `POST` | `/sessions/export` | Bulk export sessions (body: `{ dateFrom?, dateTo?, agentId?, tags?, status? }`, query: `format`) |
 
-## Offline Messages
+### Session Tags
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/offline-messages` | Submit offline message (public, body: `{ visitorId, formData }`) |
-| `GET` | `/offline-messages` | List offline messages (protected, query: `dateFrom`, `dateTo`, `page`, `limit`) |
+| `GET` | `/sessions/:sessionId/tags` | Get session tags |
+| `POST` | `/sessions/:sessionId/tags` | Add a tag (body: `{ tag }`) |
+| `DELETE` | `/sessions/:sessionId/tags/:tag` | Remove a tag |
+
+### Session User Info
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `PUT` | `/sessions/:sessionId/user-info` | Update user info (body: `{ name?, email?, mobile? }`) |
+| `PUT` | `/sessions/:sessionId/user-category` | Set user category (body: `{ category }`) |
+
+### Session Notes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/sessions/:sessionId/notes` | Add a note (body: `{ note }`) |
+| `DELETE` | `/sessions/:sessionId/notes/:index` | Remove a note by index |
+
+### User History
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/sessions/user-history/:visitorId` | Conversation history for a visitor (query: `limit`) |
+
+### Feedback Stats
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/sessions/feedback-stats` | Aggregate feedback ratings |
 
 ## Agents
 
@@ -35,11 +64,12 @@ All routes are mounted on the router returned by `engine.routes`. All responses 
 |--------|------|-------------|
 | `GET` | `/agents` | List all agents |
 | `GET` | `/agents/:agentId` | Single agent |
-| `POST` | `/agents` | Create agent |
+| `POST` | `/agents` | Create agent (body includes optional `level`, `parentId`, `teamId`) |
 | `PUT` | `/agents/:agentId` | Update agent |
 | `DELETE` | `/agents/:agentId` | Delete agent |
 | `POST` | `/agents/:agentId/toggle-active` | Toggle active status |
-| `POST` | `/agents/:agentId/avatar` | Upload avatar image (requires `uploadFile` adapter) |
+| `POST` | `/agents/:agentId/avatar` | Upload avatar image (base64 JSON body) |
+| `PUT` | `/agents/:agentId/status` | Admin force-set agent status (body: `{ status }`) |
 
 ### Avatar Upload
 
@@ -53,31 +83,20 @@ All routes are mounted on the router returned by `engine.routes`. All responses 
 }
 ```
 
-- Requires the `uploadFile` adapter to be configured. Returns 404 if not configured.
+- Requires the `uploadFile` adapter. Returns 404 if not configured.
 - Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`, `image/gif`.
 - Max file size controlled by `options.maxUploadSizeMb` (default: 5MB).
-- On success, updates the agent's `avatar` field and returns `{ url: "..." }`.
 
-## Capabilities
+### Agent Hierarchy
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/capabilities` | Feature flags (public, no auth) |
+| `GET` | `/agents/team/:teamId` | Get all members of a team |
+| `GET` | `/agents/:agentId/team-tree` | Get full subordinate tree below an agent |
+| `GET` | `/agents/:agentId/reports` | Get direct reports |
+| `PUT` | `/agents/:agentId/hierarchy` | Update hierarchy position (body: `{ parentId?, level?, teamId? }`) |
 
-Returns which features are enabled based on the engine configuration:
-
-```json
-{
-  "agents": true,
-  "ai": false,
-  "visitorSelection": false,
-  "labeling": false,
-  "fileUpload": false,
-  "memory": false,
-  "prompts": false,
-  "knowledge": false
-}
-```
+Agents have hierarchy fields: `level` (default 1), `parentId` (reference to manager), and `teamId` (team grouping). Use these routes to build team structures and escalation paths.
 
 ## Settings
 
@@ -85,6 +104,54 @@ Returns which features are enabled based on the engine configuration:
 |--------|------|-------------|
 | `GET` | `/settings` | Get global settings |
 | `PUT` | `/settings` | Update settings |
+
+### AI Settings
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/settings/ai` | Get AI settings (`aiMode`, `aiCharacter`, `showAiTag`) |
+| `PUT` | `/settings/ai` | Update AI settings |
+
+AI mode values: `manual` (all agents forced manual), `ai` (all agents forced AI), `agent-wise` (defer to per-agent `modeOverride`).
+
+### Rating Config
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/settings/rating` | Get rating configuration |
+| `PUT` | `/settings/rating` | Update rating config (body: `{ enabled?, ratingType?, followUpOptions? }`) |
+
+See [Rating & Feedback](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/rating-feedback.md) for details.
+
+### Business Hours
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/settings/business-hours` | Get current business hours status (`isOpen` + config) |
+| `PUT` | `/settings/business-hours` | Update business hours config |
+
+### Chat Mode
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/settings/chat-mode` | Get chat mode (`switchable` or `fixed`) |
+| `PUT` | `/settings/chat-mode` | Set chat mode (body: `{ chatMode }`) |
+
+### Tags & Categories
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/settings/available-tags` | Get available tag list |
+| `PUT` | `/settings/available-tags` | Set available tags (body: `{ availableTags }`) |
+| `GET` | `/settings/user-categories` | Get available user categories |
+| `PUT` | `/settings/user-categories` | Set user categories (body: `{ availableUserCategories }`) |
+
+## Offline Messages
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/offline-messages` | Submit offline message (public, body: `{ visitorId, formData }`) |
+| `GET` | `/offline-messages` | List offline messages (protected, query: `dateFrom`, `dateTo`, `page`, `limit`) |
 
 ## FAQ
 
@@ -124,15 +191,55 @@ Returns which features are enabled based on the engine configuration:
 | `GET` | `/widget-config` | Get config (public, no auth) |
 | `PUT` | `/widget-config` | Update config (protected) |
 
+## Capabilities
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/capabilities` | Feature flags (public, no auth) |
+
+Returns which features are enabled:
+
+```json
+{
+  "agents": true,
+  "ai": false,
+  "visitorSelection": false,
+  "labeling": false,
+  "fileUpload": false,
+  "memory": false,
+  "prompts": false,
+  "knowledge": false
+}
+```
+
 ## Stats
 
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/stats` | Dashboard stats |
 
+## Reports
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/reports/agent-performance` | Agent performance report (query: `dateFrom`, `dateTo`, `agentId`) |
+| `GET` | `/reports/overall` | Overall chat report (query: `dateFrom`, `dateTo`) |
+
+## Webhooks
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/webhooks` | List all webhooks |
+| `POST` | `/webhooks` | Register webhook (body: `{ url, events, secret?, description? }`) |
+| `PUT` | `/webhooks/:id` | Update webhook |
+| `DELETE` | `/webhooks/:id` | Remove webhook |
+| `POST` | `/webhooks/retry` | Retry failed deliveries |
+
+See [Webhooks](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/webhooks.md) for event types, payload structure, and HMAC verification.
+
 ## Authentication
 
-All routes except `GET /widget-config` and `POST /offline-messages` are protected when the `authenticateRequest` adapter is provided. The adapter receives the Express request and must return `{ userId, permissions? }` or `null` to reject.
+All routes except `GET /widget-config`, `GET /capabilities`, and `POST /offline-messages` are protected when the `authenticateRequest` adapter is provided. The adapter receives the Express request and must return `{ userId, permissions? }` or `null` to reject.
 
 ```ts
 adapters: {

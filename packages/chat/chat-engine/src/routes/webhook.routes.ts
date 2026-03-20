@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendSuccess, sendError, getParam } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
-import type { WebhookService } from '../services/webhook.service';
+import type { WebhookService } from '../services/webhook.service.js';
 import { WEBHOOK_EVENT } from '../constants/index.js';
 
 const VALID_EVENTS = Object.values(WEBHOOK_EVENT);

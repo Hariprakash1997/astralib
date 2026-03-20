@@ -425,7 +425,7 @@ export class AlxTgInbox extends LitElement {
             ${this.loadingConvs
               ? html`<div class="alx-loading"><div class="alx-spinner"></div></div>`
               : this.conversations.length === 0
-                ? html`<div class="conv-empty">No conversations</div>`
+                ? html`<div class="conv-empty">No conversations yet. Select an account above and click Sync to import your Telegram chats.</div>`
                 : this.conversations.map(c => html`
                     <div
                       class="conv-item ${this.selectedConvId === c._id ? 'active' : ''}"
@@ -467,6 +467,7 @@ export class AlxTgInbox extends LitElement {
                     `)}
             </div>
             <div class="msg-input">
+              ${this.accountFilter ? html`<span style="font-size:0.65rem;color:var(--alx-text-muted);white-space:nowrap">Sending as: ${this.accounts.find(a => a._id === this.accountFilter)?.name || 'Unknown'}</span>` : ''}
               <input
                 type="text"
                 placeholder="Type a message..."

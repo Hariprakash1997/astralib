@@ -14,6 +14,9 @@ import type {
   VisitorContext,
   AgentDisconnectedPayload,
   SupportPersonsPayload,
+  RatingPromptPayload,
+  FeedbackPayload,
+  TrackEventPayload,
 } from '@astralibx/chat-types';
 import {
   VisitorEvent,
@@ -33,6 +36,7 @@ export interface SocketManagerCallbacks {
   onError: (payload: ChatErrorPayload) => void;
   onConnectionChange: (status: 'disconnected' | 'connecting' | 'connected' | 'reconnecting') => void;
   onConnectionFailed?: () => void;
+  onRatingPrompt?: (payload: RatingPromptPayload) => void;
 }
 
 interface PendingMessage {
@@ -174,6 +178,33 @@ export class ChatSocketManager {
     this.socket?.emit(VisitorEvent.TrackEvent, { event, data });
   }
 
+  trackPageView(pageTitle: string, pageUrl: string): void {
+    const payload: TrackEventPayload = {
+      eventType: 'page_view',
+      pageTitle,
+      pageUrl,
+    };
+    this.socket?.emit(VisitorEvent.TrackEvent, payload);
+  }
+
+  trackWidgetOpened(): void {
+    const payload: TrackEventPayload = {
+      eventType: 'widget_opened',
+    };
+    this.socket?.emit(VisitorEvent.TrackEvent, payload);
+  }
+
+  trackWidgetMinimized(): void {
+    const payload: TrackEventPayload = {
+      eventType: 'widget_minimized',
+    };
+    this.socket?.emit(VisitorEvent.TrackEvent, payload);
+  }
+
+  sendRichFeedback(feedback: FeedbackPayload): void {
+    this.socket?.emit(VisitorEvent.Feedback, feedback);
+  }
+
   fetchSupportPersons(channel?: string, filters?: Record<string, unknown>): void {
     this.socket?.emit(VisitorEvent.FetchSupportPersons, { channel, filters });
   }
@@ -260,6 +291,10 @@ export class ChatSocketManager {
 
     this.socket.on(ServerToVisitorEvent.Error, (payload: ChatErrorPayload) => {
       this.safeCallback('onError', this.callbacks.onError, payload);
+    });
+
+    this.socket.on(ServerToVisitorEvent.RatingPrompt, (payload: RatingPromptPayload) => {
+      this.safeCallback('onRatingPrompt', this.callbacks.onRatingPrompt, payload);
     });
 
     this.socket.on('disconnect', () => {

@@ -206,4 +206,12 @@ export const ruleEditorStyles = css`
     color: var(--alx-text-muted, #6b7280);
     font-size: 11px;
   }
+
+  .field-help {
+    display: block;
+    font-size: 0.65rem;
+    color: var(--alx-text-muted);
+    margin-top: 0.15rem;
+    font-weight: normal;
+  }
 `;

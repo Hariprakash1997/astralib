@@ -63,6 +63,7 @@ export interface IChatSettings {
   autoAwayTimeoutMinutes: number;
   chatMode: ChatMode;
   availableTags: string[];
+  availableUserCategories: string[];
   autoCloseAfterMinutes: number;
   businessHours: IBusinessHours;
   analyticsConfig: IAnalyticsConfig;
@@ -185,6 +186,7 @@ export function createChatSettingsSchema() {
         default: CHAT_MODE.Switchable,
       },
       availableTags: { type: [String], default: [] },
+      availableUserCategories: { type: [String], default: [] },
       autoCloseAfterMinutes: {
         type: Number,
         default: AUTO_CLOSE.DefaultMinutes,

@@ -1,7 +1,7 @@
 import type { Namespace } from 'socket.io';
 import type { LogAdapter } from '@astralibx/core';
-import type { RedisService } from '../services/redis.service';
-import type { PendingMessageService } from '../services/pending-message.service';
+import type { RedisService } from '../services/redis.service.js';
+import type { PendingMessageService } from '../services/pending-message.service.js';
 import { INTERNAL_EVENT, PENDING_TYPE } from '../constants/index.js';
 
 export interface EmitDeps {

@@ -15,6 +15,9 @@ export interface ChatWidgetConfig {
   user?: ChatUserInfo;
   offline?: OfflineConfig;
   postChat?: PostChatConfig;
+  fileSharing?: WidgetFileSharingConfig;
+  businessHours?: WidgetBusinessHoursConfig;
+  ratingConfig?: WidgetRatingConfig;
   configEndpoint?: string;
   metadata?: Record<string, unknown>;
   styles?: Record<string, string>;
@@ -33,8 +36,15 @@ export interface ChatWidgetFeatures {
 
 export interface ChatBranding {
   primaryColor?: string;
+  secondaryColor?: string;
+  backgroundColor?: string;
+  textColor?: string;
   companyName?: string;
   logoUrl?: string;
+  buttonIcon?: string;
+  buttonShape?: 'circle' | 'rounded' | 'square';
+  customCss?: string;
+  showPoweredBy?: boolean;
 }
 
 export interface OfflineConfig {
@@ -50,6 +60,34 @@ export interface PostChatConfig {
   ratingQuestion?: string;
   surveyFields?: FormField[];
   thankYouMessage?: string;
+}
+
+export interface WidgetFileSharingConfig {
+  enabled: boolean;
+  maxFileSizeMb?: number;
+  allowedTypes?: string[];
+}
+
+export interface WidgetBusinessHoursSchedule {
+  day: number;
+  open: string;
+  close: string;
+  isOpen: boolean;
+}
+
+export interface WidgetBusinessHoursConfig {
+  enabled: boolean;
+  timezone: string;
+  schedule: WidgetBusinessHoursSchedule[];
+  holidayDates?: string[];
+  outsideHoursMessage?: string;
+  outsideHoursBehavior?: 'offline-message' | 'faq-only' | 'hide-widget';
+}
+
+export interface WidgetRatingConfig {
+  enabled: boolean;
+  ratingType: 'thumbs' | 'stars' | 'emoji';
+  followUpOptions?: Record<string, string[]>;
 }
 
 export type { FormField, FormFieldValidation } from './flow.types';

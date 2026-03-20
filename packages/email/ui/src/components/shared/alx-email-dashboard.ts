@@ -6,9 +6,9 @@ import { alxDensityStyles, alxButtonStyles } from '../../styles/shared.js';
 
 // Import all components so they register
 import '../account/index.js';
-import '../rules/index.js';
+import '@astralibx/rule-engine-ui';
+import '../email/index.js';
 import '../analytics/index.js';
-import './alx-drawer.js';
 
 type TabId = 'accounts' | 'templates' | 'rules' | 'runs' | 'analytics' | 'settings';
 
@@ -338,7 +338,8 @@ export class AlxEmailDashboard extends LitElement {
   };
 
   private _onTemplateSelected = (e: Event): void => {
-    const id = (e as CustomEvent).detail?._id || (e as CustomEvent).detail?.id;
+    const detail = (e as CustomEvent).detail;
+    const id = detail?.templateId || detail?._id || detail?.id;
     if (id) this._openDrawer('template', 'Edit Template', id);
   };
 
@@ -347,7 +348,8 @@ export class AlxEmailDashboard extends LitElement {
   };
 
   private _onRuleSelected = (e: Event): void => {
-    const id = (e as CustomEvent).detail?._id || (e as CustomEvent).detail?.id;
+    const detail = (e as CustomEvent).detail;
+    const id = detail?.ruleId || detail?._id || detail?.id;
     if (id) this._openDrawer('rule', 'Edit Rule', id);
   };
 
@@ -535,8 +537,8 @@ export class AlxEmailDashboard extends LitElement {
         <div class="panel ${this._activeTab === 'templates' ? 'active' : ''}">
           <alx-template-list
             .density=${this.density}
-            @alx-template-selected=${this._onTemplateSelected}
-            @alx-template-create=${this._onTemplateCreate}
+            @alx-template-edit=${this._onTemplateSelected}
+            @alx-template-created=${this._onTemplateCreate}
           ></alx-template-list>
         </div>
       ` : nothing}
@@ -545,8 +547,8 @@ export class AlxEmailDashboard extends LitElement {
         <div class="panel ${this._activeTab === 'rules' ? 'active' : ''}">
           <alx-rule-list
             .density=${this.density}
-            @alx-rule-selected=${this._onRuleSelected}
-            @alx-rule-create=${this._onRuleCreate}
+            @alx-rule-edit=${this._onRuleSelected}
+            @alx-rule-created=${this._onRuleCreate}
           ></alx-rule-list>
         </div>
       ` : nothing}

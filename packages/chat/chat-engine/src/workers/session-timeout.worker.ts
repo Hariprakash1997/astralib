@@ -1,13 +1,13 @@
 import type { LogAdapter } from '@astralibx/core';
 import { ChatSessionStatus, ServerToVisitorEvent } from '@astralibx/chat-types';
-import type { SessionService } from '../services/session.service';
-import type { MessageService } from '../services/message.service';
-import type { AgentService } from '../services/agent.service';
-import type { SettingsService } from '../services/settings.service';
-import type { RedisService } from '../services/redis.service';
-import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
-import type { EmitDeps } from '../gateway/emit';
-import { emitToVisitor } from '../gateway/emit';
+import type { SessionService } from '../services/session.service.js';
+import type { MessageService } from '../services/message.service.js';
+import type { AgentService } from '../services/agent.service.js';
+import type { SettingsService } from '../services/settings.service.js';
+import type { RedisService } from '../services/redis.service.js';
+import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types.js';
+import type { EmitDeps } from '../gateway/emit.js';
+import { emitToVisitor } from '../gateway/emit.js';
 import { SYSTEM_MESSAGE } from '../constants/index.js';
 
 export interface SessionTimeoutWorkerDeps {

@@ -1123,7 +1123,7 @@ describe('RuleRunnerService', () => {
       );
     });
 
-    it('catches hook errors and increments stats.failed', async () => {
+    it('uses original content and continues send when beforeSend hook throws', async () => {
       const beforeSend = vi.fn().mockRejectedValue(new Error('hook boom'));
 
       const models = createMockModels();
@@ -1138,10 +1138,132 @@ describe('RuleRunnerService', () => {
       const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
       const stats = await service.executeRule(makeRule(), new Map(), throttleConfig);
 
-      expect(stats.failed).toBe(1);
-      expect(stats.sent).toBe(0);
-      expect(config.adapters.send).not.toHaveBeenCalled();
+      expect(stats.sent).toBe(1);
+      expect(stats.failed).toBe(0);
+      expect(config.adapters.send).toHaveBeenCalledWith(
+        expect.objectContaining({
+          subject: 'Rendered Subject',
+          body: '<p>Rendered Body</p>',
+        })
+      );
       expect(config.logger.error).toHaveBeenCalledWith(expect.stringContaining('beforeSend hook failed'));
+    });
+  });
+
+  describe('hook error resilience', () => {
+    it('should continue processing when onSend hook throws', async () => {
+      const onSend = vi.fn().mockImplementation(() => { throw new Error('onSend boom'); });
+
+      const models = createMockModels();
+      models.Template.findById.mockResolvedValue({ subjects: ['Hi'], bodies: ['<p>Hi</p>'] });
+      models.SendLog.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig(
+        { queryUsers: vi.fn().mockResolvedValue([
+          makeUser({ _id: 'u1', contactValue: 'u1@test.com' }),
+          makeUser({ _id: 'u2', contactValue: 'u2@test.com' }),
+        ]) },
+        { hooks: { onSend } }
+      );
+      const { service } = createService(models, config);
+
+      const throttleConfig = { maxPerUserPerDay: 10, maxPerUserPerWeek: 50, minGapDays: 0 };
+      const stats = await service.executeRule(makeRule(), new Map(), throttleConfig);
+
+      expect(stats.sent).toBe(2);
+      expect(stats.failed).toBe(0);
+      expect(config.logger.error).toHaveBeenCalledWith('onSend hook error', expect.objectContaining({ error: 'onSend boom' }));
+    });
+
+    it('should continue run when onRunStart hook throws', async () => {
+      const onRunStart = vi.fn().mockImplementation(() => { throw new Error('onRunStart boom'); });
+
+      const models = createMockModels();
+      const templateDoc = { _id: 'template-1', subjects: ['Hi'], bodies: ['<p>Hi</p>'] };
+      models.Rule.findActive.mockResolvedValue([makeRule()]);
+      models.Template.findById.mockResolvedValue(templateDoc);
+      models.Template.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([templateDoc]) }));
+      models.SendLog.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig(
+        { queryUsers: vi.fn().mockResolvedValue([makeUser()]) },
+        { hooks: { onRunStart } }
+      );
+      const { service } = createService(models, config);
+
+      const result = await service.runAllRules();
+
+      expect(result).toHaveProperty('runId');
+      expect(models.RunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ rulesProcessed: 1 })
+      );
+      expect(config.logger.error).toHaveBeenCalledWith('onRunStart hook error', expect.objectContaining({ error: 'onRunStart boom' }));
+    });
+
+    it('should complete run when onRunComplete hook throws', async () => {
+      const onRunComplete = vi.fn().mockImplementation(() => { throw new Error('onRunComplete boom'); });
+
+      const models = createMockModels();
+      const templateDoc = { _id: 'template-1', subjects: ['Hi'], bodies: ['<p>Hi</p>'] };
+      models.Rule.findActive.mockResolvedValue([makeRule()]);
+      models.Template.findById.mockResolvedValue(templateDoc);
+      models.Template.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([templateDoc]) }));
+      models.SendLog.find.mockImplementation(() => createChainableMock([]));
+
+      const config = createMockConfig(
+        { queryUsers: vi.fn().mockResolvedValue([makeUser()]) },
+        { hooks: { onRunComplete } }
+      );
+      const { service } = createService(models, config);
+
+      const result = await service.runAllRules();
+
+      expect(result).toHaveProperty('runId');
+      expect(config.logger.error).toHaveBeenCalledWith('onRunComplete hook error', expect.objectContaining({ error: 'onRunComplete boom' }));
+    });
+
+    it('should continue processing when onRuleComplete hook throws', async () => {
+      const onRuleComplete = vi.fn().mockImplementation(() => { throw new Error('onRuleComplete boom'); });
+
+      const models = createMockModels();
+      const templateDoc = { _id: 'template-1', subjects: ['Hi'], bodies: ['<p>Hi</p>'] };
+      models.Rule.findActive.mockResolvedValue([makeRule()]);
+      models.Template.findById.mockResolvedValue(templateDoc);
+      models.Template.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([templateDoc]) }));
+      models.SendLog.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig(
+        { queryUsers: vi.fn().mockResolvedValue([makeUser()]) },
+        { hooks: { onRuleComplete } }
+      );
+      const { service } = createService(models, config);
+
+      const result = await service.runAllRules();
+
+      expect(result).toHaveProperty('runId');
+      expect(models.RunLog.create).toHaveBeenCalledWith(
+        expect.objectContaining({ rulesProcessed: 1 })
+      );
+      expect(config.logger.error).toHaveBeenCalledWith('onRuleComplete hook error', expect.objectContaining({ error: 'onRuleComplete boom' }));
+    });
+
+    it('should continue processing when onRuleStart hook throws', async () => {
+      const onRuleStart = vi.fn().mockImplementation(() => { throw new Error('onRuleStart boom'); });
+
+      const models = createMockModels();
+      const templateDoc = { _id: 'template-1', subjects: ['Hi'], bodies: ['<p>Hi</p>'] };
+      models.Rule.findActive.mockResolvedValue([makeRule()]);
+      models.Template.findById.mockResolvedValue(templateDoc);
+      models.Template.find.mockImplementation(() => ({ lean: vi.fn().mockResolvedValue([templateDoc]) }));
+      models.SendLog.find.mockImplementation(() => createChainableMock([]));
+      const config = createMockConfig(
+        { queryUsers: vi.fn().mockResolvedValue([makeUser()]) },
+        { hooks: { onRuleStart } }
+      );
+      const { service } = createService(models, config);
+
+      const result = await service.runAllRules();
+
+      expect(result).toHaveProperty('runId');
+      expect(config.adapters.send).toHaveBeenCalled();
+      expect(config.logger.error).toHaveBeenCalledWith('onRuleStart hook error', expect.objectContaining({ error: 'onRuleStart boom' }));
     });
   });
 

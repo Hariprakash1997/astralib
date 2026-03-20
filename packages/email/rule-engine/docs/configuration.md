@@ -37,7 +37,7 @@ The wrapper converts your `sendEmail` adapter into the core's generic `send`:
 
 1. Template body (MJML fragment) is auto-wrapped in a full MJML document structure and compiled to HTML via `mjml`
 2. Rendered HTML is converted to plain text via `html-to-text`, producing `textBody`
-3. Handlebars is applied to the subject line with `currency` and `formatDate` helpers registered
+3. The email-specific Handlebars helpers (`currency`, `formatDate`) are registered before engine creation, making them available in all Handlebars rendering (subjects, bodies, preheaders) performed by the core engine
 4. Your `sendEmail` is called with `{ htmlBody, textBody, subject, identifierId, contactId, accountId, ruleId, autoApprove, attachments }`
 
 ### Email-Specific Handlebars Helpers

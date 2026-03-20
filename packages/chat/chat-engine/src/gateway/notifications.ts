@@ -3,8 +3,8 @@ import type { LogAdapter } from '@astralibx/core';
 import { ServerToAgentEvent, ServerToVisitorEvent, ChatSessionStatus } from '@astralibx/chat-types';
 import type { ChatSessionSummary, ChatMessage, DashboardStats, EscalationNeededPayload } from '@astralibx/chat-types';
 import type { SessionMode } from '@astralibx/chat-types';
-import type { EmitDeps } from './emit';
-import { emitToVisitor } from './emit';
+import type { EmitDeps } from './emit.js';
+import { emitToVisitor } from './emit.js';
 
 export interface NotificationDeps {
   agentNs: Namespace;
@@ -55,7 +55,7 @@ export function notifyAgentsEscalation(
 }
 
 export async function broadcastQueuePositions(
-  updates: { sessionId: string; queuePosition: number }[],
+  updates: { sessionId: string; queuePosition: number; estimatedWaitMinutes?: number }[],
   emitDeps: EmitDeps,
   logger: LogAdapter,
 ): Promise<void> {
@@ -63,6 +63,7 @@ export async function broadcastQueuePositions(
     await emitToVisitor(emitDeps, update.sessionId, ServerToVisitorEvent.Status, {
       status: ChatSessionStatus.WaitingAgent,
       queuePosition: update.queuePosition,
+      ...(update.estimatedWaitMinutes != null && { estimatedWaitMinutes: update.estimatedWaitMinutes }),
     });
   }
 }

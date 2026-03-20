@@ -2,10 +2,11 @@ import crypto from 'crypto';
 import type { LogAdapter } from '@astralibx/core';
 import type { ChatSessionSummary, VisitorContext, SessionStats, ChatFeedback } from '@astralibx/chat-types';
 import { ChatSessionStatus, SessionMode, ChatSenderType } from '@astralibx/chat-types';
-import type { ChatSessionModel, ChatSessionDocument } from '../schemas/chat-session.schema';
-import type { ChatMessageModel } from '../schemas/chat-message.schema';
-import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types';
-import { SessionNotFoundError } from '../errors';
+import type { ChatSessionModel, ChatSessionDocument } from '../schemas/chat-session.schema.js';
+import type { ChatMessageModel, ChatMessageDocument } from '../schemas/chat-message.schema.js';
+import type { ChatEngineConfig, ResolvedOptions } from '../types/config.types.js';
+import type { SettingsService } from './settings.service.js';
+import { SessionNotFoundError, InvalidConfigError } from '../errors/index.js';
 import { validateSessionTransition } from '../validation/state.validator.js';
 import { withTenantFilter, withTenantId } from '../utils/helpers.js';
 
@@ -56,7 +57,7 @@ export class SessionService {
   async findOrCreate(context: VisitorContext, existingSessionId?: string, defaultMode?: SessionMode): Promise<{
     session: ChatSessionDocument;
     isNew: boolean;
-    messages: any[];
+    messages: ChatMessageDocument[];
   }> {
     if (existingSessionId) {
       const existing = await this.findById(existingSessionId);
@@ -214,6 +215,39 @@ export class SessionService {
       },
     );
     this.hooks?.onQueuePositionChanged?.(sessionId, position);
+  }
+
+  async estimateWaitTime(queuePosition: number): Promise<number> {
+    const recentResolved = await this.ChatSession.find(withTenantFilter({
+      status: ChatSessionStatus.Resolved,
+      resolvedAt: { $exists: true },
+      startedAt: { $exists: true },
+    } as Record<string, unknown>, this.tenantId))
+      .sort({ resolvedAt: -1 })
+      .limit(50);
+
+    let avgResolutionMs = 5 * 60 * 1000; // default 5 minutes if no data
+    if (recentResolved.length > 0) {
+      const totalMs = recentResolved.reduce((sum, s) => {
+        const start = s.startedAt?.getTime() || 0;
+        const end = s.resolvedAt?.getTime() || s.endedAt?.getTime() || 0;
+        return sum + (end - start);
+      }, 0);
+      avgResolutionMs = totalMs / recentResolved.length;
+    }
+
+    const onlineAgents = await this.getOnlineAgentCount();
+    const agentCount = Math.max(onlineAgents, 1);
+    const estimatedMs = (avgResolutionMs / agentCount) * queuePosition;
+    const estimatedMinutes = Math.ceil(estimatedMs / 60_000);
+
+    return Math.max(estimatedMinutes, 1);
+  }
+
+  private async getOnlineAgentCount(): Promise<number> {
+    // Use dashboard stats to get active agent count; fallback to 1
+    const stats = await this.getDashboardStats();
+    return stats.activeAgents || 1;
   }
 
   async escalate(sessionId: string, reason?: string): Promise<ChatSessionDocument> {
@@ -475,6 +509,26 @@ export class SessionService {
     return session.tags;
   }
 
+  // ── User category ───────────────────────────────────────────────────────
+
+  async setUserCategory(sessionId: string, category: string | null, settingsService?: SettingsService): Promise<string | null> {
+    const session = await this.findByIdOrFail(sessionId);
+
+    if (category !== null && settingsService) {
+      const settings = await settingsService.get();
+      if (settings.availableUserCategories.length > 0) {
+        if (!settings.availableUserCategories.includes(category)) {
+          throw new InvalidConfigError('userCategory', `Category "${category}" is not in the available categories list`);
+        }
+      }
+    }
+
+    session.userCategory = category;
+    await session.save();
+    this.logger.info('User category set', { sessionId, category });
+    return session.userCategory ?? null;
+  }
+
   // ── User identity merge ──────────────────────────────────────────────────
 
   async mergeAnonymousSessions(anonymousId: string, userId: string): Promise<number> {
@@ -551,6 +605,7 @@ export class SessionService {
       endedAt: session.endedAt,
       channel: session.channel,
       queuePosition: session.queuePosition,
+      userCategory: session.userCategory,
       tags: session.tags,
       metadata: session.metadata,
     };

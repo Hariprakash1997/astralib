@@ -35,14 +35,19 @@ export function emitSendEvent(
   status: string,
   templateId: string,
   runId: string,
-  opts?: { accountId?: string; subjectIndex?: number; bodyIndex?: number; failureReason?: string }
+  opts?: { accountId?: string; subjectIndex?: number; bodyIndex?: number; failureReason?: string },
+  logger?: LogAdapter
 ): void {
-  config.hooks?.onSend?.({
-    ruleId: rule._id.toString(), ruleName: rule.name, contactValue, status: status as any,
-    accountId: opts?.accountId ?? '', templateId, runId: runId || '',
-    subjectIndex: opts?.subjectIndex ?? -1, bodyIndex: opts?.bodyIndex ?? -1,
-    failureReason: opts?.failureReason,
-  });
+  try {
+    config.hooks?.onSend?.({
+      ruleId: rule._id.toString(), ruleName: rule.name, contactValue, status: status as any,
+      accountId: opts?.accountId ?? '', templateId, runId: runId || '',
+      subjectIndex: opts?.subjectIndex ?? -1, bodyIndex: opts?.bodyIndex ?? -1,
+      failureReason: opts?.failureReason,
+    });
+  } catch (err) {
+    logger?.error('onSend hook error', { error: (err as Error).message });
+  }
 }
 
 export async function processSingleUser(params: {
@@ -72,7 +77,7 @@ export async function processSingleUser(params: {
   } = params;
 
   const emitFn = (cv: string, status: string, templateIdArg: string, runIdArg: string, opts?: any) =>
-    emitSendEvent(config, rule, cv, status, templateIdArg, runIdArg, opts);
+    emitSendEvent(config, rule, cv, status, templateIdArg, runIdArg, opts, logger);
 
   const lastSend = sendMap.get(userKey);
   if (lastSend) {
@@ -168,10 +173,8 @@ export async function processSingleUser(params: {
       finalTextBody = modified.textBody;
       finalSubject = modified.subject;
     } catch (hookErr: any) {
-      logger.error(`beforeSend hook failed for contactValue ${contactValue}: ${hookErr.message}`);
-      stats.failed++;
-      emitFn(contactValue, 'error', templateId, runId || '', { accountId: agentSelection.accountId, subjectIndex: si, bodyIndex: bi, failureReason: (hookErr as Error).message });
-      return 'error';
+      logger.error(`beforeSend hook failed for contactValue ${contactValue}, using original content: ${hookErr.message}`);
+      // Continue with original unmodified content — don't fail the send
     }
   }
 
@@ -259,7 +262,7 @@ export async function processUsers(params: ProcessUsersParams): Promise<void> {
     try {
       if (!identifier) {
         stats.skipped++;
-        emitSendEvent(config, rule, contactValue, 'invalid', templateId, runId || '', { failureReason: 'invalid contact value' });
+        emitSendEvent(config, rule, contactValue, 'invalid', templateId, runId || '', { failureReason: 'invalid contact value' }, logger);
         continue;
       }
 
@@ -276,7 +279,7 @@ export async function processUsers(params: ProcessUsersParams): Promise<void> {
       }
     } catch (err) {
       stats.failed++;
-      emitSendEvent(config, rule, contactValue || 'unknown', 'error', templateId, runId || '', { failureReason: (err as Error).message || 'unknown error' });
+      emitSendEvent(config, rule, contactValue || 'unknown', 'error', templateId, runId || '', { failureReason: (err as Error).message || 'unknown error' }, logger);
       logger.error(`Rule "${rule.name}" failed for ${userKey}`, { error: err });
     }
   }

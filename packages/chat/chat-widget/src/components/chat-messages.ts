@@ -1,7 +1,7 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { property, state, query } from 'lit/decorators.js';
 import type { ChatMessage } from '@astralibx/chat-types';
-import { ChatSenderType } from '@astralibx/chat-types';
+import { ChatSenderType, ChatContentType } from '@astralibx/chat-types';
 import { chatResetStyles, chatBaseStyles, chatAnimations } from '../styles/shared.js';
 import { safeRegister } from '../utils/safe-register.js';
 import './chat-bubble.js';
@@ -222,8 +222,8 @@ export class AlxChatMessages extends LitElement {
       const showDateSeparator = !prevDate || !isSameDay(msgDate, prevDate);
       const dateLabel = showDateSeparator ? formatDateLabel(msgDate) : '';
 
-      // System messages are always 'solo'
-      if (msg.senderType === ChatSenderType.System) {
+      // System messages and event messages are always 'solo'
+      if (msg.senderType === ChatSenderType.System || msg.contentType === ChatContentType.Event) {
         grouped.push({ message: msg, groupPosition: 'solo', showAvatar: false, showName: false, showDateSeparator, dateLabel });
         continue;
       }

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { sendSuccess, sendError } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
-import type { ReportService } from '../services/report.service';
+import type { ReportService } from '../services/report.service.js';
 
 export function createReportRoutes(
   reportService: ReportService,

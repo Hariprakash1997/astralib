@@ -1,5 +1,5 @@
 import type { LogAdapter } from '@astralibx/core';
-import type { ChatWidgetConfigModel, ChatWidgetConfigDocument } from '../schemas/chat-widget-config.schema';
+import type { ChatWidgetConfigModel, ChatWidgetConfigDocument } from '../schemas/chat-widget-config.schema.js';
 
 export class WidgetConfigService {
   constructor(

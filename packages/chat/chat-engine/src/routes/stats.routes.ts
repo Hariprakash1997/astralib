@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import type { SessionService } from '../services/session.service';
-import type { AgentService } from '../services/agent.service';
+import type { SessionService } from '../services/session.service.js';
+import type { AgentService } from '../services/agent.service.js';
 import { sendSuccess, sendError } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
 

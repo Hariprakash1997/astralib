@@ -1,9 +1,15 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { AgentStatus } from '@astralibx/chat-types';
-import type { AgentService } from '../services/agent.service';
+import type { AgentService } from '../services/agent.service.js';
 import { sendSuccess, sendError, getParam } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
+import { AlxChatError } from '../errors/index.js';
+
+function getErrorCode(error: unknown): string | undefined {
+  if (error instanceof AlxChatError) return error.code;
+  return undefined;
+}
 
 function isValidImage(buffer: Buffer): boolean {
   if (buffer.length < 4) return false;
@@ -97,7 +103,7 @@ export function createAgentRoutes(
       sendSuccess(res, { agent });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to update agent', { error });
       sendError(res, message, statusCode);
     }
@@ -122,7 +128,7 @@ export function createAgentRoutes(
       sendSuccess(res, { agent });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to toggle agent active', { error });
       sendError(res, message, statusCode);
     }
@@ -179,7 +185,7 @@ export function createAgentRoutes(
       sendSuccess(res, { subordinates });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to get team tree', { error });
       sendError(res, message, statusCode);
     }
@@ -192,7 +198,7 @@ export function createAgentRoutes(
       sendSuccess(res, { agents });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to get direct reports', { error });
       sendError(res, message, statusCode);
     }
@@ -206,7 +212,7 @@ export function createAgentRoutes(
       sendSuccess(res, { agent });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const code = (error as any).code;
+      const code = getErrorCode(error);
       const statusCode = code === 'CHAT_AGENT_NOT_FOUND' ? 404
         : code === 'CHAT_INVALID_HIERARCHY' ? 400
         : 500;
@@ -235,7 +241,7 @@ export function createAgentRoutes(
       sendSuccess(res, { agent });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      const statusCode = (error as any).code === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
+      const statusCode = getErrorCode(error) === 'CHAT_AGENT_NOT_FOUND' ? 404 : 500;
       logger.error('Failed to update agent status', { error });
       sendError(res, message, statusCode);
     }

@@ -6,8 +6,15 @@ export interface IChatWidgetConfig {
   preChatFlow?: Record<string, unknown>;
   branding?: {
     primaryColor?: string;
+    secondaryColor?: string;
+    backgroundColor?: string;
+    textColor?: string;
     companyName?: string;
     logoUrl?: string;
+    buttonIcon?: string;
+    buttonShape?: 'circle' | 'rounded' | 'square';
+    customCss?: string;
+    showPoweredBy?: boolean;
   };
   features?: {
     soundNotifications?: boolean;
@@ -39,8 +46,15 @@ export function createChatWidgetConfigSchema() {
       branding: {
         type: {
           primaryColor: { type: String },
+          secondaryColor: { type: String, default: null },
+          backgroundColor: { type: String, default: null },
+          textColor: { type: String, default: null },
           companyName: { type: String },
           logoUrl: { type: String },
+          buttonIcon: { type: String, default: null },
+          buttonShape: { type: String, enum: ['circle', 'rounded', 'square'], default: 'circle' },
+          customCss: { type: String, default: null },
+          showPoweredBy: { type: Boolean, default: true },
         },
         _id: false,
       },

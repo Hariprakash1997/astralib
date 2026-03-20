@@ -1,2 +1,2 @@
-export * from './config.types';
-export * from './service.types';
+export * from './config.types.js';
+export * from './service.types.js';

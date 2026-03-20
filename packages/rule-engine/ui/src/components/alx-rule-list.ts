@@ -70,6 +70,8 @@ export class AlxRuleList extends LitElement {
       .dry-run-result.has-errors {
         color: var(--alx-warning, #d97706);
       }
+
+      .toggle-label { font-size: 0.7rem; color: var(--alx-text-muted); margin-left: 0.25rem; }
     `,
   ];
 
@@ -308,6 +310,7 @@ export class AlxRuleList extends LitElement {
                               />
                               <span class="toggle-slider"></span>
                             </label>
+                            <span class="toggle-label">${r.isActive ? 'Active' : 'Inactive'}</span>
                           </td>
                           <td class="text-muted text-small">${r.lastRunAt ? formatDate(r.lastRunAt) : '--'}</td>
                           <td class="stat">${r.totalSent ?? 0}</td>
@@ -321,10 +324,11 @@ export class AlxRuleList extends LitElement {
                               </button>
                               <button
                                 class="alx-btn-sm"
+                                title="Test this rule without sending any messages"
                                 @click=${(e: Event) => this._onDryRun(r, e)}
                                 ?disabled=${this._dryRunLoading === r._id}
                               >
-                                ${this._dryRunLoading === r._id ? 'Running...' : 'Dry Run'}
+                                ${this._dryRunLoading === r._id ? 'Running...' : 'Preview'}
                               </button>
                               ${this._dryRunResult?.ruleId === r._id ? html`
                                 <span class="dry-run-result ${this._dryRunResult.errors.length ? 'has-errors' : ''}">

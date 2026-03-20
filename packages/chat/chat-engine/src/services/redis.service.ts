@@ -1,7 +1,7 @@
 import type { Redis } from 'ioredis';
 import { RedisLock } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
-import type { ResolvedOptions } from '../types/config.types';
+import type { ResolvedOptions } from '../types/config.types.js';
 
 export class RedisService {
   private prefix: string;
