@@ -65,9 +65,7 @@ export function createEmailRuleEngine(config: EmailRuleEngineConfig): RuleEngine
   return createRuleEngine(coreConfig);
 }
 
-// Re-export everything from core
-export * from '@astralibx/rule-engine';
-
 // Export email-specific utilities
 export { renderMjml, htmlToPlainText } from './mjml-renderer';
 export { registerEmailHelpers } from './email-helpers';
+export type { RuleEngine } from '@astralibx/rule-engine';
