@@ -1,5 +1,18 @@
 # @astralibx/telegram-ui
 
+## 1.0.0
+
+### Major Changes
+
+- 10d07e2: Fixes: rule-engine hook error safety and email dependency issues - Features: chat engine enhancements, email-ui and telegram-ui migrated to shared core
+- e7fd2f2: Fixes: rule-engine hook error safety and email dependency issues - Features: chat engine enhancements, email-ui and telegram-ui migrated to shared core
+
+### Patch Changes
+
+- Updated dependencies [10d07e2]
+- Updated dependencies [e7fd2f2]
+  - @astralibx/rule-engine-ui@1.0.1
+
 ## 0.3.0
 
 ### Minor Changes

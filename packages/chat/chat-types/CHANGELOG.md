@@ -1,5 +1,12 @@
 # @astralibx/chat-types
 
+## 0.4.0
+
+### Minor Changes
+
+- 10d07e2: Fixes: rule-engine hook error safety and email dependency issues - Features: chat engine enhancements, email-ui and telegram-ui migrated to shared core
+- e7fd2f2: Fixes: rule-engine hook error safety and email dependency issues - Features: chat engine enhancements, email-ui and telegram-ui migrated to shared core
+
 ## 0.3.0
 
 ### Minor Changes

@@ -1,5 +1,12 @@
 # @astralibx/telegram-account-manager
 
+## 0.2.1
+
+### Patch Changes
+
+- 10d07e2: Fixes: rule-engine hook error safety and email dependency issues - Features: chat engine enhancements, email-ui and telegram-ui migrated to shared core
+- e7fd2f2: Fixes: rule-engine hook error safety and email dependency issues - Features: chat engine enhancements, email-ui and telegram-ui migrated to shared core
+
 ## 0.2.0
 
 ### Minor Changes
