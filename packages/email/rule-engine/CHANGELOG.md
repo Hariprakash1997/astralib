@@ -1,5 +1,11 @@
 # @astralibx/email-rule-engine
 
+## 14.0.2
+
+### Patch Changes
+
+- 10740fa: Fixes: email-rule-engine removed unnecessary wildcard re-export of core package
+
 ## 14.0.1
 
 ### Patch Changes
