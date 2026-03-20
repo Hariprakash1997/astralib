@@ -138,6 +138,7 @@ All routes are mounted under the prefix you choose (e.g. `/api/rule-engine`).
 - [Templates and Rules](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/templates-and-rules.md) — authoring templates, conditions, scheduling, and throttle overrides
 - [Throttling and Hooks](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/throttling-and-hooks.md) — per-user caps, send windows, jitter, and lifecycle hooks
 - [Glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/glossary.md) — terms, constants, ID types, and common gotchas
+- [Changelog](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/CHANGELOG.md)
 
 ## License
 

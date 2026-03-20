@@ -127,6 +127,8 @@ dashboard.platforms = ['email', 'telegram'];
 document.body.appendChild(dashboard);
 ```
 
+- [Changelog](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/CHANGELOG.md)
+
 ## License
 
 MIT

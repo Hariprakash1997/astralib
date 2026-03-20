@@ -25,4 +25,4 @@ export type {
 export { TYPE_OPERATORS, OPERATORS, EMPTY_TEMPLATE, EMPTY_RULE } from './components/alx-rule-editor.types.js';
 
 // Config
-export { AlxConfig } from './config.js';
+export { RuleEngineUIConfig } from './config.js';

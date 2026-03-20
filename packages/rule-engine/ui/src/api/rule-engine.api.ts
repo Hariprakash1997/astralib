@@ -1,4 +1,4 @@
-import { AlxConfig } from '../config.js';
+import { RuleEngineUIConfig } from '../config.js';
 import { HttpClient } from './http-client.js';
 
 /**
@@ -14,7 +14,7 @@ export class RuleEngineAPI {
   constructor(private http: HttpClient) {}
 
   static create(baseUrl?: string): RuleEngineAPI {
-    return new RuleEngineAPI(new HttpClient(baseUrl ?? AlxConfig.getApiUrl()));
+    return new RuleEngineAPI(new HttpClient(baseUrl ?? RuleEngineUIConfig.getApiUrl()));
   }
 
   // Templates

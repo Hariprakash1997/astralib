@@ -32,12 +32,12 @@ const api = new RuleEngineAPI(new HttpClient('/api/rules'));
 
 ## Static Factory
 
-`RuleEngineAPI.create` is a convenience factory. When `baseUrl` is omitted it falls back to the value returned by `AlxConfig.getApiUrl()`.
+`RuleEngineAPI.create` is a convenience factory. When `baseUrl` is omitted it falls back to the value returned by `RuleEngineUIConfig.getApiUrl()`.
 
 ```typescript
 const api = RuleEngineAPI.create('/api/rules');
 
-// Falls back to AlxConfig.getApiUrl()
+// Falls back to RuleEngineUIConfig.getApiUrl()
 const api = RuleEngineAPI.create();
 ```
 
@@ -110,16 +110,16 @@ All methods return `Promise<any>`. Query parameters are passed as `Record<string
 
 ---
 
-## AlxConfig
+## RuleEngineUIConfig
 
-`AlxConfig` is a global configuration singleton. Call `AlxConfig.setup()` once at application startup — before any component mounts — to set the API base URL, auth token, and theme.
+`RuleEngineUIConfig` is a global configuration singleton. Call `RuleEngineUIConfig.setup()` once at application startup — before any component mounts — to set the API base URL, auth token, and theme.
 
 **Source:** [`packages/rule-engine/ui/src/config.ts`](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/ui/src/config.ts)
 
 ```typescript
-import { AlxConfig } from '@astralibx/rule-engine-ui/config';
+import { RuleEngineUIConfig } from '@astralibx/rule-engine-ui/config';
 
-AlxConfig.setup({
+RuleEngineUIConfig.setup({
   apiUrl: '/api/rules',
   authToken: 'Bearer xxx',
   theme: 'dark',
@@ -137,13 +137,13 @@ AlxConfig.setup({
 | `setAuthToken` | `(token: string): void` | Update the auth token at runtime without re-calling `setup()`. Useful for token rotation. |
 
 ```typescript
-AlxConfig.getApiUrl();
+RuleEngineUIConfig.getApiUrl();
 // → '/api/rules'
 
-AlxConfig.getHeaders();
+RuleEngineUIConfig.getHeaders();
 // → { 'Content-Type': 'application/json', 'Authorization': 'Bearer xxx' }
 
-AlxConfig.setAuthToken('Bearer newtoken');
+RuleEngineUIConfig.setAuthToken('Bearer newtoken');
 // Auth header updated for all subsequent requests
 ```
 
@@ -210,13 +210,13 @@ window.addEventListener('alx-auth-error', (e) => {
 
 ## Custom HTTP Client
 
-Pass custom headers — such as an authorization token — by configuring `AlxConfig` before constructing the client. `AlxConfig.getHeaders()` is called per-request, so calling `AlxConfig.setAuthToken()` before each request is sufficient for token rotation:
+Pass custom headers — such as an authorization token — by configuring `RuleEngineUIConfig` before constructing the client. `RuleEngineUIConfig.getHeaders()` is called per-request, so calling `RuleEngineUIConfig.setAuthToken()` before each request is sufficient for token rotation:
 
 ```typescript
-import { AlxConfig } from '@astralibx/rule-engine-ui/config';
+import { RuleEngineUIConfig } from '@astralibx/rule-engine-ui/config';
 import { RuleEngineAPI } from '@astralibx/rule-engine-ui/api';
 
-AlxConfig.setup({ apiUrl: '/api/rules', authToken: 'Bearer mytoken' });
+RuleEngineUIConfig.setup({ apiUrl: '/api/rules', authToken: 'Bearer mytoken' });
 const api = RuleEngineAPI.create();
 ```
 

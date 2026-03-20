@@ -34,12 +34,13 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "lit": "^3.0.0",
-    "@astralibx/rule-engine-ui": "*"
+    "@astralibx/rule-engine-ui": "*",
+    "lit": "^3.0.0"
   },
   "devDependencies": {
-    "vite": "^6.0.0",
     "typescript": "^5.8.0",
+    "vite": "^6.0.0",
+    "vite-plugin-dts": "^4.5.4",
     "vitest": "^3.0.0"
   },
   "license": "MIT"

@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Fixes: email-rule-engine removed unnecessary wildcard re-export of core package"
+set "COMMIT_MSG=Fixes: TypeScript declarations for UI packages - renamed AlxConfig to RuleEngineUIConfig - added changelog links to READMEs"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -34,14 +34,14 @@ REM  RULE ENGINE - packages/rule-engine/*
 REM  rule-engine, rule-engine-ui
 REM  Leave empty if no rule-engine changes: set "RULE_ENGINE_PACKAGES="
 REM ============================================================
-set "RULE_ENGINE_PACKAGES="
+set "RULE_ENGINE_PACKAGES=rule-engine:patch,rule-engine-ui:patch"
 
 REM ============================================================
 REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES=email-rule-engine:patch"
+set "EMAIL_PACKAGES=email-rule-engine:patch,email-ui:patch"
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*

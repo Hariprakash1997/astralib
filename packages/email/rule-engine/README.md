@@ -77,6 +77,7 @@ For templates, rules, conditions, collections, joins, throttling, hooks, and the
 - [Templates & Rules](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/templates-and-rules.md)
 - [Throttling & Hooks](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/throttling-and-hooks.md)
 - [Glossary](https://github.com/Hariprakash1997/astralib/blob/main/packages/rule-engine/core/docs/glossary.md)
+- [Changelog](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/rule-engine/CHANGELOG.md)
 
 ## License
 

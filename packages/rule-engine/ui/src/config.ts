@@ -8,44 +8,44 @@ export interface AlxConfigOptions {
 /**
  * Global configuration singleton for @astralibx/rule-engine-ui.
  *
- * Call `AlxConfig.setup()` once at application startup to configure
+ * Call `RuleEngineUIConfig.setup()` once at application startup to configure
  * the API base URL, auth token, and theme preferences.
  *
  * @example
  * ```typescript
- * AlxConfig.setup({
+ * RuleEngineUIConfig.setup({
  *   apiUrl: '/api/rule-engine',
  *   authToken: 'Bearer xxx',
  *   theme: 'dark',
  * });
  * ```
  */
-export class AlxConfig {
+export class RuleEngineUIConfig {
   private static instance: AlxConfigOptions = {};
 
   static setup(options: AlxConfigOptions): void {
-    AlxConfig.instance = { ...options };
+    RuleEngineUIConfig.instance = { ...options };
   }
 
   static get(): AlxConfigOptions {
-    return { ...AlxConfig.instance };
+    return { ...RuleEngineUIConfig.instance };
   }
 
   static getApiUrl(): string {
-    return AlxConfig.instance.apiUrl ?? '';
+    return RuleEngineUIConfig.instance.apiUrl ?? '';
   }
 
   static getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
-    if (AlxConfig.instance.authToken) {
-      headers['Authorization'] = AlxConfig.instance.authToken;
+    if (RuleEngineUIConfig.instance.authToken) {
+      headers['Authorization'] = RuleEngineUIConfig.instance.authToken;
     }
     return headers;
   }
 
   static setAuthToken(token: string): void {
-    AlxConfig.instance = { ...AlxConfig.instance, authToken: token };
+    RuleEngineUIConfig.instance = { ...RuleEngineUIConfig.instance, authToken: token };
   }
 }

@@ -1,4 +1,4 @@
-import { AlxConfig } from '../config.js';
+import { RuleEngineUIConfig } from '../config.js';
 
 export interface PaginationParams {
   page?: number;
@@ -112,7 +112,7 @@ export class HttpClient {
   async get<T>(path: string, params?: Record<string, unknown>): Promise<T> {
     const response = await this.fetchWithTimeout(this.url(path, params), {
       method: 'GET',
-      headers: AlxConfig.getHeaders(),
+      headers: RuleEngineUIConfig.getHeaders(),
     });
     return handleResponse<T>(response);
   }
@@ -120,7 +120,7 @@ export class HttpClient {
   async post<T>(path: string, body?: unknown): Promise<T> {
     const response = await this.fetchWithTimeout(this.url(path), {
       method: 'POST',
-      headers: AlxConfig.getHeaders(),
+      headers: RuleEngineUIConfig.getHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     return handleResponse<T>(response);
@@ -129,7 +129,7 @@ export class HttpClient {
   async put<T>(path: string, body?: unknown): Promise<T> {
     const response = await this.fetchWithTimeout(this.url(path), {
       method: 'PUT',
-      headers: AlxConfig.getHeaders(),
+      headers: RuleEngineUIConfig.getHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     return handleResponse<T>(response);
@@ -138,7 +138,7 @@ export class HttpClient {
   async patch<T>(path: string, body?: unknown): Promise<T> {
     const response = await this.fetchWithTimeout(this.url(path), {
       method: 'PATCH',
-      headers: AlxConfig.getHeaders(),
+      headers: RuleEngineUIConfig.getHeaders(),
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
     return handleResponse<T>(response);
@@ -147,7 +147,7 @@ export class HttpClient {
   async delete<T>(path: string): Promise<T> {
     const response = await this.fetchWithTimeout(this.url(path), {
       method: 'DELETE',
-      headers: AlxConfig.getHeaders(),
+      headers: RuleEngineUIConfig.getHeaders(),
     });
     return handleResponse<T>(response);
   }

@@ -179,6 +179,8 @@ Built-in themes: `alxDarkTheme` and `alxLightTheme` are available as Lit CSS exp
 - [API Client](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/api-client.md) -- Using AccountAPI, AnalyticsAPI directly
 - [Framework Integration](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/framework-integration.md) -- Angular, React, Vue, Next.js, plain HTML
 - [Events](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/events.md) -- All custom events with names, detail types, examples
+- [API Contract](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/docs/api-contract.md) -- Expected backend response shapes for account and analytics endpoints
+- [Changelog](https://github.com/Hariprakash1997/astralib/blob/main/packages/email/ui/CHANGELOG.md)
 
 ## License
 
