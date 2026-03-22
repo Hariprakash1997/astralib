@@ -127,14 +127,12 @@ function makeService(overrides: {
 // ─── setupOwner ─────────────────────────────────────────────────────────────
 
 describe('StaffService.setupOwner', () => {
-  it('creates owner and returns token when no owner exists', async () => {
+  it('creates owner and returns token when no staff exist', async () => {
     const ownerDoc = makeOwnerDoc();
     const Staff = {
       ...makeStaffModel(ownerDoc),
-      findOneAndUpdate: vi.fn().mockResolvedValue({
-        lastErrorObject: { upserted: 'new-id' },
-        value: ownerDoc,
-      }),
+      countDocuments: vi.fn().mockResolvedValue(0),
+      create: vi.fn().mockResolvedValue(ownerDoc),
     };
     const hooks = makeHooks();
     const service = makeService({ Staff, hooks });
@@ -143,18 +141,27 @@ describe('StaffService.setupOwner', () => {
 
     expect(result.token).toBeDefined();
     expect(typeof result.token).toBe('string');
+    expect(Staff.create).toHaveBeenCalledOnce();
     expect(hooks.onStaffCreated).toHaveBeenCalledOnce();
     expect(hooks.onMetric).toHaveBeenCalledWith({ name: 'staff_setup_complete', value: 1 });
   });
 
-  it('throws SetupError if owner already exists (no upsert)', async () => {
-    const ownerDoc = makeOwnerDoc();
+  it('throws SetupError if staff already exist', async () => {
     const Staff = {
-      ...makeStaffModel(ownerDoc),
-      findOneAndUpdate: vi.fn().mockResolvedValue({
-        lastErrorObject: { upserted: null },
-        value: ownerDoc,
-      }),
+      ...makeStaffModel(),
+      countDocuments: vi.fn().mockResolvedValue(1),
+    };
+    const service = makeService({ Staff });
+
+    await expect(service.setupOwner({ name: 'Owner', email: 'owner@x.com', password: 'pass' }))
+      .rejects.toBeInstanceOf(SetupError);
+  });
+
+  it('throws SetupError on duplicate key race condition', async () => {
+    const Staff = {
+      ...makeStaffModel(),
+      countDocuments: vi.fn().mockResolvedValue(0),
+      create: vi.fn().mockRejectedValue({ code: 11000 }),
     };
     const service = makeService({ Staff });
 

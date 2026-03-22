@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Fixes: analytics bridge contactValue field - Features: new call-log module with pipelines, timeline, analytics, 14 UI components"
+set "COMMIT_MSG=Features: new staff module - JWT auth, runtime-configurable permissions, CRUD, rate limiting, 7 admin UI components"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -41,7 +41,7 @@ REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES=email-analytics:patch"
+set "EMAIL_PACKAGES="
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*
@@ -62,14 +62,14 @@ REM  CALL LOG - packages/call-log/*
 REM  call-log-types, call-log-engine, call-log-ui
 REM  Leave empty if no call-log changes: set "CALL_LOG_PACKAGES="
 REM ============================================================
-set "CALL_LOG_PACKAGES=call-log-types:minor,call-log-engine:minor,call-log-ui:minor"
+set "CALL_LOG_PACKAGES="
 
 REM ============================================================
 REM  STAFF - packages/staff/*
 REM  staff-types, staff-engine, staff-ui
 REM  Leave empty if no staff changes: set "STAFF_PACKAGES="
 REM ============================================================
-set "STAFF_PACKAGES="
+set "STAFF_PACKAGES=staff-types:minor,staff-engine:minor,staff-ui:minor"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

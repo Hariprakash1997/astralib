@@ -74,33 +74,32 @@ export class StaffService {
   }
 
   async setupOwner(data: { name: string; email: string; password: string }): Promise<{ staff: IStaffDocument; token: string }> {
-    // Race-safe: use findOneAndUpdate with upsert. The filter ensures this only
-    // succeeds when zero staff exist for the tenant. If two requests race, only
-    // the first upsert creates a document; the second finds the existing one
-    // and we detect it was not newly created.
+    // Race-safe: check count first, then create. If two requests race past the
+    // count check, the unique index on {email, tenantId} will reject the second
+    // create, which we catch and convert to SetupError.
+    const count = await this.Staff.countDocuments(this.tenantFilter);
+    if (count > 0) throw new SetupError();
+
     const hashedPassword = await this.adapters.hashPassword(data.password);
-    const filter = { role: STAFF_ROLE.Owner, ...this.tenantFilter };
-    const result = await (this.Staff.findOneAndUpdate(
-      filter,
-      {
-        $setOnInsert: {
-          name: data.name,
-          email: data.email.toLowerCase().trim(),
-          password: hashedPassword,
-          role: STAFF_ROLE.Owner,
-          status: STAFF_STATUS.Active,
-          permissions: [],
-          ...this.tenantFilter,
-        },
-      },
-      { upsert: true, new: true, rawResult: true },
-    ) as unknown as Promise<{ lastErrorObject?: { upserted?: unknown }; value?: IStaffDocument }>);
-
-    if (!result.lastErrorObject?.upserted) {
-      throw new SetupError();
+    let staff: IStaffDocument;
+    try {
+      const doc = await this.Staff.create({
+        name: data.name,
+        email: data.email.toLowerCase().trim(),
+        password: hashedPassword,
+        role: STAFF_ROLE.Owner,
+        status: STAFF_STATUS.Active,
+        permissions: [],
+        ...this.tenantFilter,
+      });
+      staff = doc.toObject() as unknown as IStaffDocument;
+    } catch (err: unknown) {
+      // Race condition: another request created a staff member between our count and create
+      if (err && typeof err === 'object' && 'code' in err && (err as any).code === 11000) {
+        throw new SetupError();
+      }
+      throw err;
     }
-
-    const staff = await this.Staff.findOne({ _id: result.value!._id }).lean() as unknown as IStaffDocument;
     const token = this.generateToken(staff._id.toString(), STAFF_ROLE.Owner);
     this.logger.info('Owner setup complete', { staffId: staff._id.toString() });
     this.hooks.onStaffCreated?.(staff);
