@@ -8,7 +8,8 @@
     "packages/telegram/*",
     "packages/chat/*",
     "packages/rule-engine/*",
-    "packages/call-log/*"
+    "packages/call-log/*",
+    "packages/staff/*"
   ],
   "scripts": {
     "build": "turbo run build",
