@@ -4,18 +4,59 @@ Production-grade chat infrastructure for Node.js -- real-time messaging engine, 
 
 ## Features
 
-- **Real-time messaging** -- Socket.IO with Redis pub/sub, typing indicators, read receipts, reconnect detection
-- **AI two-layer control** -- global + per-agent AI/manual mode, with agent override via `allowPerAgentMode`
+### Messaging
+- **Real-time messaging** -- Socket.IO with Redis pub/sub, typing indicators (auto-throttled, 1 per 2s), read receipts, reconnect detection
+- **Pending message queue** -- messages sent to offline visitors are stored in Redis and auto-delivered on reconnect
+- **Rate limiting** -- per-session message rate limiting (default 30/min) with error codes for excess messages
+- **File sharing** -- adapter-based storage (S3, GCS, local) with per-message MIME type and size validation
+
+### AI
+- **Two-layer AI control** -- global AI mode (`manual`, `ai`, `agent-wise`) + per-agent overrides. Agent-level takes precedence when `allowPerAgentMode` is enabled
+- **AI message debouncing** -- rapid visitor messages are accumulated and sent as a single AI request after a configurable delay (`aiDebounceMs`, default 15s)
+- **Multi-bubble AI responses** -- AI can return an array of messages, delivered sequentially with realistic inter-bubble delays and typing indicators
+- **Realistic typing simulation** -- configurable delivery lifecycle: delivery delay → read delay → pre-typing pause → typing indicator (scaled by message length) → send. All timings in `aiSimulation` config
+- **AI character profiles** -- personality config per-agent or globally (name, tone, personality + optional responseStyle, rules, formality, emojiUsage, expertise, bio). Agent-level overrides global
+- **Conversation summarization** -- AI can return a `conversationSummary` alongside messages. Stored on session and passed to subsequent AI calls for long-term context
+- **AI auto-escalation** -- AI can flag `shouldEscalate: true` with reason. Engine auto-escalates to human, creates system message, notifies agents
+- **Agent-initiated AI** -- agents can trigger AI responses on-demand via `SendAiMessage` socket event with full character and context resolution
+- **Training quality labels** -- agents can label messages/sessions as good/bad/needs_review for ML training data (opt-in via `labelingEnabled`)
 - **RAG knowledge base** -- vector/text search over knowledge entries, injected into AI prompts (chat-ai)
-- **Team hierarchy** -- agent roles, departments, skill-based routing via `assignAgent` adapter
-- **Escalation** -- visitor-triggered AI-to-human handoff with queue management and position tracking
+
+### Sessions
+- **Session lifecycle** -- create, resume, resolve, abandon with idle timeout, reconnect window, feedback collection
+- **Session resumption** -- abandoned sessions resume within configurable window (`sessionResumptionMs`, default 24h). Resolved/closed never resume
+- **Single session per visitor** -- prevents duplicate chats from same visitor across tabs/devices (default on)
+- **Session visibility window** -- auto-extends on every message. Expired sessions hidden from dashboard
+- **Session tags & notes** -- agents can tag sessions from a configurable pool and write persistent notes that survive transfers
+- **Session context export** -- programmatic full-snapshot retrieval (summary, messages, preferences, feedback, metadata)
+
+### Agents & Teams
+- **Agent management** -- CRUD, online/offline tracking, concurrent chat limits, transfers between agents
+- **Team hierarchy** -- multi-level agent hierarchy with teams, departments, skill-based routing via `assignAgent` adapter
+- **Escalation** -- visitor-triggered and AI-triggered handoff with queue management, position tracking, and wait time estimation
+- **Support person discovery** -- visitors can browse available agents and select a preferred agent (gated by `visitorAgentSelection`)
+- **Manager chat watching** -- managers observe any active session in real-time (read-only) via `WatchChat` event
+- **Agent activity tracking** -- per-agent last-seen timestamps in Redis, updated on every significant action
+- **Multi-tab support** -- agents can open dashboard in multiple tabs with per-connection tracking in Redis
+
+### Visitor Identity
+- **Identity resolution** -- `resolveUserIdentity` adapter resolves anonymous visitors to authenticated users. Auto-merges all anonymous sessions to the resolved identity
+- **User categories** -- `userCategory` for priority routing and segmentation
+- **Conversation history** -- retrieve past sessions per visitor (configurable limit, gated by `userHistoryEnabled`)
+
+### Analytics & Monitoring
+- **Dashboard real-time stats** -- active/waiting/resolved counts + agent counts, auto-broadcast to all agents after every significant event, plus `GET /stats` REST endpoint
+- **Analytics** -- `onMetric` hook for Prometheus/Datadog, session stats, AI request lifecycle tracking (received/completed/failed with `durationMs`)
+- **Queue wait time estimation** -- calculated from last 50 resolved sessions' average duration, online agent count, and queue position
+- **Privacy controls** -- per-field toggles for analytics collection (IP, browser, OS, location, screen resolution)
+
+### Platform
 - **Multi-tenant** -- tenant-scoped data isolation with `tenantId`, collection prefix, and Redis prefix
-- **Webhooks** -- HTTP POST notifications for chat events with HMAC signature verification
-- **File uploads** -- adapter-based storage (S3, GCS, local) with size limits and signed URLs
-- **Two-step rating** -- thumbs/stars/emoji rating + follow-up survey questions + free-text comments
+- **Webhooks** -- HTTP POST notifications for 8 event types with HMAC signature verification and retry logic
+- **Two-step rating** -- thumbs/stars/emoji + follow-up survey questions + free-text comments. Supports both new and legacy submission paths
 - **Business hours** -- weekly schedule + holidays + timezone, with offline widget behavior config
-- **Analytics** -- `onMetric` hook for Prometheus/Datadog, session stats, AI request lifecycle tracking
-- **User categories** -- visitor identity resolution with `userCategory` for priority routing
+- **20+ lifecycle hooks** -- session events, messages, escalation, AI lifecycle, memory, metrics, errors
+- **Pluggable adapters** -- authentication, agent assignment, AI generation, visitor identification, file storage, event tracking
 - **Pre-chat flows** -- welcome, FAQ, guided questions, forms, agent selector, custom HTML steps (widget)
 - **Admin dashboard** -- 20 Lit components for agent inbox, session management, settings, analytics (chat-ui)
 

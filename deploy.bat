@@ -65,6 +65,13 @@ REM ============================================================
 set "CALL_LOG_PACKAGES=call-log-types:minor,call-log-engine:minor,call-log-ui:minor"
 
 REM ============================================================
+REM  STAFF - packages/staff/*
+REM  staff-types, staff-engine, staff-ui
+REM  Leave empty if no staff changes: set "STAFF_PACKAGES="
+REM ============================================================
+set "STAFF_PACKAGES="
+
+REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE
 REM ============================================================
 
@@ -112,6 +119,13 @@ if defined CALL_LOG_PACKAGES (
         set "PACKAGES=!CALL_LOG_PACKAGES!"
     )
 )
+if defined STAFF_PACKAGES (
+    if defined PACKAGES (
+        set "PACKAGES=!PACKAGES!,!STAFF_PACKAGES!"
+    ) else (
+        set "PACKAGES=!STAFF_PACKAGES!"
+    )
+)
 
 if not defined PACKAGES (
     echo [ERROR] No packages selected. Set at least one section above.
@@ -123,9 +137,9 @@ set "RAW_PACKAGES=%PACKAGES%"
 for /f "tokens=1,2 delims=:" %%a in ("%RAW_PACKAGES%") do (
     if /i "%%a"=="all" (
         if "%%b"=="" (
-            set "RAW_PACKAGES=core:%DEFAULT_BUMP%,rule-engine:%DEFAULT_BUMP%,rule-engine-ui:%DEFAULT_BUMP%,email-account-manager:%DEFAULT_BUMP%,email-analytics:%DEFAULT_BUMP%,email-rule-engine:%DEFAULT_BUMP%,email-ui:%DEFAULT_BUMP%,telegram-account-manager:%DEFAULT_BUMP%,telegram-rule-engine:%DEFAULT_BUMP%,telegram-inbox:%DEFAULT_BUMP%,telegram-bot:%DEFAULT_BUMP%,telegram-ui:%DEFAULT_BUMP%,chat-types:%DEFAULT_BUMP%,chat-engine:%DEFAULT_BUMP%,chat-ai:%DEFAULT_BUMP%,chat-widget:%DEFAULT_BUMP%,chat-ui:%DEFAULT_BUMP%,call-log-types:%DEFAULT_BUMP%,call-log-engine:%DEFAULT_BUMP%,call-log-ui:%DEFAULT_BUMP%"
+            set "RAW_PACKAGES=core:%DEFAULT_BUMP%,rule-engine:%DEFAULT_BUMP%,rule-engine-ui:%DEFAULT_BUMP%,email-account-manager:%DEFAULT_BUMP%,email-analytics:%DEFAULT_BUMP%,email-rule-engine:%DEFAULT_BUMP%,email-ui:%DEFAULT_BUMP%,telegram-account-manager:%DEFAULT_BUMP%,telegram-rule-engine:%DEFAULT_BUMP%,telegram-inbox:%DEFAULT_BUMP%,telegram-bot:%DEFAULT_BUMP%,telegram-ui:%DEFAULT_BUMP%,chat-types:%DEFAULT_BUMP%,chat-engine:%DEFAULT_BUMP%,chat-ai:%DEFAULT_BUMP%,chat-widget:%DEFAULT_BUMP%,chat-ui:%DEFAULT_BUMP%,call-log-types:%DEFAULT_BUMP%,call-log-engine:%DEFAULT_BUMP%,call-log-ui:%DEFAULT_BUMP%,staff-types:%DEFAULT_BUMP%,staff-engine:%DEFAULT_BUMP%,staff-ui:%DEFAULT_BUMP%"
         ) else (
-            set "RAW_PACKAGES=core:%%b,rule-engine:%%b,rule-engine-ui:%%b,email-account-manager:%%b,email-analytics:%%b,email-rule-engine:%%b,email-ui:%%b,telegram-account-manager:%%b,telegram-rule-engine:%%b,telegram-inbox:%%b,telegram-bot:%%b,telegram-ui:%%b,chat-types:%%b,chat-engine:%%b,chat-ai:%%b,chat-widget:%%b,chat-ui:%%b,call-log-types:%%b,call-log-engine:%%b,call-log-ui:%%b"
+            set "RAW_PACKAGES=core:%%b,rule-engine:%%b,rule-engine-ui:%%b,email-account-manager:%%b,email-analytics:%%b,email-rule-engine:%%b,email-ui:%%b,telegram-account-manager:%%b,telegram-rule-engine:%%b,telegram-inbox:%%b,telegram-bot:%%b,telegram-ui:%%b,chat-types:%%b,chat-engine:%%b,chat-ai:%%b,chat-widget:%%b,chat-ui:%%b,call-log-types:%%b,call-log-engine:%%b,call-log-ui:%%b,staff-types:%%b,staff-engine:%%b,staff-ui:%%b"
         )
     )
 )

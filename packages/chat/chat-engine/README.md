@@ -106,23 +106,73 @@ const engine = createChatEngine({
 
 ## Features
 
-- **Real-time messaging** -- Socket.IO gateway with visitor and agent namespaces, typing indicators, read receipts, and pending message delivery. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/socket-events.md)
+### Messaging & Real-time
+
+- **Real-time messaging** -- Socket.IO gateway with visitor and agent namespaces, typing indicators, read receipts, and pending message delivery for offline visitors. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/socket-events.md)
+- **Typing throttle** -- Visitor typing events are automatically throttled server-side (max 1 per 2s) with 30-second auto-timeout to prevent flooding.
+- **Pending message queue** -- Messages sent while a visitor is disconnected are stored in Redis and delivered automatically on reconnect.
+- **Rate limiting** -- Per-session message rate limiting via Redis (default: 30/min). Rejects excess messages with `RATE_LIMIT_EXCEEDED` error code. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/configuration.md)
+- **File sharing validation** -- Per-message file type and size validation against configurable allowed MIME types and max file size before upload. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/file-uploads.md)
+
+### Sessions
+
 - **Session lifecycle** -- Create, resume, resolve, abandon sessions with idle timeout, reconnect window, and feedback collection. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
+- **Session resumption window** -- Abandoned sessions can be resumed within a configurable time window (`sessionResumptionMs`, default 24h). Resolved/closed sessions never resume.
+- **Single session per visitor** -- When enabled (default), reuses the most recent active session for the same visitor across tabs/devices instead of creating duplicates.
+- **Session visibility window** -- Sessions auto-extend their `visibleUntil` timestamp on every visitor message. Expired sessions are hidden from the dashboard. Configurable via `sessionVisibilityMs`.
+- **Session tags** -- Add/remove tags on sessions from a configurable pool (`availableTags`). Available via REST API and socket events.
+- **Session notes** -- Agents can write and delete notes on any session. Notes persist across agent transfers.
+- **Session context export** -- Programmatic `getSessionContext(sessionId)` returns full snapshot: session summary, all messages, preferences, conversation summary, feedback, and metadata. Useful for AI input and handoff.
+
+### AI Engine
+
+- **Two-layer AI mode** -- Global AI mode (`manual`, `ai`, `agent-wise`) with per-agent overrides. Resolution: agent-level `modeOverride`/`aiEnabled` takes precedence over global mode when `allowPerAgentMode` is enabled. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md)
+- **AI message debouncing** -- When a visitor sends rapid messages, the engine accumulates them and sends a single AI response after a configurable delay (`aiDebounceMs`, default 15s). Prevents AI flooding.
+- **Multi-bubble AI responses** -- AI adapter can return an array of messages. Engine delivers them sequentially with configurable inter-bubble delays, typing indicators, and realistic timing simulation.
+- **Realistic typing simulation** -- Full delivery lifecycle: delivery delay (300-1000ms) → read delay (scales with message length) → pre-typing pause (500-1500ms) → typing indicator (based on message length) → message sent. All delays configurable via `aiSimulation` config.
+- **AI character profiles** -- Configure AI personality per-agent or globally: name, tone, personality (required), plus optional responseStyle, rules, formality, emojiUsage, expertise, bio. Agent-level character overrides global. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/configuration.md)
+- **Conversation summarization** -- AI adapter can return a `conversationSummary` string alongside messages. Engine stores it on the session and passes it to subsequent AI calls for long-term context.
+- **AI auto-escalation** -- AI adapter can return `shouldEscalate: true` with an optional `escalationReason`. Engine automatically escalates to human agent, creates a system message, notifies all agents, and fires the `onEscalation` hook.
+- **Agent-initiated AI messages** -- Agents can trigger AI responses on-demand via the `SendAiMessage` socket event. Engine resolves the AI character, generates the response, delivers multi-bubble messages, and broadcasts to all connected agents.
+- **AI request lifecycle** -- `onAiRequest` hook fires at `received`, `completed`, and `failed` stages with `durationMs` tracking. 30-second timeout on AI generation. AI lock prevents concurrent responses per session.
+- **Training quality labels** -- Agents can label individual messages and sessions as `good`, `bad`, or `needs_review` for ML training data. Gated by `labelingEnabled` config (default: off). [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/socket-events.md)
+
+### Agents & Teams
+
 - **Agent management** -- CRUD agents, online/offline tracking, concurrent chat limits, chat transfer between agents. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **Team hierarchy & escalation** -- Multi-level agent hierarchy with teams, direct reports, and tree views for structured escalation paths. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
-- **Two-layer AI control** -- Global AI mode (`manual`, `ai`, `agent-wise`) with per-agent overrides, AI character profiles, and configurable response behavior. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md)
-- **Escalation** -- Visitor-initiated escalation from AI to human agent with auto-assignment. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/socket-events.md)
+- **Escalation** -- Visitor-initiated escalation from AI to human agent with auto-assignment and queue management. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/socket-events.md)
+- **Agent activity tracking** -- Per-agent activity timestamps stored in Redis on every significant action (connect, accept, send, resolve, transfer). Used for "last seen" tracking.
+- **Agent multi-tab support** -- Per-agent connection count tracking in Redis. Agents can open the dashboard in multiple tabs; each connection is tracked separately.
+- **Manager chat watching** -- Managers (agents with `isManager` flag) can subscribe to any active session via `WatchChat` event. Read-only observation with real-time message sync. Managers see all active sessions on connect.
+- **Support person discovery** -- Visitors can fetch a list of available public agents (`FetchSupportPersons`) and select a preferred agent (`SetPreferredAgent`). Gated by `visitorAgentSelection` setting. In fixed chat mode, agent switching is only allowed if the current agent is offline.
+
+### Visitor Identity
+
+- **User identity resolution** -- `resolveUserIdentity` adapter called on visitor connect. Can return `userId` or `{ userId, userCategory }` for priority routing. If resolved userId differs from current visitorId, all anonymous sessions are automatically merged to the authenticated identity.
+- **User conversation history** -- `getUserHistory(visitorId)` returns up to N past sessions (configurable via `userHistoryLimit`, default 5). Gated by `userHistoryEnabled` setting.
+- **User info storage** -- Store visitor name, email, mobile on sessions via `updateUserInfo()`. Populated via identify event, REST API, or data extraction adapters.
+
+### Queue & Assignment
+
+- **Queue position tracking** -- Dynamic queue position recalculation when agents accept or resolve chats. Wait time estimation based on last 50 resolved sessions' average duration, number of online agents, and queue position.
+
+### Analytics & Monitoring
+
+- **Dashboard real-time stats** -- `getDashboardStats()` returns active sessions, waiting sessions, resolved today, total agents, active agents. Automatically broadcast to all connected agents via `agent:stats_update` after every significant event (connect, accept, resolve, status change). Also available via `GET /stats` REST endpoint. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
+- **Analytics & reports** -- Agent performance reports, overall chat reports, session export (JSON/CSV), and visitor analytics collection with per-field privacy controls (`collectIp`, `collectBrowser`, `collectLocation`, etc.). [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **Webhooks** -- 8 event types with HMAC signature verification, retry logic, and REST management API. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/webhooks.md)
+- **Lifecycle hooks** -- 20+ hooks for session events, messages, escalation, AI lifecycle, memory, metrics, and errors. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/hooks.md)
+
+### Configuration & Admin
+
 - **Multi-tenant** -- Shared database with automatic tenant scoping on all queries and creates. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/multi-tenant.md)
-- **File uploads** -- Pluggable file storage adapter (S3, GCS, local disk) with admin controls for size/type restrictions. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/file-uploads.md)
-- **Rating & feedback** -- Configurable rating types (thumbs/stars/emoji) with two-step follow-up flow. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/rating-feedback.md)
+- **File uploads** -- Pluggable file storage adapter (S3, GCS, local disk) with admin controls for size/type restrictions and MIME validation. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/file-uploads.md)
+- **Rating & feedback** -- Configurable rating types (thumbs/stars/emoji) with two-step follow-up flow. Supports both new (typed rating + follow-up) and legacy (1-5 numeric) submission paths. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/rating-feedback.md)
 - **Business hours** -- Per-day schedule with timezone support, holiday dates, and configurable outside-hours behavior. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/configuration.md)
-- **Analytics & reports** -- Agent performance reports, overall chat reports, session export (JSON/CSV), and visitor analytics collection. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **FAQ and guided questions** -- CRUD, reorder, import, category filtering. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **Canned responses** -- Pre-built agent replies with category and search support. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
 - **Widget config** -- Public endpoint for client widget configuration. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/api-routes.md)
-- **Rate limiting** -- Per-session message rate limiting via Redis. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/configuration.md)
-- **Lifecycle hooks** -- 20+ hooks for session events, messages, escalation, AI lifecycle, memory, metrics, and errors. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/hooks.md)
 - **Pluggable adapters** -- Authentication, agent assignment, AI generation, visitor identification, file storage, event tracking. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md)
 - **Error classes** -- Typed errors with codes for every failure scenario. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/error-handling.md)
 

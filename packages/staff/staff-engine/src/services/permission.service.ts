@@ -18,7 +18,7 @@ export class PermissionService {
   }
 
   async listGroups(): Promise<IPermissionGroupDocument[]> {
-    return this.PermissionGroup.find(this.tenantFilter).sort({ sortOrder: 1 }).lean();
+    return this.PermissionGroup.find(this.tenantFilter).sort({ sortOrder: 1 }).lean() as unknown as IPermissionGroupDocument[];
   }
 
   async createGroup(data: IPermissionGroupCreateInput): Promise<IPermissionGroupDocument> {
@@ -53,7 +53,7 @@ export class PermissionService {
     }
     await this.permissionCache.invalidateAll();
     this.logger.info('Permission group updated', { groupId, fields: Object.keys(data) });
-    return group;
+    return group as unknown as IPermissionGroupDocument;
   }
 
   async deleteGroup(groupId: string): Promise<void> {
