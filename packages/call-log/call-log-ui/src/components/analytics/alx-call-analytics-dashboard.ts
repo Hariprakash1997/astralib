@@ -27,6 +27,11 @@ export class AlxCallAnalyticsDashboard extends LitElement {
     .bar { height: 12px; border-radius: 3px; background: #3b82f6; min-width: 2px; }
     .error { color: #dc2626; font-size: 0.875rem; padding: 0.5rem; }
     .loading { color: var(--alx-text-muted, #64748b); padding: 1rem; text-align: center; }
+    .dist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; }
+    .dist-card { background: var(--alx-surface, #fff); border: 1px solid var(--alx-border, #e2e8f0); border-radius: 6px; padding: 0.75rem; }
+    .dist-label { font-size: 0.75rem; font-weight: 600; color: var(--alx-text-muted, #64748b); margin-bottom: 0.25rem; }
+    .dist-value { font-size: 1.25rem; font-weight: 700; }
+    .stat-card-highlight { background: #eff6ff; border-color: #bfdbfe; }
   `;
 
   @state() private overall: OverallCallReport | null = null;
@@ -35,7 +40,7 @@ export class AlxCallAnalyticsDashboard extends LitElement {
   @state() private error = '';
   @state() private dateFrom = '';
   @state() private dateTo = '';
-  @state() private activeTab: 'overview' | 'daily' | 'tags' | 'peak' = 'overview';
+  @state() private activeTab: 'overview' | 'daily' | 'tags' | 'peak' | 'channels' | 'outcomes' = 'overview';
   @state() private exporting = false;
 
   private api = new CallLogApiClient();
@@ -98,6 +103,63 @@ export class AlxCallAnalyticsDashboard extends LitElement {
           <div class="stat-label">Follow-Up Compliance</div>
           <div class="stat-value">${this.pct(o.followUpComplianceRate)}</div>
         </div>
+        <div class="stat-card stat-card-highlight">
+          <div class="stat-label">Follow-up Calls</div>
+          <div class="stat-value">${(o.followUpCalls ?? 0).toLocaleString()}</div>
+          <div class="stat-sub">${this.pct(o.followUpRatio ?? 0)} of total</div>
+        </div>
+      </div>
+    `;
+  }
+
+  private renderChannelDistribution() {
+    if (!this.overall) return nothing;
+    const items = this.overall.channelDistribution ?? [];
+    if (items.length === 0) return html`<div class="loading">No channel data</div>`;
+    return html`
+      <div class="card">
+        <h4>Channel Distribution</h4>
+        <div class="dist-grid">
+          ${items.map(ch => html`
+            <div class="dist-card">
+              <div class="dist-label">${ch.channel}</div>
+              <div class="dist-value">${ch.count.toLocaleString()}</div>
+              <div style="font-size:0.7rem;color:#64748b;">
+                ${this.overall!.totalCalls > 0 ? this.pct(ch.count / this.overall!.totalCalls) : '—'}
+              </div>
+            </div>
+          `)}
+        </div>
+      </div>
+    `;
+  }
+
+  private renderOutcomeDistribution() {
+    if (!this.overall) return nothing;
+    const items = this.overall.outcomeDistribution ?? [];
+    if (items.length === 0) return html`<div class="loading">No outcome data</div>`;
+    const max = Math.max(...items.map(i => i.count), 1);
+    return html`
+      <div class="card">
+        <h4>Outcome Distribution</h4>
+        <div class="dist-grid" style="margin-bottom:1rem;">
+          ${items.map(oc => html`
+            <div class="dist-card">
+              <div class="dist-label">${oc.outcome}</div>
+              <div class="dist-value">${oc.count.toLocaleString()}</div>
+              <div style="font-size:0.7rem;color:#64748b;">
+                ${this.overall!.totalCalls > 0 ? this.pct(oc.count / this.overall!.totalCalls) : '—'}
+              </div>
+            </div>
+          `)}
+        </div>
+        ${items.map(oc => html`
+          <div class="bar-row">
+            <span style="min-width:100px;">${oc.outcome}</span>
+            <div class="bar" style="width:${(oc.count / max) * 200}px;"></div>
+            <span>${oc.count}</span>
+          </div>
+        `)}
       </div>
     `;
   }
@@ -195,7 +257,7 @@ export class AlxCallAnalyticsDashboard extends LitElement {
         ${this.renderOverview()}
 
         <div class="tabs">
-          ${(['overview', 'daily', 'tags', 'peak'] as const).map(t => html`
+          ${(['overview', 'daily', 'tags', 'peak', 'channels', 'outcomes'] as const).map(t => html`
             <button class="tab ${this.activeTab === t ? 'active' : ''}" @click=${() => this.activeTab = t}>
               ${t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
@@ -206,6 +268,8 @@ export class AlxCallAnalyticsDashboard extends LitElement {
         ${this.activeTab === 'daily' ? this.renderDaily() : ''}
         ${this.activeTab === 'tags' ? this.renderTags() : ''}
         ${this.activeTab === 'peak' ? this.renderPeakHours() : ''}
+        ${this.activeTab === 'channels' ? this.renderChannelDistribution() : ''}
+        ${this.activeTab === 'outcomes' ? this.renderOutcomeDistribution() : ''}
       ` : ''}
     `;
   }

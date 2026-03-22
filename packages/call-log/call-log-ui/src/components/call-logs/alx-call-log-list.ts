@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
-import type { ICallLog } from '@astralibx/call-log-types';
+import type { ICallLog, ICallLogSettings } from '@astralibx/call-log-types';
 import { safeRegister } from '../../utils/safe-register.js';
 import { CallLogApiClient } from '../../api/call-log-api-client.js';
 
@@ -25,6 +25,14 @@ export class AlxCallLogList extends LitElement {
     .badge-out { background: #dcfce7; color: #166534; }
     .badge-closed { background: #f1f5f9; color: #64748b; }
     .badge-open { background: #dcfce7; color: #166534; }
+    .badge-channel { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-outcome-answered { background: #dcfce7; color: #166534; }
+    .badge-outcome-missed { background: #fee2e2; color: #dc2626; }
+    .badge-outcome-voicemail { background: #fef9c3; color: #92400e; }
+    .badge-outcome-busy { background: #fce7f3; color: #9d174d; }
+    .badge-outcome-default { background: #f1f5f9; color: #334155; }
+    .badge-followup { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; font-size: 0.65rem; padding: 0.05rem 0.3rem; }
+    input[type=checkbox].followup-toggle { width: auto; cursor: pointer; }
     .pagination { display: flex; align-items: center; gap: 0.5rem; padding-top: 0.75rem; }
     button { padding: 0.375rem 0.75rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--alx-border, #e2e8f0); cursor: pointer; background: var(--alx-surface, #fff); font-family: inherit; }
     button.primary { background: #3b82f6; color: #fff; border-color: #3b82f6; }
@@ -40,6 +48,7 @@ export class AlxCallLogList extends LitElement {
   @property({ type: String }) pipelineId = '';
 
   @state() private callLogs: ICallLog[] = [];
+  @state() private settings: ICallLogSettings | null = null;
   @state() private loading = false;
   @state() private error = '';
   @state() private page = 1;
@@ -49,6 +58,9 @@ export class AlxCallLogList extends LitElement {
   @state() private filterAgentId = '';
   @state() private filterPriority = '';
   @state() private filterDirection = '';
+  @state() private filterChannel = '';
+  @state() private filterOutcome = '';
+  @state() private filterIsFollowUp = '';
   @state() private filterIsClosed = '';
   @state() private filterFrom = '';
   @state() private filterTo = '';
@@ -64,6 +76,15 @@ export class AlxCallLogList extends LitElement {
     super.connectedCallback();
     if (this.pipelineId) this.filterPipelineId = this.pipelineId;
     this.loadCallLogs();
+    this.loadSettings();
+  }
+
+  async loadSettings() {
+    try {
+      this.settings = await this.api.getSettings();
+    } catch {
+      // non-fatal
+    }
   }
 
   async loadCallLogs() {
@@ -76,6 +97,9 @@ export class AlxCallLogList extends LitElement {
       if (this.filterAgentId) filter['agentId'] = this.filterAgentId;
       if (this.filterPriority) filter['priority'] = this.filterPriority;
       if (this.filterDirection) filter['direction'] = this.filterDirection;
+      if (this.filterChannel) filter['channel'] = this.filterChannel;
+      if (this.filterOutcome) filter['outcome'] = this.filterOutcome;
+      if (this.filterIsFollowUp !== '') filter['isFollowUp'] = this.filterIsFollowUp === 'true';
       if (this.filterIsClosed !== '') filter['isClosed'] = this.filterIsClosed === 'true';
       if (this.filterFrom) filter['from'] = this.filterFrom;
       if (this.filterTo) filter['to'] = this.filterTo;
@@ -175,6 +199,16 @@ export class AlxCallLogList extends LitElement {
     }
   }
 
+  private outcomeBadgeClass(outcome?: string): string {
+    if (!outcome) return 'badge-outcome-default';
+    const o = outcome.toLowerCase();
+    if (o.includes('answer') || o === 'connected') return 'badge-outcome-answered';
+    if (o.includes('miss') || o === 'no-answer') return 'badge-outcome-missed';
+    if (o.includes('voicemail') || o === 'vm') return 'badge-outcome-voicemail';
+    if (o.includes('busy')) return 'badge-outcome-busy';
+    return 'badge-outcome-default';
+  }
+
   private formatDate(d?: Date | string): string {
     if (!d) return '-';
     return new Date(d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -211,6 +245,26 @@ export class AlxCallLogList extends LitElement {
             <option value="">All Directions</option>
             <option value="inbound">Inbound</option>
             <option value="outbound">Outbound</option>
+          </select>
+          <select .value=${this.filterChannel}
+            @change=${(e: Event) => this.filterChannel = (e.target as HTMLSelectElement).value}>
+            <option value="">All Channels</option>
+            ${(this.settings?.availableChannels ?? []).map(ch => html`
+              <option value=${ch}>${ch}</option>
+            `)}
+          </select>
+          <select .value=${this.filterOutcome}
+            @change=${(e: Event) => this.filterOutcome = (e.target as HTMLSelectElement).value}>
+            <option value="">All Outcomes</option>
+            ${(this.settings?.availableOutcomes ?? []).map(oc => html`
+              <option value=${oc}>${oc}</option>
+            `)}
+          </select>
+          <select .value=${this.filterIsFollowUp}
+            @change=${(e: Event) => this.filterIsFollowUp = (e.target as HTMLSelectElement).value}>
+            <option value="">All Calls</option>
+            <option value="true">Follow-ups Only</option>
+            <option value="false">Non Follow-ups</option>
           </select>
           <select .value=${this.filterIsClosed}
             @change=${(e: Event) => this.filterIsClosed = (e.target as HTMLSelectElement).value}>
@@ -257,6 +311,8 @@ export class AlxCallLogList extends LitElement {
                     @change=${this.toggleSelectAll} /></th>
                   <th>Contact</th>
                   <th>Direction</th>
+                  <th>Channel</th>
+                  <th>Outcome</th>
                   <th>Priority</th>
                   <th>Tags</th>
                   <th>Call Date</th>
@@ -274,7 +330,12 @@ export class AlxCallLogList extends LitElement {
                       <div style="font-weight:500;">${c.contactRef.displayName}</div>
                       <div style="font-size:0.7rem;color:#64748b;">${c.contactRef.phone ?? c.contactRef.email ?? ''}</div>
                     </td>
-                    <td><span class="badge ${c.direction === 'inbound' ? 'badge-in' : 'badge-out'}">${c.direction}</span></td>
+                    <td>
+                      <span class="badge ${c.direction === 'inbound' ? 'badge-in' : 'badge-out'}">${c.direction}</span>
+                      ${c.isFollowUp ? html`<span class="badge badge-followup" title="Follow-up call">FU</span>` : nothing}
+                    </td>
+                    <td><span class="badge badge-channel">${c.channel ?? '-'}</span></td>
+                    <td><span class="badge ${this.outcomeBadgeClass(c.outcome)}">${c.outcome ?? '-'}</span></td>
                     <td><span class="badge badge-${c.priority}">${c.priority}</span></td>
                     <td>${(c.tags ?? []).slice(0, 3).map(t => html`<span class="tag">${t}</span>`)}</td>
                     <td>${this.formatDate(c.callDate)}</td>

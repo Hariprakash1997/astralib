@@ -1,6 +1,6 @@
 import { LitElement, html, css, nothing } from 'lit';
 import { property, state } from 'lit/decorators.js';
-import type { IPipeline, ICallLog } from '@astralibx/call-log-types';
+import type { IPipeline, ICallLog, ICallLogSettings } from '@astralibx/call-log-types';
 import { safeRegister } from '../../utils/safe-register.js';
 import { CallLogApiClient } from '../../api/call-log-api-client.js';
 
@@ -33,12 +33,15 @@ export class AlxCallLogForm extends LitElement {
     .new-contact-banner { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.75rem; color: #1e40af; }
     .toggle-btn { padding: 0.25rem 0.6rem; font-size: 0.75rem; border-radius: 4px; border: 1px solid var(--alx-border, #e2e8f0); cursor: pointer; background: var(--alx-surface, #fff); font-family: inherit; }
     .toggle-btn.active { background: #eff6ff; color: #1e40af; border-color: #93c5fd; }
+    .checkbox-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; cursor: pointer; }
+    .checkbox-row input[type=checkbox] { width: auto; cursor: pointer; }
   `;
 
   @property({ type: Boolean }) open = false;
   @property({ type: String }) callLogId = '';
 
   @state() private pipelines: IPipeline[] = [];
+  @state() private settings: ICallLogSettings | null = null;
   @state() private loading = false;
   @state() private saving = false;
   @state() private error = '';
@@ -49,6 +52,9 @@ export class AlxCallLogForm extends LitElement {
   @state() private fPhone = '';
   @state() private fEmail = '';
   @state() private fDirection = 'inbound';
+  @state() private fChannel = '';
+  @state() private fOutcome = '';
+  @state() private fIsFollowUp = false;
   @state() private fPipelineId = '';
   @state() private fPriority = 'medium';
   @state() private fAgentId = '';
@@ -70,6 +76,7 @@ export class AlxCallLogForm extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.loadPipelines();
+    this.loadSettings();
   }
 
   updated(changed: Map<PropertyKey, unknown>) {
@@ -87,6 +94,14 @@ export class AlxCallLogForm extends LitElement {
     }
   }
 
+  async loadSettings() {
+    try {
+      this.settings = await this.api.getSettings();
+    } catch {
+      // non-fatal — dropdowns will be empty
+    }
+  }
+
   async loadExisting() {
     this.loading = true;
     try {
@@ -96,6 +111,9 @@ export class AlxCallLogForm extends LitElement {
       this.fPhone = c.contactRef.phone ?? '';
       this.fEmail = c.contactRef.email ?? '';
       this.fDirection = c.direction;
+      this.fChannel = c.channel ?? '';
+      this.fOutcome = c.outcome ?? '';
+      this.fIsFollowUp = c.isFollowUp ?? false;
       this.fPipelineId = c.pipelineId;
       this.fPriority = c.priority;
       this.fAgentId = c.agentId;
@@ -113,7 +131,8 @@ export class AlxCallLogForm extends LitElement {
 
   private resetForm() {
     this.fContactName = ''; this.fContactId = ''; this.fPhone = ''; this.fEmail = '';
-    this.fDirection = 'inbound'; this.fPipelineId = ''; this.fPriority = 'medium';
+    this.fDirection = 'inbound'; this.fChannel = ''; this.fOutcome = ''; this.fIsFollowUp = false;
+    this.fPipelineId = ''; this.fPriority = 'medium';
     this.fAgentId = ''; this.fCallDate = new Date().toISOString().split('T')[0]!;
     this.fTags = ''; this.fCategory = ''; this.fFollowUpDate = ''; this.fNote = '';
     this.contactSearchValue = ''; this.contactSearchResults = []; this.showContactDropdown = false; this.isNewContact = false;
@@ -154,6 +173,14 @@ export class AlxCallLogForm extends LitElement {
       this.error = 'Contact name, ID, pipeline, and agent ID are required.';
       return;
     }
+    if (!this.fChannel) {
+      this.error = 'Channel is required.';
+      return;
+    }
+    if (!this.fOutcome) {
+      this.error = 'Outcome is required.';
+      return;
+    }
     this.saving = true;
     this.error = '';
     try {
@@ -161,6 +188,9 @@ export class AlxCallLogForm extends LitElement {
       if (this.callLogId) {
         await this.api.updateCallLog(this.callLogId, {
           priority: this.fPriority,
+          channel: this.fChannel || undefined,
+          outcome: this.fOutcome || undefined,
+          isFollowUp: this.fIsFollowUp,
           tags,
           category: this.fCategory || undefined,
           nextFollowUpDate: this.fFollowUpDate || undefined,
@@ -175,6 +205,9 @@ export class AlxCallLogForm extends LitElement {
             email: this.fEmail || undefined,
           },
           direction: this.fDirection,
+          channel: this.fChannel,
+          outcome: this.fOutcome,
+          isFollowUp: this.fIsFollowUp,
           agentId: this.fAgentId,
           callDate: this.fCallDate || undefined,
           priority: this.fPriority,
@@ -284,6 +317,31 @@ export class AlxCallLogForm extends LitElement {
                   </select>
                 </label>
               </div>
+
+              <div class="form-row">
+                <label>Channel *
+                  <select .value=${this.fChannel} @change=${(e: Event) => this.fChannel = (e.target as HTMLSelectElement).value}>
+                    <option value="">— Select Channel —</option>
+                    ${(this.settings?.availableChannels ?? []).map(ch => html`
+                      <option value=${ch}>${ch}</option>
+                    `)}
+                  </select>
+                </label>
+                <label>Outcome *
+                  <select .value=${this.fOutcome} @change=${(e: Event) => this.fOutcome = (e.target as HTMLSelectElement).value}>
+                    <option value="">— Select Outcome —</option>
+                    ${(this.settings?.availableOutcomes ?? []).map(oc => html`
+                      <option value=${oc}>${oc}</option>
+                    `)}
+                  </select>
+                </label>
+              </div>
+
+              <label class="checkbox-row">
+                <input type="checkbox" .checked=${this.fIsFollowUp}
+                  @change=${(e: Event) => this.fIsFollowUp = (e.target as HTMLInputElement).checked} />
+                This is a follow-up call
+              </label>
 
               ${!this.callLogId ? html`
                 <label>Call Date

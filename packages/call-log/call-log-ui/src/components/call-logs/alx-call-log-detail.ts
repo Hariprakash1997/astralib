@@ -40,6 +40,14 @@ export class AlxCallLogDetail extends LitElement {
     .warn-icon { font-size: 0.75rem; }
     button.warning { background: #fef9c3; color: #92400e; border-color: #fde68a; }
     button.success { background: #dcfce7; color: #166534; border-color: #86efac; }
+    .badge-channel { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .badge-outcome-answered { background: #dcfce7; color: #166534; }
+    .badge-outcome-missed { background: #fee2e2; color: #dc2626; }
+    .badge-outcome-voicemail { background: #fef9c3; color: #92400e; }
+    .badge-outcome-busy { background: #fce7f3; color: #9d174d; }
+    .badge-outcome-default { background: #f1f5f9; color: #334155; }
+    .badge-followup { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+    .deleted-banner { background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.8rem; font-weight: 600; color: #dc2626; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
   `;
 
   @property({ type: String }) callLogId = '';
@@ -167,6 +175,16 @@ export class AlxCallLogDetail extends LitElement {
     }
   }
 
+  private outcomeBadgeClass(outcome?: string): string {
+    if (!outcome) return 'badge-outcome-default';
+    const o = outcome.toLowerCase();
+    if (o.includes('answer') || o === 'connected') return 'badge-outcome-answered';
+    if (o.includes('miss') || o === 'no-answer') return 'badge-outcome-missed';
+    if (o.includes('voicemail') || o === 'vm') return 'badge-outcome-voicemail';
+    if (o.includes('busy')) return 'badge-outcome-busy';
+    return 'badge-outcome-default';
+  }
+
   private followUpClass(date?: Date | string): string {
     if (!date) return '';
     const d = new Date(date);
@@ -193,7 +211,13 @@ export class AlxCallLogDetail extends LitElement {
     const currentStage = this.pipelineStages.find(s => s.stageId === c.currentStageId);
 
     return html`
-      <div class="card">
+      <div class="card" style="${c.isDeleted ? 'opacity:0.75;' : ''}">
+        ${c.isDeleted ? html`
+          <div class="deleted-banner">
+            &#128683; This call log has been deleted
+            ${c.deletedAt ? html`<span style="font-weight:400;"> &mdash; ${this.formatDate(c.deletedAt)}</span>` : nothing}
+          </div>
+        ` : nothing}
         <div class="card-header">
           <h3>${c.contactRef.displayName}</h3>
           <div class="actions">
@@ -228,11 +252,22 @@ export class AlxCallLogDetail extends LitElement {
         <div class="grid">
           <div class="field">
             <span class="field-label">Direction</span>
-            <span class="badge ${c.direction === 'inbound' ? 'badge-in' : 'badge-out'}">${c.direction}</span>
+            <div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
+              <span class="badge ${c.direction === 'inbound' ? 'badge-in' : 'badge-out'}">${c.direction}</span>
+              ${c.isFollowUp ? html`<span class="badge badge-followup">Follow-up</span>` : nothing}
+            </div>
           </div>
           <div class="field">
             <span class="field-label">Priority</span>
             <span class="badge badge-${c.priority}">${c.priority}</span>
+          </div>
+          <div class="field">
+            <span class="field-label">Channel</span>
+            <span class="badge badge-channel">${c.channel ?? '-'}</span>
+          </div>
+          <div class="field">
+            <span class="field-label">Outcome</span>
+            <span class="badge ${this.outcomeBadgeClass(c.outcome)}">${c.outcome ?? '-'}</span>
           </div>
           <div class="field">
             <span class="field-label">Status</span>

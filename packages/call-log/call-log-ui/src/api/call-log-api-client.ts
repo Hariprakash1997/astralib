@@ -56,6 +56,10 @@ export interface ListCallLogsFilter {
   contactExternalId?: string;
   priority?: string;
   direction?: string;
+  channel?: string;
+  outcome?: string;
+  isFollowUp?: boolean;
+  includeDeleted?: boolean;
   page?: number;
   limit?: number;
   from?: string;
@@ -69,6 +73,9 @@ export interface CreateCallLogPayload {
   agentId: string;
   callDate?: string;
   priority?: string;
+  channel?: string;
+  outcome?: string;
+  isFollowUp?: boolean;
   tags?: string[];
   category?: string;
   nextFollowUpDate?: string;
@@ -77,6 +84,9 @@ export interface CreateCallLogPayload {
 
 export interface UpdateCallLogPayload {
   priority?: string;
+  channel?: string;
+  outcome?: string;
+  isFollowUp?: boolean;
   tags?: string[];
   category?: string;
   nextFollowUpDate?: string;
@@ -181,6 +191,10 @@ export class CallLogApiClient {
 
   async reopenCallLog(id: string, agentId: string): Promise<ICallLog> {
     return this.http.put<ICallLog>(`/calls/${id}/reopen`, { agentId });
+  }
+
+  async deleteCallLog(id: string): Promise<void> {
+    await this.http.delete(`/calls/${id}`);
   }
 
   async bulkChangeStage(callLogIds: string[], newStageId: string, agentId: string): Promise<{ updated: number }> {
