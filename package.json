@@ -7,7 +7,8 @@
     "packages/email/*",
     "packages/telegram/*",
     "packages/chat/*",
-    "packages/rule-engine/*"
+    "packages/rule-engine/*",
+    "packages/call-log/*"
   ],
   "scripts": {
     "build": "turbo run build",

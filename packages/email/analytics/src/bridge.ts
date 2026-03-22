@@ -16,12 +16,12 @@ interface EventRecorder {
  */
 export function createAnalyticsBridge(recorder: EventRecorder) {
   return {
-    onSend: (info: { ruleId?: string; ruleName?: string; email: string; status: string; accountId?: string; templateId?: string; runId?: string }) => {
+    onSend: (info: { ruleId?: string; ruleName?: string; contactValue: string; status: string; accountId?: string; templateId?: string; runId?: string }) => {
       if (info.status === 'sent') {
         recorder.record({
           type: 'sent',
           accountId: info.accountId || '',
-          recipientEmail: info.email,
+          recipientEmail: info.contactValue,
           ruleId: info.ruleId,
           templateId: info.templateId,
         }).catch(() => {});
@@ -29,59 +29,59 @@ export function createAnalyticsBridge(recorder: EventRecorder) {
         recorder.record({
           type: 'failed',
           accountId: info.accountId || '',
-          recipientEmail: info.email,
+          recipientEmail: info.contactValue,
           ruleId: info.ruleId,
           templateId: info.templateId,
         }).catch(() => {});
       }
     },
 
-    onBounce: (info: { email: string; accountId?: string }) => {
+    onBounce: (info: { contactValue: string; accountId?: string }) => {
       recorder.record({
         type: 'bounced',
         accountId: info.accountId || '',
-        recipientEmail: info.email,
+        recipientEmail: info.contactValue,
       }).catch(() => {});
     },
 
-    onComplaint: (info: { email: string; accountId?: string }) => {
+    onComplaint: (info: { contactValue: string; accountId?: string }) => {
       recorder.record({
         type: 'complained',
         accountId: info.accountId || '',
-        recipientEmail: info.email,
+        recipientEmail: info.contactValue,
       }).catch(() => {});
     },
 
-    onDelivery: (info: { email: string; accountId?: string }) => {
+    onDelivery: (info: { contactValue: string; accountId?: string }) => {
       recorder.record({
         type: 'delivered',
         accountId: info.accountId || '',
-        recipientEmail: info.email,
+        recipientEmail: info.contactValue,
       }).catch(() => {});
     },
 
-    onOpen: (info: { email: string; accountId?: string }) => {
+    onOpen: (info: { contactValue: string; accountId?: string }) => {
       recorder.record({
         type: 'opened',
         accountId: info.accountId || '',
-        recipientEmail: info.email,
+        recipientEmail: info.contactValue,
       }).catch(() => {});
     },
 
-    onClick: (info: { email: string; accountId?: string; channel?: string }) => {
+    onClick: (info: { contactValue: string; accountId?: string; channel?: string }) => {
       recorder.record({
         type: 'clicked',
         accountId: info.accountId || '',
-        recipientEmail: info.email,
+        recipientEmail: info.contactValue,
         channel: info.channel,
       }).catch(() => {});
     },
 
-    onUnsubscribe: (info: { email: string; accountId?: string }) => {
+    onUnsubscribe: (info: { contactValue: string; accountId?: string }) => {
       recorder.record({
         type: 'unsubscribed',
         accountId: info.accountId || '',
-        recipientEmail: info.email,
+        recipientEmail: info.contactValue,
       }).catch(() => {});
     },
   };

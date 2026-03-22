@@ -1,0 +1,37 @@
+{
+  "name": "@astralibx/call-log-types",
+  "version": "0.1.0",
+  "description": "Shared TypeScript type definitions, enums, and contracts for the call-log module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hariprakash1997/astralib.git",
+    "directory": "packages/call-log/call-log-types"
+  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.mts", "default": "./dist/index.mjs" },
+      "require": { "types": "./dist/index.d.ts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["call-log", "types", "pipeline", "analytics"],
+  "license": "MIT",
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.0"
+  }
+}

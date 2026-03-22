@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Fixes: TypeScript declarations for UI packages - renamed AlxConfig to RuleEngineUIConfig - added changelog links to READMEs"
+set "COMMIT_MSG=Fixes: analytics bridge contactValue field - Features: new call-log module with pipelines, timeline, analytics, 14 UI components"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -34,14 +34,14 @@ REM  RULE ENGINE - packages/rule-engine/*
 REM  rule-engine, rule-engine-ui
 REM  Leave empty if no rule-engine changes: set "RULE_ENGINE_PACKAGES="
 REM ============================================================
-set "RULE_ENGINE_PACKAGES=rule-engine:patch,rule-engine-ui:patch"
+set "RULE_ENGINE_PACKAGES="
 
 REM ============================================================
 REM  EMAIL - packages/email/*
 REM  email-account-manager, email-analytics, email-rule-engine, email-ui
 REM  Leave empty if no email changes: set "EMAIL_PACKAGES="
 REM ============================================================
-set "EMAIL_PACKAGES=email-rule-engine:patch,email-ui:patch"
+set "EMAIL_PACKAGES=email-analytics:patch"
 
 REM ============================================================
 REM  TELEGRAM - packages/telegram/*
@@ -56,6 +56,13 @@ REM  chat-types, chat-engine, chat-ai, chat-widget, chat-ui
 REM  Leave empty if no chat changes: set "CHAT_PACKAGES="
 REM ============================================================
 set "CHAT_PACKAGES="
+
+REM ============================================================
+REM  CALL LOG - packages/call-log/*
+REM  call-log-types, call-log-engine, call-log-ui
+REM  Leave empty if no call-log changes: set "CALL_LOG_PACKAGES="
+REM ============================================================
+set "CALL_LOG_PACKAGES=call-log-types:minor,call-log-engine:minor,call-log-ui:minor"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE
@@ -98,6 +105,13 @@ if defined CHAT_PACKAGES (
         set "PACKAGES=!CHAT_PACKAGES!"
     )
 )
+if defined CALL_LOG_PACKAGES (
+    if defined PACKAGES (
+        set "PACKAGES=!PACKAGES!,!CALL_LOG_PACKAGES!"
+    ) else (
+        set "PACKAGES=!CALL_LOG_PACKAGES!"
+    )
+)
 
 if not defined PACKAGES (
     echo [ERROR] No packages selected. Set at least one section above.
@@ -109,9 +123,9 @@ set "RAW_PACKAGES=%PACKAGES%"
 for /f "tokens=1,2 delims=:" %%a in ("%RAW_PACKAGES%") do (
     if /i "%%a"=="all" (
         if "%%b"=="" (
-            set "RAW_PACKAGES=core:%DEFAULT_BUMP%,rule-engine:%DEFAULT_BUMP%,rule-engine-ui:%DEFAULT_BUMP%,email-account-manager:%DEFAULT_BUMP%,email-analytics:%DEFAULT_BUMP%,email-rule-engine:%DEFAULT_BUMP%,email-ui:%DEFAULT_BUMP%,telegram-account-manager:%DEFAULT_BUMP%,telegram-rule-engine:%DEFAULT_BUMP%,telegram-inbox:%DEFAULT_BUMP%,telegram-bot:%DEFAULT_BUMP%,telegram-ui:%DEFAULT_BUMP%,chat-types:%DEFAULT_BUMP%,chat-engine:%DEFAULT_BUMP%,chat-ai:%DEFAULT_BUMP%,chat-widget:%DEFAULT_BUMP%,chat-ui:%DEFAULT_BUMP%"
+            set "RAW_PACKAGES=core:%DEFAULT_BUMP%,rule-engine:%DEFAULT_BUMP%,rule-engine-ui:%DEFAULT_BUMP%,email-account-manager:%DEFAULT_BUMP%,email-analytics:%DEFAULT_BUMP%,email-rule-engine:%DEFAULT_BUMP%,email-ui:%DEFAULT_BUMP%,telegram-account-manager:%DEFAULT_BUMP%,telegram-rule-engine:%DEFAULT_BUMP%,telegram-inbox:%DEFAULT_BUMP%,telegram-bot:%DEFAULT_BUMP%,telegram-ui:%DEFAULT_BUMP%,chat-types:%DEFAULT_BUMP%,chat-engine:%DEFAULT_BUMP%,chat-ai:%DEFAULT_BUMP%,chat-widget:%DEFAULT_BUMP%,chat-ui:%DEFAULT_BUMP%,call-log-types:%DEFAULT_BUMP%,call-log-engine:%DEFAULT_BUMP%,call-log-ui:%DEFAULT_BUMP%"
         ) else (
-            set "RAW_PACKAGES=core:%%b,rule-engine:%%b,rule-engine-ui:%%b,email-account-manager:%%b,email-analytics:%%b,email-rule-engine:%%b,email-ui:%%b,telegram-account-manager:%%b,telegram-rule-engine:%%b,telegram-inbox:%%b,telegram-bot:%%b,telegram-ui:%%b,chat-types:%%b,chat-engine:%%b,chat-ai:%%b,chat-widget:%%b,chat-ui:%%b"
+            set "RAW_PACKAGES=core:%%b,rule-engine:%%b,rule-engine-ui:%%b,email-account-manager:%%b,email-analytics:%%b,email-rule-engine:%%b,email-ui:%%b,telegram-account-manager:%%b,telegram-rule-engine:%%b,telegram-inbox:%%b,telegram-bot:%%b,telegram-ui:%%b,chat-types:%%b,chat-engine:%%b,chat-ai:%%b,chat-widget:%%b,chat-ui:%%b,call-log-types:%%b,call-log-engine:%%b,call-log-ui:%%b"
         )
     )
 )
