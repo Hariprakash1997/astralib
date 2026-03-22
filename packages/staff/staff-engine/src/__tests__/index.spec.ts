@@ -46,6 +46,7 @@ describe('createStaffEngine()', () => {
 
     expect(engine).toHaveProperty('routes');
     expect(engine).toHaveProperty('auth');
+    expect(engine).toHaveProperty('authService');
     expect(engine).toHaveProperty('staff');
     expect(engine).toHaveProperty('permissions');
     expect(engine).toHaveProperty('models');

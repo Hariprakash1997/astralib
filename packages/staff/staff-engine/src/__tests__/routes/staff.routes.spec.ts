@@ -37,6 +37,12 @@ function makeStaffService(overrides: Partial<Record<string, unknown>> = {}) {
     update: vi.fn().mockResolvedValue(staffDoc),
     updatePermissions: vi.fn().mockResolvedValue(staffDoc),
     updateStatus: vi.fn().mockResolvedValue(staffDoc),
+    ...overrides,
+  } as any;
+}
+
+function makeAuthService(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
     resetPassword: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   } as any;
@@ -192,7 +198,8 @@ describe('createStaffRoutes', () => {
   describe('PUT /:staffId/password', () => {
     it('resets password and returns 200', async () => {
       const staffService = makeStaffService();
-      const router = createStaffRoutes(staffService, noopLogger);
+      const authService = makeAuthService();
+      const router = createStaffRoutes(staffService, noopLogger, authService);
 
       const req = makeReq({
         params: { staffId: 'staff-1' } as any,
@@ -200,7 +207,7 @@ describe('createStaffRoutes', () => {
       });
       await invokeRoute(router, 'PUT', '/staff-1/password', req, res);
 
-      expect(staffService.resetPassword).toHaveBeenCalledWith('staff-1', 'NewPass1!');
+      expect(authService.resetPassword).toHaveBeenCalledWith('staff-1', 'NewPass1!');
       expect(res.status).toHaveBeenCalledWith(200);
     });
   });

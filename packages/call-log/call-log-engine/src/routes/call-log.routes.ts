@@ -3,27 +3,38 @@ import type { Request, Response } from 'express';
 import { sendSuccess, sendError } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
 import type { CallLogService } from '../services/call-log.service.js';
+import type { CallLogLifecycleService } from '../services/call-log-lifecycle.service.js';
 import type { TimelineService } from '../services/timeline.service.js';
 import { AlxCallLogError } from '../errors/index.js';
 
+function getScopedAgentId(req: Request, enableAgentScoping: boolean): string | undefined {
+  if (!enableAgentScoping) return undefined;
+  const user = (req as unknown as { user?: { adminUserId?: string; role?: string } }).user;
+  if (!user) return undefined;
+  if (user.role === 'owner') return undefined;
+  return user.adminUserId;
+}
+
 export function createCallLogRoutes(
-  services: { callLogs: CallLogService; timeline: TimelineService },
+  services: { callLogs: CallLogService; lifecycle: CallLogLifecycleService; timeline: TimelineService },
   logger: LogAdapter,
+  enableAgentScoping = false,
 ): Router {
   const router = Router();
-  const { callLogs, timeline } = services;
+  const { callLogs, lifecycle, timeline } = services;
 
   // Static routes BEFORE parameterized routes
 
   // GET /follow-ups — list due follow-ups (BEFORE /:id)
   router.get('/follow-ups', async (req: Request, res: Response) => {
     try {
-      const { agentId } = req.query as { agentId?: string };
+      const scopedAgentId = getScopedAgentId(req, enableAgentScoping);
+      const agentId = scopedAgentId ?? (req.query['agentId'] as string | undefined);
       const dateRange = {
         from: req.query['from'] as string | undefined,
         to: req.query['to'] as string | undefined,
       };
-      const result = await callLogs.getFollowUpsDue(agentId, dateRange);
+      const result = await lifecycle.getFollowUpsDue(agentId, dateRange);
       sendSuccess(res, result);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -40,7 +51,7 @@ export function createCallLogRoutes(
         newStageId: string;
         agentId: string;
       };
-      const result = await callLogs.bulkChangeStage(callLogIds, newStageId, agentId);
+      const result = await lifecycle.bulkChangeStage(callLogIds, newStageId, agentId);
       sendSuccess(res, result);
     } catch (error: unknown) {
       if (error instanceof AlxCallLogError) {
@@ -60,7 +71,13 @@ export function createCallLogRoutes(
       const filter: Record<string, unknown> = {};
       if (query['pipelineId']) filter['pipelineId'] = query['pipelineId'];
       if (query['currentStageId']) filter['currentStageId'] = query['currentStageId'];
-      if (query['agentId']) filter['agentId'] = query['agentId'];
+      // Agent scoping: inject agentId if scoping enabled and user is not owner
+      const scopedAgentId = getScopedAgentId(req, enableAgentScoping);
+      if (scopedAgentId) {
+        filter['agentId'] = scopedAgentId;
+      } else if (query['agentId']) {
+        filter['agentId'] = query['agentId'];
+      }
       if (query['category']) filter['category'] = query['category'];
       if (query['isClosed'] !== undefined) filter['isClosed'] = query['isClosed'] === 'true';
       if (query['contactExternalId']) filter['contactExternalId'] = query['contactExternalId'];
@@ -69,6 +86,15 @@ export function createCallLogRoutes(
       if (query['contactEmail']) filter['contactEmail'] = query['contactEmail'];
       if (query['priority']) filter['priority'] = query['priority'];
       if (query['direction']) filter['direction'] = query['direction'];
+      // New query params: channel, outcome, isFollowUp, includeDeleted
+      const channel = query['channel'];
+      const outcome = query['outcome'];
+      const isFollowUp = query['isFollowUp'] !== undefined ? query['isFollowUp'] === 'true' : undefined;
+      const includeDeleted = query['includeDeleted'] === 'true';
+      if (channel) filter['channel'] = channel;
+      if (outcome) filter['outcome'] = outcome;
+      if (isFollowUp !== undefined) filter['isFollowUp'] = isFollowUp;
+      if (includeDeleted) filter['includeDeleted'] = true;
       if (query['page']) filter['page'] = parseInt(query['page']!, 10);
       if (query['limit']) filter['limit'] = parseInt(query['limit']!, 10);
       if (query['from'] || query['to']) {
@@ -131,11 +157,29 @@ export function createCallLogRoutes(
     }
   });
 
+  // DELETE /:id — soft delete call log
+  router.delete('/:id', async (req: Request, res: Response) => {
+    try {
+      const agentId = (req as unknown as { user?: { adminUserId?: string } }).user?.adminUserId;
+      const agentName = (req as unknown as { user?: { displayName?: string } }).user?.displayName;
+      const result = await lifecycle.softDelete(req.params['id']!, agentId, agentName);
+      sendSuccess(res, result);
+    } catch (error: unknown) {
+      if (error instanceof AlxCallLogError) {
+        sendError(res, error.message, 404);
+        return;
+      }
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to soft delete call log', { id: req.params['id'], error: message });
+      sendError(res, message, 500);
+    }
+  });
+
   // PUT /:id/stage — change stage
   router.put('/:id/stage', async (req: Request, res: Response) => {
     try {
       const { newStageId, agentId } = req.body as { newStageId: string; agentId: string };
-      const result = await callLogs.changeStage(req.params['id']!, newStageId, agentId);
+      const result = await lifecycle.changeStage(req.params['id']!, newStageId, agentId);
       sendSuccess(res, result);
     } catch (error: unknown) {
       if (error instanceof AlxCallLogError) {
@@ -152,7 +196,7 @@ export function createCallLogRoutes(
   router.put('/:id/assign', async (req: Request, res: Response) => {
     try {
       const { agentId, assignedBy } = req.body as { agentId: string; assignedBy: string };
-      const result = await callLogs.assign(req.params['id']!, agentId, assignedBy);
+      const result = await lifecycle.assign(req.params['id']!, agentId, assignedBy);
       sendSuccess(res, result);
     } catch (error: unknown) {
       if (error instanceof AlxCallLogError) {
@@ -169,7 +213,7 @@ export function createCallLogRoutes(
   router.put('/:id/close', async (req: Request, res: Response) => {
     try {
       const { agentId } = req.body as { agentId: string };
-      const result = await callLogs.close(req.params['id']!, agentId);
+      const result = await lifecycle.close(req.params['id']!, agentId);
       sendSuccess(res, result);
     } catch (error: unknown) {
       if (error instanceof AlxCallLogError) {
@@ -186,7 +230,7 @@ export function createCallLogRoutes(
   router.put('/:id/reopen', async (req: Request, res: Response) => {
     try {
       const { agentId } = req.body as { agentId: string };
-      const result = await callLogs.reopen(req.params['id']!, agentId);
+      const result = await lifecycle.reopen(req.params['id']!, agentId);
       sendSuccess(res, result);
     } catch (error: unknown) {
       if (error instanceof AlxCallLogError) {

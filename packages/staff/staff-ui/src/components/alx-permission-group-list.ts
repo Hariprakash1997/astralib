@@ -2,7 +2,7 @@ import { LitElement, html, css, nothing } from 'lit';
 import { state } from 'lit/decorators.js';
 import { safeRegister } from '../utils/safe-register.js';
 import { StaffApiClient } from '../api/staff-api-client.js';
-import type { IPermissionGroup, IPermissionEntry } from '@astralibx/staff-types';
+import type { IPermissionGroup } from '@astralibx/staff-types';
 import {
   alxStaffResetStyles,
   alxStaffThemeStyles,
@@ -12,14 +12,9 @@ import {
   alxStaffCardStyles,
   alxStaffLoadingStyles,
 } from '../styles/shared.js';
+import './alx-permission-entry-editor.js';
 
-interface NewEntry {
-  key: string;
-  label: string;
-  type: 'view' | 'edit' | 'action';
-}
-
-export class AlxPermissionGroupEditor extends LitElement {
+export class AlxPermissionGroupList extends LitElement {
   static styles = [
     alxStaffResetStyles,
     alxStaffThemeStyles,
@@ -67,55 +62,6 @@ export class AlxPermissionGroupEditor extends LitElement {
       .group-actions {
         display: flex;
         gap: 0.25rem;
-      }
-
-      .group-body {
-        padding: 0.75rem;
-      }
-
-      .entry-list {
-        margin-bottom: 0.75rem;
-      }
-
-      .entry-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.3rem 0;
-        border-bottom: 1px solid color-mix(in srgb, var(--alx-border) 40%, transparent);
-        font-size: 0.8125rem;
-      }
-
-      .entry-key {
-        font-family: monospace;
-        font-size: 0.75rem;
-        color: var(--alx-primary);
-        flex: 0 0 auto;
-      }
-
-      .entry-label {
-        flex: 1;
-        color: var(--alx-text);
-      }
-
-      .entry-type {
-        font-size: 0.6875rem;
-        color: var(--alx-text-muted);
-        flex: 0 0 auto;
-        text-transform: uppercase;
-      }
-
-      .add-entry-form {
-        display: grid;
-        grid-template-columns: 1fr 1fr auto auto;
-        gap: 0.375rem;
-        align-items: end;
-        padding-top: 0.5rem;
-        border-top: 1px solid color-mix(in srgb, var(--alx-border) 60%, transparent);
-      }
-
-      .add-entry-form select {
-        width: auto;
       }
 
       .new-group-form {
@@ -169,9 +115,6 @@ export class AlxPermissionGroupEditor extends LitElement {
   @state() private creatingGroup = false;
   @state() private showNewGroupForm = false;
 
-  // Per-group new entry state (keyed by groupId)
-  @state() private newEntries: Record<string, NewEntry> = {};
-
   // Per-group delete confirmation
   @state() private confirmDeleteGroupId = '';
 
@@ -199,51 +142,6 @@ export class AlxPermissionGroupEditor extends LitElement {
     if (next.has(groupId)) next.delete(groupId);
     else next.add(groupId);
     this.expanded = next;
-  }
-
-  private getNewEntry(groupId: string): NewEntry {
-    return this.newEntries[groupId] ?? { key: '', label: '', type: 'view' };
-  }
-
-  private setNewEntry(groupId: string, partial: Partial<NewEntry>) {
-    this.newEntries = {
-      ...this.newEntries,
-      [groupId]: { ...this.getNewEntry(groupId), ...partial },
-    };
-  }
-
-  private async addEntry(group: IPermissionGroup) {
-    const entry = this.getNewEntry(group.groupId);
-    if (!entry.key.trim() || !entry.label.trim()) return;
-
-    const updated: IPermissionEntry[] = [
-      ...group.permissions,
-      { key: entry.key.trim(), label: entry.label.trim(), type: entry.type },
-    ];
-
-    try {
-      const result = await StaffApiClient.updatePermissionGroup(group.groupId, {
-        permissions: updated,
-      });
-      this.groups = this.groups.map(g => (g.groupId === group.groupId ? result : g));
-      this.newEntries = { ...this.newEntries, [group.groupId]: { key: '', label: '', type: 'view' } };
-      this.dispatchEvent(new CustomEvent('group-updated', { detail: { groupId: group.groupId, group: result }, bubbles: true, composed: true }));
-    } catch (e) {
-      this.error = e instanceof Error ? e.message : 'Failed to add entry';
-    }
-  }
-
-  private async removeEntry(group: IPermissionGroup, entryKey: string) {
-    const updated = group.permissions.filter(p => p.key !== entryKey);
-    try {
-      const result = await StaffApiClient.updatePermissionGroup(group.groupId, {
-        permissions: updated,
-      });
-      this.groups = this.groups.map(g => (g.groupId === group.groupId ? result : g));
-      this.dispatchEvent(new CustomEvent('group-updated', { detail: { groupId: group.groupId, group: result }, bubbles: true, composed: true }));
-    } catch (e) {
-      this.error = e instanceof Error ? e.message : 'Failed to remove entry';
-    }
   }
 
   private async createGroup() {
@@ -279,6 +177,11 @@ export class AlxPermissionGroupEditor extends LitElement {
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to delete group';
     }
+  }
+
+  private handleGroupUpdated(e: CustomEvent) {
+    const { groupId, group } = e.detail as { groupId: string; group: IPermissionGroup };
+    this.groups = this.groups.map(g => (g.groupId === groupId ? group : g));
   }
 
   render() {
@@ -330,7 +233,6 @@ export class AlxPermissionGroupEditor extends LitElement {
 
         ${!this.loading ? this.groups.map(group => {
           const isOpen = this.expanded.has(group.groupId);
-          const entry = this.getNewEntry(group.groupId);
           return html`
             <div class="group-section">
               <div class="group-header" @click=${() => this.toggleExpand(group.groupId)}>
@@ -354,47 +256,10 @@ export class AlxPermissionGroupEditor extends LitElement {
               ` : nothing}
 
               ${isOpen ? html`
-                <div class="group-body">
-                  <div class="entry-list">
-                    ${group.permissions.length === 0 ? html`
-                      <div style="font-size:0.75rem;color:var(--alx-text-muted);padding:0.25rem 0;">No permissions yet.</div>
-                    ` : group.permissions.map(p => html`
-                      <div class="entry-row">
-                        <span class="entry-key">${p.key}</span>
-                        <span class="entry-label">${p.label}</span>
-                        <span class="entry-type">${p.type}</span>
-                        <button class="alx-btn-icon danger alx-btn-sm"
-                          @click=${() => this.removeEntry(group, p.key)}>x</button>
-                      </div>
-                    `)}
-                  </div>
-
-                  <div class="add-entry-form">
-                    <div class="form-group" style="margin:0;">
-                      <label>Key</label>
-                      <input type="text" .value=${entry.key}
-                        @input=${(e: Event) => this.setNewEntry(group.groupId, { key: (e.target as HTMLInputElement).value })}
-                        placeholder="e.g. contacts.view" />
-                    </div>
-                    <div class="form-group" style="margin:0;">
-                      <label>Label</label>
-                      <input type="text" .value=${entry.label}
-                        @input=${(e: Event) => this.setNewEntry(group.groupId, { label: (e.target as HTMLInputElement).value })}
-                        placeholder="e.g. View Contacts" />
-                    </div>
-                    <div class="form-group" style="margin:0;">
-                      <label>Type</label>
-                      <select .value=${entry.type}
-                        @change=${(e: Event) => this.setNewEntry(group.groupId, { type: (e.target as HTMLSelectElement).value as 'view' | 'edit' | 'action' })}>
-                        <option value="view">view</option>
-                        <option value="edit">edit</option>
-                        <option value="action">action</option>
-                      </select>
-                    </div>
-                    <button class="alx-btn-sm alx-btn-primary" style="align-self:flex-end;"
-                      @click=${() => this.addEntry(group)}>Add</button>
-                  </div>
-                </div>
+                <alx-permission-entry-editor
+                  .group=${group}
+                  @group-updated=${(e: CustomEvent) => this.handleGroupUpdated(e)}
+                ></alx-permission-entry-editor>
               ` : nothing}
             </div>
           `;
@@ -404,4 +269,4 @@ export class AlxPermissionGroupEditor extends LitElement {
   }
 }
 
-safeRegister('alx-permission-group-editor', AlxPermissionGroupEditor);
+safeRegister('alx-permission-group-list', AlxPermissionGroupList);

@@ -1,4 +1,3 @@
-import { z } from 'zod';
 import { noopLogger } from '@astralibx/core';
 import type { Router } from 'express';
 import type { Model } from 'mongoose';
@@ -10,67 +9,12 @@ import { RateLimiterService } from './services/rate-limiter.service.js';
 import { PermissionCacheService } from './services/permission-cache.service.js';
 import { PermissionService } from './services/permission.service.js';
 import { StaffService } from './services/staff.service.js';
+import { AuthService } from './services/auth.service.js';
 import { createAuthMiddleware, type AuthMiddleware } from './middleware/auth.middleware.js';
 import { createRoutes } from './routes/index.js';
 import { DEFAULT_AUTH } from './constants/index.js';
 import { InvalidConfigError } from './errors/index.js';
-
-// ── Zod validation schema ─────────────────────────────────────────────────────
-
-const StaffEngineConfigSchema = z.object({
-  db: z.object({
-    connection: z.unknown().refine((v) => v !== undefined && v !== null, {
-      message: 'db.connection is required',
-    }),
-    collectionPrefix: z.string().optional(),
-  }),
-  redis: z
-    .object({
-      connection: z.unknown(),
-      keyPrefix: z.string().optional(),
-    })
-    .optional(),
-  logger: z
-    .object({
-      info: z.function(),
-      warn: z.function(),
-      error: z.function(),
-    })
-    .optional(),
-  tenantId: z.string().optional(),
-  auth: z.object({
-    jwtSecret: z.string().min(1),
-    staffTokenExpiry: z.string().optional(),
-    ownerTokenExpiry: z.string().optional(),
-    permissionCacheTtlMs: z.number().int().positive().optional(),
-  }),
-  adapters: z.object({
-    hashPassword: z.function(),
-    comparePassword: z.function(),
-  }),
-  hooks: z
-    .object({
-      onStaffCreated: z.function().optional(),
-      onLogin: z.function().optional(),
-      onLoginFailed: z.function().optional(),
-      onPermissionsChanged: z.function().optional(),
-      onStatusChanged: z.function().optional(),
-      onMetric: z.function().optional(),
-    })
-    .optional(),
-  options: z
-    .object({
-      requireEmailUniqueness: z.boolean().optional(),
-      allowSelfPasswordChange: z.boolean().optional(),
-      rateLimiter: z
-        .object({
-          windowMs: z.number().int().positive().optional(),
-          maxAttempts: z.number().int().positive().optional(),
-        })
-        .optional(),
-    })
-    .optional(),
-});
+import { StaffEngineConfigSchema } from './validation/config.schema.js';
 
 // ── Return type ───────────────────────────────────────────────────────────────
 
@@ -78,6 +22,7 @@ export interface StaffEngine {
   routes: Router;
   auth: AuthMiddleware;
   staff: StaffService;
+  authService: AuthService;
   permissions: PermissionService;
   models: {
     Staff: Model<IStaffDocument>;
@@ -163,13 +108,21 @@ export function createStaffEngine(config: StaffEngineConfig): StaffEngine {
     adapters: config.adapters,
     hooks: config.hooks ?? {},
     permissionCache,
+    logger,
+    tenantId: config.tenantId,
+    requireEmailUniqueness: resolvedOptions.requireEmailUniqueness,
+  });
+
+  const authService = new AuthService({
+    Staff: StaffModel,
+    adapters: config.adapters,
+    hooks: config.hooks ?? {},
     rateLimiter,
     logger,
     tenantId: config.tenantId,
     jwtSecret: resolvedAuth.jwtSecret,
     staffTokenExpiry: resolvedAuth.staffTokenExpiry,
     ownerTokenExpiry: resolvedAuth.ownerTokenExpiry,
-    requireEmailUniqueness: resolvedOptions.requireEmailUniqueness,
     allowSelfPasswordChange: resolvedOptions.allowSelfPasswordChange,
   });
 
@@ -184,7 +137,7 @@ export function createStaffEngine(config: StaffEngineConfig): StaffEngine {
 
   // 7. Create routes
   const routes = createRoutes(
-    { staff: staffService, permissions: permissionService },
+    { staff: staffService, auth: authService, permissions: permissionService },
     auth,
     logger,
     resolvedOptions.allowSelfPasswordChange,
@@ -200,6 +153,7 @@ export function createStaffEngine(config: StaffEngineConfig): StaffEngine {
     routes,
     auth,
     staff: staffService,
+    authService,
     permissions: permissionService,
     models: { Staff: StaffModel, PermissionGroup: PermissionGroupModel },
     destroy,

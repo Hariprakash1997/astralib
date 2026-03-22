@@ -31,11 +31,12 @@ export interface RouteServices {
 export interface RouteOptions {
   authenticateRequest?: (req: Request) => Promise<AuthResult | null>;
   logger: LogAdapter;
+  enableAgentScoping?: boolean;
 }
 
 export function createRoutes(services: RouteServices, options: RouteOptions): Router {
   const router = Router();
-  const { logger, authenticateRequest } = options;
+  const { logger, authenticateRequest, enableAgentScoping = false } = options;
 
   // Build auth middleware
   let authMiddleware: RequestHandler | undefined;
@@ -59,9 +60,9 @@ export function createRoutes(services: RouteServices, options: RouteOptions): Ro
   const protectedRouter = Router();
 
   protectedRouter.use('/pipelines', createPipelineRoutes(services.pipelines, logger));
-  protectedRouter.use('/calls', createCallLogRoutes({ callLogs: services.callLogs, lifecycle: services.lifecycle, timeline: services.timeline }, logger));
+  protectedRouter.use('/calls', createCallLogRoutes({ callLogs: services.callLogs, lifecycle: services.lifecycle, timeline: services.timeline }, logger, enableAgentScoping));
   protectedRouter.use('/contacts', createContactRoutes({ callLogs: services.callLogs, timeline: services.timeline }, logger));
-  protectedRouter.use('/analytics', createAnalyticsRoutes(services.analytics, services.pipelineAnalytics, logger));
+  protectedRouter.use('/analytics', createAnalyticsRoutes(services.analytics, services.pipelineAnalytics, logger, enableAgentScoping));
   protectedRouter.use('/', createSettingsRoutes(services.settings, services.export, logger));
 
   if (authMiddleware) {

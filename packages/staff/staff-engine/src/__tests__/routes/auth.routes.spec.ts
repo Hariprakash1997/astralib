@@ -47,9 +47,15 @@ function makeAuth(userOverride?: Record<string, unknown>) {
 
 function makeStaffService(overrides: Partial<Record<string, unknown>> = {}) {
   return {
+    getById: vi.fn().mockResolvedValue({ _id: 'staff-1', name: 'Owner' }),
+    ...overrides,
+  } as any;
+}
+
+function makeAuthService(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
     setupOwner: vi.fn().mockResolvedValue({ staff: { _id: 'staff-1', name: 'Owner' }, token: 'tok' }),
     login: vi.fn().mockResolvedValue({ staff: { _id: 'staff-1', name: 'Owner' }, token: 'tok' }),
-    getById: vi.fn().mockResolvedValue({ _id: 'staff-1', name: 'Owner' }),
     changeOwnPassword: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   } as any;
@@ -84,22 +90,24 @@ describe('createAuthRoutes', () => {
   describe('POST /setup', () => {
     it('returns 201 with staff and token on success', async () => {
       const staffService = makeStaffService();
+      const authService = makeAuthService();
       const auth = makeAuth();
-      const router = createAuthRoutes(staffService, auth, noopLogger, false);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, false);
 
       const req = makeReq({ body: { name: 'Owner', email: 'owner@x.com', password: 'Pass1!' } });
       await invokeRoute(router, 'POST', '/setup', req, res);
 
-      expect(staffService.setupOwner).toHaveBeenCalledWith({ name: 'Owner', email: 'owner@x.com', password: 'Pass1!' });
+      expect(authService.setupOwner).toHaveBeenCalledWith({ name: 'Owner', email: 'owner@x.com', password: 'Pass1!' });
       expect(res.status).toHaveBeenCalledWith(201);
     });
 
     it('returns 403 when setup already complete', async () => {
-      const staffService = makeStaffService({
+      const staffService = makeStaffService();
+      const authService = makeAuthService({
         setupOwner: vi.fn().mockRejectedValue(new SetupError()),
       });
       const auth = makeAuth();
-      const router = createAuthRoutes(staffService, auth, noopLogger, false);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, false);
 
       const req = makeReq({ body: { name: 'Owner', email: 'o@x.com', password: 'p' } });
       await invokeRoute(router, 'POST', '/setup', req, res);
@@ -111,22 +119,24 @@ describe('createAuthRoutes', () => {
   describe('POST /login', () => {
     it('returns 200 with staff and token on valid credentials', async () => {
       const staffService = makeStaffService();
+      const authService = makeAuthService();
       const auth = makeAuth();
-      const router = createAuthRoutes(staffService, auth, noopLogger, false);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, false);
 
       const req = makeReq({ body: { email: 'owner@x.com', password: 'Pass1!' } });
       await invokeRoute(router, 'POST', '/login', req, res);
 
-      expect(staffService.login).toHaveBeenCalledWith('owner@x.com', 'Pass1!', '127.0.0.1');
+      expect(authService.login).toHaveBeenCalledWith('owner@x.com', 'Pass1!', '127.0.0.1');
       expect(res.status).toHaveBeenCalledWith(200);
     });
 
     it('returns 401 on invalid credentials', async () => {
-      const staffService = makeStaffService({
+      const staffService = makeStaffService();
+      const authService = makeAuthService({
         login: vi.fn().mockRejectedValue(new AuthenticationError()),
       });
       const auth = makeAuth();
-      const router = createAuthRoutes(staffService, auth, noopLogger, false);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, false);
 
       const req = makeReq({ body: { email: 'owner@x.com', password: 'wrong' } });
       await invokeRoute(router, 'POST', '/login', req, res);
@@ -135,11 +145,12 @@ describe('createAuthRoutes', () => {
     });
 
     it('returns 429 with Retry-After header on rate limit', async () => {
-      const staffService = makeStaffService({
+      const staffService = makeStaffService();
+      const authService = makeAuthService({
         login: vi.fn().mockRejectedValue(new RateLimitError(10000)),
       });
       const auth = makeAuth();
-      const router = createAuthRoutes(staffService, auth, noopLogger, false);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, false);
 
       const req = makeReq({ body: { email: 'owner@x.com', password: 'p' } });
       await invokeRoute(router, 'POST', '/login', req, res);
@@ -155,8 +166,9 @@ describe('createAuthRoutes', () => {
       const staffService = makeStaffService({
         getById: vi.fn().mockResolvedValue(staffDoc),
       });
+      const authService = makeAuthService();
       const auth = makeAuth({ staffId: 'staff-1', role: 'staff', permissions: ['module:view'] });
-      const router = createAuthRoutes(staffService, auth, noopLogger, false);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, false);
 
       const req = makeReq();
       await invokeRoute(router, 'GET', '/me', req, res);
@@ -169,8 +181,9 @@ describe('createAuthRoutes', () => {
       const staffService = makeStaffService({
         getById: vi.fn().mockRejectedValue(new StaffNotFoundError('staff-1')),
       });
+      const authService = makeAuthService();
       const auth = makeAuth();
-      const router = createAuthRoutes(staffService, auth, noopLogger, false);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, false);
 
       const req = makeReq();
       await invokeRoute(router, 'GET', '/me', req, res);
@@ -182,8 +195,9 @@ describe('createAuthRoutes', () => {
   describe('PUT /me/password', () => {
     it('is not registered when allowSelfPasswordChange is false', () => {
       const staffService = makeStaffService();
+      const authService = makeAuthService();
       const auth = makeAuth();
-      const router = createAuthRoutes(staffService, auth, noopLogger, false);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, false);
 
       // Check that the route does not exist in the router stack
       const stack = (router as any).stack as Array<{ route?: { path: string; methods: Record<string, boolean> } }>;
@@ -195,8 +209,9 @@ describe('createAuthRoutes', () => {
 
     it('is registered when allowSelfPasswordChange is true', () => {
       const staffService = makeStaffService();
+      const authService = makeAuthService();
       const auth = makeAuth();
-      const router = createAuthRoutes(staffService, auth, noopLogger, true);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, true);
 
       const stack = (router as any).stack as Array<{ route?: { path: string; methods: Record<string, boolean> } }>;
       const hasPasswordRoute = stack.some(
@@ -207,13 +222,14 @@ describe('createAuthRoutes', () => {
 
     it('changes password on success when enabled', async () => {
       const staffService = makeStaffService();
+      const authService = makeAuthService();
       const auth = makeAuth({ staffId: 'staff-1', role: 'staff', permissions: [] });
-      const router = createAuthRoutes(staffService, auth, noopLogger, true);
+      const router = createAuthRoutes(staffService, authService, auth, noopLogger, true);
 
       const req = makeReq({ body: { oldPassword: 'old', newPassword: 'new' } });
       await invokeRoute(router, 'PUT', '/me/password', req, res);
 
-      expect(staffService.changeOwnPassword).toHaveBeenCalledWith('staff-1', 'old', 'new');
+      expect(authService.changeOwnPassword).toHaveBeenCalledWith('staff-1', 'old', 'new');
       expect(res.status).toHaveBeenCalledWith(200);
     });
   });

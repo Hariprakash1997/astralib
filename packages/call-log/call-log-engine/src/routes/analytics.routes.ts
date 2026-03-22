@@ -10,8 +10,17 @@ export function createAnalyticsRoutes(
   analytics: AnalyticsService,
   pipelineAnalytics: PipelineAnalyticsService,
   logger: LogAdapter,
+  enableAgentScoping = false,
 ): Router {
   const router = Router();
+
+  function getScopedAgentId(req: Request): string | undefined {
+    if (!enableAgentScoping) return undefined;
+    const user = (req as unknown as { user?: { adminUserId?: string; role?: string } }).user;
+    if (!user) return undefined;
+    if (user.role === 'owner') return undefined;
+    return user.adminUserId;
+  }
 
   function parseDateRange(query: Record<string, string | undefined>) {
     return {
@@ -35,6 +44,12 @@ export function createAnalyticsRoutes(
   // GET /agent/:agentId — agent stats
   router.get('/agent/:agentId', async (req: Request, res: Response) => {
     try {
+      const scopedAgentId = getScopedAgentId(req);
+      // Non-owners can only view their own stats
+      if (scopedAgentId && scopedAgentId !== req.params['agentId']) {
+        sendError(res, 'Forbidden: you may only view your own agent stats', 403);
+        return;
+      }
       const dateRange = parseDateRange(req.query as Record<string, string | undefined>);
       const result = await analytics.getAgentStats(req.params['agentId']!, dateRange);
       sendSuccess(res, result);
@@ -152,8 +167,9 @@ export function createAnalyticsRoutes(
   // GET /daily — daily report
   router.get('/daily', async (req: Request, res: Response) => {
     try {
+      const scopedAgentId = getScopedAgentId(req);
       const dateRange = parseDateRange(req.query as Record<string, string | undefined>);
-      const result = await analytics.getDailyReport(dateRange);
+      const result = await analytics.getDailyReport(dateRange, scopedAgentId);
       sendSuccess(res, result);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';

@@ -11,6 +11,11 @@ Production-grade call-log infrastructure for Node.js -- pipeline management, tim
 - **Follow-up scheduler** -- background worker starts automatically inside the factory, polls MongoDB for due follow-ups, fires `onFollowUpDue` hook
 - **Analytics** -- dashboard stats, agent leaderboards, pipeline funnels, daily/weekly trends, overall summary, peak-hour analysis, team stats
 - **Export** -- bulk or per-call export in JSON or CSV format, plus pipeline report export
+- **Call channels** -- track communication channel per call (phone, whatsapp, telegram, etc.), admin-configurable via `availableChannels` in settings, filterable in list queries, channel distribution in analytics
+- **Call outcomes** -- track result of each call separate from pipeline stage (interested, not_interested, no_answer, etc.), admin-configurable via `availableOutcomes` in settings, filterable, with outcome distribution in analytics
+- **Follow-up tracking** -- `isFollowUp` flag distinguishes follow-up calls from fresh outreach, filterable in list queries, follow-up ratio computed in analytics
+- **Soft delete** -- soft delete with `isDeleted` flag and `deletedAt` timestamp, excluded from all queries and analytics by default, `includeDeleted=true` query param for audit access
+- **Agent-scoped filtering** -- when `enableAgentScoping` is enabled (default), non-owner staff see only their own calls in list and analytics; owners see everything, based on `role` from `authenticateAgent` adapter
 - **Settings** -- tenant-scoped available tags, categories, priority levels, follow-up defaults, timeline page size, concurrent call limits
 - **Agent sharing** -- reuses the same MongoDB agent collection as chat-engine (`chatagents` by default)
 - **Admin dashboard** -- 14 Lit components for pipeline management, call log views, timelines, analytics, agent dashboard, settings

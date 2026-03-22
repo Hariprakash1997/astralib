@@ -2,11 +2,13 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import type { LogAdapter } from '@astralibx/staff-types';
 import type { StaffService } from '../services/staff.service.js';
+import type { AuthService } from '../services/auth.service.js';
 import type { AuthMiddleware, AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import { sendSuccess, handleStaffError } from '../utils/error-handler.js';
 
 export function createAuthRoutes(
   staffService: StaffService,
+  authService: AuthService,
   auth: AuthMiddleware,
   logger: LogAdapter,
   allowSelfPasswordChange: boolean,
@@ -16,7 +18,7 @@ export function createAuthRoutes(
   // POST /setup — public, creates initial owner account
   router.post('/setup', async (req: Request, res: Response) => {
     try {
-      const result = await staffService.setupOwner(req.body);
+      const result = await authService.setupOwner(req.body);
       sendSuccess(res, result, 201);
     } catch (error: unknown) {
       handleStaffError(res, error, logger);
@@ -28,7 +30,7 @@ export function createAuthRoutes(
     try {
       const { email, password } = req.body as { email: string; password: string };
       const ip = req.ip || req.socket.remoteAddress || '';
-      const result = await staffService.login(email, password, ip);
+      const result = await authService.login(email, password, ip);
       sendSuccess(res, result);
     } catch (error: unknown) {
       handleStaffError(res, error, logger);
@@ -52,7 +54,7 @@ export function createAuthRoutes(
       try {
         const user = (req as AuthenticatedRequest).user;
         const { oldPassword, newPassword } = req.body as { oldPassword: string; newPassword: string };
-        await staffService.changeOwnPassword(user.staffId, oldPassword, newPassword);
+        await authService.changeOwnPassword(user.staffId, oldPassword, newPassword);
         sendSuccess(res, { message: 'Password changed successfully' });
       } catch (error: unknown) {
         handleStaffError(res, error, logger);

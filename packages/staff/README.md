@@ -159,7 +159,7 @@ import '@astralibx/staff-ui';
 ```html
 <alx-staff-list></alx-staff-list>
 <alx-staff-create-form></alx-staff-create-form>
-<alx-permission-group-editor></alx-permission-group-editor>
+<alx-permission-group-list></alx-permission-group-list>
 ```
 
 ## Package READMEs

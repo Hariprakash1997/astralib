@@ -2,11 +2,13 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import type { LogAdapter } from '@astralibx/staff-types';
 import type { StaffService } from '../services/staff.service.js';
+import type { AuthService } from '../services/auth.service.js';
 import { sendSuccess, handleStaffError } from '../utils/error-handler.js';
 
 export function createStaffRoutes(
   staffService: StaffService,
   logger: LogAdapter,
+  authService?: AuthService,
 ): Router {
   const router = Router();
 
@@ -75,7 +77,10 @@ export function createStaffRoutes(
   // PUT /:staffId/password — reset staff password (owner action)
   router.put('/:staffId/password', async (req: Request, res: Response) => {
     try {
-      await staffService.resetPassword(req.params['staffId']!, req.body.password);
+      if (!authService) {
+        throw new Error('AuthService not available');
+      }
+      await authService.resetPassword(req.params['staffId']!, req.body.password);
       sendSuccess(res, { message: 'Password reset successfully' });
     } catch (error: unknown) {
       handleStaffError(res, error, logger);

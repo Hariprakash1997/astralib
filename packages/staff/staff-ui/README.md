@@ -51,7 +51,8 @@ AlxStaffConfig.setAuthToken('Bearer <new-token>');
 | `<alx-staff-permission-editor>` | `AlxStaffPermissionEditor` | Per-staff permission editor with collapsible groups, select-all/clear per group, and edit-to-view auto-cascade |
 | `<alx-staff-password-reset>` | `AlxStaffPasswordReset` | Owner form to reset a staff member's password with confirm-password validation |
 | `<alx-staff-status-toggle>` | `AlxStaffStatusToggle` | Shows current status badge and toggles active/inactive with a confirmation step |
-| `<alx-permission-group-editor>` | `AlxPermissionGroupEditor` | Full CRUD editor for permission groups -- create groups, add/remove permission entries (key, label, type), delete groups |
+| `<alx-permission-group-list>` | `AlxPermissionGroupList` | Group list with create/delete -- renders `<alx-permission-entry-editor>` inside expanded groups |
+| `<alx-permission-entry-editor>` | `AlxPermissionEntryEditor` | Per-group permission entry editor -- add/remove entries with key, label, type |
 | `<alx-staff-setup>` | `AlxStaffSetup` | First-run setup form that calls `POST /setup` to create the initial owner account |
 
 ### Component attributes
@@ -80,9 +81,9 @@ All events bubble and are composed (cross shadow DOM).
 | `password-reset` | `alx-staff-password-reset` | `{ staffId: string }` | Password was successfully reset |
 | `cancel` | `alx-staff-password-reset` | `{}` | User cancelled the password reset form |
 | `status-changed` | `alx-staff-status-toggle` | `{ staffId: string, status: string }` | Staff status was changed |
-| `group-created` | `alx-permission-group-editor` | `{ group: IPermissionGroup }` | A new permission group was created |
-| `group-updated` | `alx-permission-group-editor` | `{ group: IPermissionGroup }` | A permission group's entries were updated |
-| `group-deleted` | `alx-permission-group-editor` | `{ groupId: string }` | A permission group was deleted |
+| `group-created` | `alx-permission-group-list` | `{ group: IPermissionGroup }` | A new permission group was created |
+| `group-updated` | `alx-permission-entry-editor` | `{ groupId: string, group: IPermissionGroup }` | A permission group's entries were updated |
+| `group-deleted` | `alx-permission-group-list` | `{ groupId: string }` | A permission group was deleted |
 | `setup-complete` | `alx-staff-setup` | `{ staff: IStaff, token: string }` | Initial owner setup completed |
 
 ## Theming
