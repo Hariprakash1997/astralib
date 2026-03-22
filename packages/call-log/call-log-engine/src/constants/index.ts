@@ -6,6 +6,7 @@ export const ERROR_CODE = {
   StageInUse: 'CALL_STAGE_IN_USE',
   CallLogNotFound: 'CALL_LOG_NOT_FOUND',
   CallLogClosed: 'CALL_LOG_CLOSED',
+  CallLogDeleted: 'CALL_LOG_DELETED',
   ContactNotFound: 'CALL_CONTACT_NOT_FOUND',
   AgentCapacityFull: 'CALL_AGENT_CAPACITY_FULL',
   InvalidConfig: 'CALL_INVALID_CONFIG',
@@ -24,6 +25,7 @@ export const ERROR_MESSAGE = {
   StageInUse: 'Cannot remove stage that has active calls',
   CallLogNotFound: 'Call log not found',
   CallLogClosed: 'Cannot modify a closed call log',
+  CallLogDeleted: 'Call log has been deleted',
   ContactNotFound: 'Contact not found',
   AgentCapacityFull: 'Agent has reached maximum concurrent calls',
   AuthFailed: 'Authentication failed',
@@ -59,4 +61,6 @@ export const SYSTEM_TIMELINE_FN = {
   callAssigned: (agentName: string) => `Call assigned to ${agentName}`,
   callReassigned: (from: string, to: string) => `Call reassigned from ${from} to ${to}`,
   followUpSet: (date: string) => `Follow-up scheduled for ${date}`,
+  callDeleted: (agentName: string) => `Call deleted by ${agentName}`,
+  followUpCallCreated: () => 'This call is a follow-up to a previous interaction',
 } as const;

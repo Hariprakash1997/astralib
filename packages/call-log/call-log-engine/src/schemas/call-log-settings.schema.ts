@@ -36,6 +36,8 @@ export const CallLogSettingsSchema = new Schema<ICallLogSettingsDocument>(
     key: { type: String, required: true, default: 'global' },
     availableTags: { type: [String], default: [] },
     availableCategories: { type: [String], default: [] },
+    availableChannels: { type: [String], default: ['phone', 'whatsapp', 'telegram', 'in_app_chat'] },
+    availableOutcomes: { type: [String], default: ['pending', 'interested', 'not_interested', 'no_answer', 'busy', 'callback_requested', 'subscribed', 'complaint'] },
     priorityLevels: {
       type: [PriorityConfigSchema],
       default: () => DEFAULT_PRIORITY_LEVELS.map((p) => ({ ...p })),

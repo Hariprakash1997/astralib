@@ -88,6 +88,11 @@ export const CallLogSchema = new Schema<ICallLogDocument>(
     timeline: { type: [TimelineEntrySchema], default: [] },
     stageHistory: { type: [StageChangeSchema], default: [] },
     durationMinutes: { type: Number, min: 0 },
+    channel: { type: String, default: 'phone', index: true },
+    outcome: { type: String, default: 'pending', index: true },
+    isFollowUp: { type: Boolean, default: false, index: true },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date },
     isClosed: { type: Boolean, default: false, index: true },
     closedAt: { type: Date },
     tenantId: { type: String, sparse: true },
@@ -104,6 +109,7 @@ export const CallLogSchema = new Schema<ICallLogDocument>(
 CallLogSchema.index({ 'contactRef.externalId': 1 });
 CallLogSchema.index({ pipelineId: 1, currentStageId: 1 });
 CallLogSchema.index({ agentId: 1, isClosed: 1 });
+CallLogSchema.index({ isDeleted: 1, isClosed: 1 });
 
 // ── Factory ──────────────────────────────────────────────────────────────────
 
