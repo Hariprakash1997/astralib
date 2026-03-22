@@ -1,0 +1,52 @@
+{
+  "name": "@astralibx/staff-engine",
+  "version": "0.1.0",
+  "description": "Staff management engine with JWT authentication, runtime-configurable permissions, and CRUD operations",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hariprakash1997/astralib.git",
+    "directory": "packages/staff/staff-engine"
+  },
+  "main": "dist/index.cjs",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/index.d.mts", "default": "./dist/index.mjs" },
+      "require": { "types": "./dist/index.d.ts", "default": "./dist/index.cjs" }
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["staff", "authentication", "permissions", "jwt"],
+  "license": "MIT",
+  "dependencies": {
+    "@astralibx/staff-types": "^0.1.0",
+    "@astralibx/core": "^1.2.1",
+    "jsonwebtoken": "^9.0.0",
+    "zod": "^3.23.0"
+  },
+  "peerDependencies": {
+    "express": "^4.18.0 || ^5.0.0",
+    "mongoose": "^7.0.0 || ^8.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^3.0.0",
+    "express": "^5.0.0",
+    "mongoose": "^8.12.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.0"
+  }
+}
