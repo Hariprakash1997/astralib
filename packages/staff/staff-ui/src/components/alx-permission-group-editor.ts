@@ -227,7 +227,7 @@ export class AlxPermissionGroupEditor extends LitElement {
       });
       this.groups = this.groups.map(g => (g.groupId === group.groupId ? result : g));
       this.newEntries = { ...this.newEntries, [group.groupId]: { key: '', label: '', type: 'view' } };
-      this.dispatchEvent(new CustomEvent('group-updated', { detail: { group: result }, bubbles: true, composed: true }));
+      this.dispatchEvent(new CustomEvent('group-updated', { detail: { groupId: group.groupId, group: result }, bubbles: true, composed: true }));
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to add entry';
     }
@@ -240,7 +240,7 @@ export class AlxPermissionGroupEditor extends LitElement {
         permissions: updated,
       });
       this.groups = this.groups.map(g => (g.groupId === group.groupId ? result : g));
-      this.dispatchEvent(new CustomEvent('group-updated', { detail: { group: result }, bubbles: true, composed: true }));
+      this.dispatchEvent(new CustomEvent('group-updated', { detail: { groupId: group.groupId, group: result }, bubbles: true, composed: true }));
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to remove entry';
     }

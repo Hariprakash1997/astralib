@@ -85,9 +85,9 @@ export class AlxStaffCreateForm extends LitElement {
     if (checked) {
       next.add(key);
       // Auto-check corresponding view permission for edit keys
-      if (key.endsWith('.edit')) {
-        const viewKey = key.replace('.edit', '.view');
-        next.add(viewKey);
+      if (key.endsWith(':edit')) {
+        const prefix = key.substring(0, key.lastIndexOf(':'));
+        next.add(`${prefix}:view`);
       }
     } else {
       next.delete(key);

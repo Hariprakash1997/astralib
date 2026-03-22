@@ -150,8 +150,9 @@ export class AlxStaffPermissionEditor extends LitElement {
     if (checked) {
       next.add(key);
       // Edit auto-checks matching view
-      if (key.endsWith('.edit')) {
-        next.add(key.replace('.edit', '.view'));
+      if (key.endsWith(':edit')) {
+        const prefix = key.substring(0, key.lastIndexOf(':'));
+        next.add(`${prefix}:view`);
       }
     } else {
       next.delete(key);

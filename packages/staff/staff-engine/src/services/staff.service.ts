@@ -69,7 +69,8 @@ export class StaffService {
 
   private generateToken(staffId: string, role: string): string {
     const expiresIn = role === STAFF_ROLE.Owner ? this.ownerTokenExpiry : this.staffTokenExpiry;
-    return jwt.sign({ staffId, role }, this.jwtSecret, { expiresIn });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return jwt.sign({ staffId, role }, this.jwtSecret, { expiresIn } as any);
   }
 
   async setupOwner(data: { name: string; email: string; password: string }): Promise<{ staff: IStaffDocument; token: string }> {
@@ -79,7 +80,7 @@ export class StaffService {
     // and we detect it was not newly created.
     const hashedPassword = await this.adapters.hashPassword(data.password);
     const filter = { role: STAFF_ROLE.Owner, ...this.tenantFilter };
-    const result = await this.Staff.findOneAndUpdate(
+    const result = await (this.Staff.findOneAndUpdate(
       filter,
       {
         $setOnInsert: {
@@ -93,18 +94,18 @@ export class StaffService {
         },
       },
       { upsert: true, new: true, rawResult: true },
-    );
+    ) as unknown as Promise<{ lastErrorObject?: { upserted?: unknown }; value?: IStaffDocument }>);
 
     if (!result.lastErrorObject?.upserted) {
       throw new SetupError();
     }
 
-    const staff = result.value!;
+    const staff = await this.Staff.findOne({ _id: result.value!._id }).lean() as unknown as IStaffDocument;
     const token = this.generateToken(staff._id.toString(), STAFF_ROLE.Owner);
     this.logger.info('Owner setup complete', { staffId: staff._id.toString() });
-    this.hooks.onStaffCreated?.(staff.toObject());
+    this.hooks.onStaffCreated?.(staff);
     this.hooks.onMetric?.({ name: 'staff_setup_complete', value: 1 });
-    return { staff: staff.toObject(), token };
+    return { staff, token };
   }
 
   async login(email: string, password: string, ip?: string): Promise<{ staff: IStaffDocument; token: string }> {
@@ -201,13 +202,13 @@ export class StaffService {
     ]);
 
     return {
-      data,
+      data: data as unknown as IStaffDocument[],
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 
   async getById(staffId: string): Promise<IStaffDocument> {
-    const staff = await this.Staff.findOne({ _id: staffId, ...this.tenantFilter }).lean();
+    const staff = await this.Staff.findOne({ _id: staffId, ...this.tenantFilter }).lean() as unknown as IStaffDocument | null;
     if (!staff) throw new StaffNotFoundError(staffId);
     return staff;
   }
@@ -233,7 +234,7 @@ export class StaffService {
       { _id: staffId, ...this.tenantFilter },
       { $set: updateData },
       { new: true },
-    ).lean();
+    ).lean() as unknown as IStaffDocument | null;
     if (!staff) throw new StaffNotFoundError(staffId);
 
     this.logger.info('Staff updated', { staffId, fields: Object.keys(updateData) });
@@ -241,7 +242,7 @@ export class StaffService {
   }
 
   async updatePermissions(staffId: string, permissions: string[]): Promise<IStaffDocument> {
-    const groups = await this.PermissionGroup.find(this.tenantFilter).lean();
+    const groups = await this.PermissionGroup.find(this.tenantFilter).lean() as unknown as IPermissionGroupDocument[];
     validatePermissionPairs(permissions, groups);
 
     const staff = await this.Staff.findOne({ _id: staffId, ...this.tenantFilter });
