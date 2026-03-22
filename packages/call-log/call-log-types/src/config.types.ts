@@ -38,15 +38,18 @@ export interface CallLogEngineConfig {
   options?: {
     maxTimelineEntries?: number;
     followUpCheckIntervalMs?: number;
+    enableAgentScoping?: boolean;
   };
 }
 
 export const DEFAULT_OPTIONS = {
   maxTimelineEntries: 200,
   followUpCheckIntervalMs: 60_000,
+  enableAgentScoping: true,
 } as const;
 
 export interface ResolvedOptions {
   maxTimelineEntries: number;
   followUpCheckIntervalMs: number;
+  enableAgentScoping: boolean;
 }

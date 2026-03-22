@@ -15,4 +15,5 @@ export interface ContactInfo {
 export interface AuthResult {
   adminUserId: string;
   displayName: string;
+  role?: string;
 }

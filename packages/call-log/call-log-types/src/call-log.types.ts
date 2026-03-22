@@ -51,10 +51,71 @@ export interface ICallLog {
   timeline: ITimelineEntry[];
   stageHistory: IStageChange[];
   durationMinutes?: number;
+  channel: string;
+  outcome: string;
+  isFollowUp: boolean;
+  isDeleted: boolean;
+  deletedAt?: Date;
   isClosed: boolean;
   closedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
   tenantId?: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface CreateCallLogInput {
+  pipelineId: string;
+  contactRef: IContactRef;
+  direction: CallDirection;
+  callDate: Date;
+  channel: string;
+  outcome: string;
+  priority?: CallPriority;
+  agentId: string;
+  tags?: string[];
+  category?: string;
+  durationMinutes?: number;
+  nextFollowUpDate?: Date;
+  isFollowUp?: boolean;
+  tenantId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface UpdateCallLogInput {
+  currentStageId?: string;
+  direction?: CallDirection;
+  callDate?: Date;
+  channel?: string;
+  outcome?: string;
+  isFollowUp?: boolean;
+  priority?: CallPriority;
+  agentId?: string;
+  assignedBy?: string;
+  tags?: string[];
+  category?: string;
+  durationMinutes?: number;
+  nextFollowUpDate?: Date;
+  isClosed?: boolean;
+  closedAt?: Date;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ListCallLogsFilter {
+  pipelineId?: string;
+  agentId?: string;
+  direction?: CallDirection;
+  priority?: CallPriority;
+  channel?: string;
+  outcome?: string;
+  isFollowUp?: boolean;
+  isClosed?: boolean;
+  includeDeleted?: boolean;
+  tenantId?: string;
+  tags?: string[];
+  category?: string;
+  callDateFrom?: Date;
+  callDateTo?: Date;
+  limit?: number;
+  skip?: number;
 }
