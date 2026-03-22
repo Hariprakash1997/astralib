@@ -1,5 +1,11 @@
 # @astralibx/email-analytics
 
+## 2.5.4
+
+### Patch Changes
+
+- 6247821: Fixes: analytics bridge contactValue field - Features: new call-log module with pipelines, timeline, analytics, 14 UI components
+
 ## 2.5.3
 
 ### Patch Changes
