@@ -205,7 +205,7 @@ export class PipelineAnalyticsService {
           _id: null,
           total: { $sum: 1 },
           followUpCalls: {
-            $sum: { $cond: [{ $ne: ['$nextFollowUpDate', null] }, 1, 0] },
+            $sum: { $cond: [{ $eq: ['$isFollowUp', true] }, 1, 0] },
           },
         },
       },

@@ -231,14 +231,14 @@ describe('ExportService', () => {
       expect(lines).toHaveLength(3); // header + 2 stage rows
     });
 
-    it('calls analytics.getPipelineStats with pipelineId and dateRange', async () => {
+    it('calls pipelineAnalytics.getPipelineStats with pipelineId and dateRange', async () => {
       const CallLog = makeCallLogModel();
-      const analytics = makeAnalyticsService();
-      const service = new ExportService(CallLog as any, analytics as any, mockLogger);
+      const pipelineAnalytics = makeAnalyticsService();
+      const service = new ExportService(CallLog as any, pipelineAnalytics as any, mockLogger);
 
       await service.exportPipelineReport('pipe-1', dateRange, 'json');
 
-      expect(analytics.getPipelineStats).toHaveBeenCalledWith('pipe-1', dateRange);
+      expect(pipelineAnalytics.getPipelineStats).toHaveBeenCalledWith('pipe-1', dateRange);
     });
   });
 });

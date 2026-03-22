@@ -68,6 +68,7 @@ const CallLogEngineConfigSchema = z.object({
     .object({
       maxTimelineEntries: z.number().int().positive().optional(),
       followUpCheckIntervalMs: z.number().int().positive().optional(),
+      enableAgentScoping: z.boolean().optional(),
     })
     .optional(),
 });
@@ -155,7 +156,7 @@ export function createCallLogEngine(config: CallLogEngineConfig): CallLogEngine 
     config.agents?.resolveAgent,
   );
 
-  const exportService = new ExportService(CallLog, analyticsService, logger);
+  const exportService = new ExportService(CallLog, pipelineAnalyticsService, logger);
 
   // 6. Create routes
   const routes = createRoutes(
@@ -182,6 +183,7 @@ export function createCallLogEngine(config: CallLogEngineConfig): CallLogEngine 
           }
         : undefined,
       logger,
+      enableAgentScoping: resolvedOptions.enableAgentScoping,
     },
   );
 

@@ -32,12 +32,19 @@ function makeCallLogService() {
     create: vi.fn().mockResolvedValue({ callLogId: 'cl-new' }),
     get: vi.fn().mockResolvedValue({ callLogId: 'cl-1' }),
     update: vi.fn().mockResolvedValue({ callLogId: 'cl-1' }),
+    getByContact: vi.fn().mockResolvedValue([]),
+  };
+}
+
+function makeLifecycleService() {
+  return {
     changeStage: vi.fn().mockResolvedValue({ callLogId: 'cl-1' }),
     assign: vi.fn().mockResolvedValue({ callLogId: 'cl-1' }),
     close: vi.fn().mockResolvedValue({ callLogId: 'cl-1', isClosed: true }),
-    getByContact: vi.fn().mockResolvedValue([]),
+    reopen: vi.fn().mockResolvedValue({ callLogId: 'cl-1', isClosed: false }),
     getFollowUpsDue: vi.fn().mockResolvedValue([]),
     bulkChangeStage: vi.fn().mockResolvedValue({ succeeded: [], failed: [], total: 0 }),
+    softDelete: vi.fn().mockResolvedValue({ callLogId: 'cl-1', isDeleted: true }),
   };
 }
 
@@ -85,8 +92,16 @@ async function buildApp(
   const services = {
     pipelines: makePipelineService() as unknown as Parameters<typeof createRoutes>[0]['pipelines'],
     callLogs: makeCallLogService() as unknown as Parameters<typeof createRoutes>[0]['callLogs'],
+    lifecycle: makeLifecycleService() as unknown as Parameters<typeof createRoutes>[0]['lifecycle'],
     timeline: makeTimelineService() as unknown as Parameters<typeof createRoutes>[0]['timeline'],
     analytics: makeAnalyticsService() as unknown as Parameters<typeof createRoutes>[0]['analytics'],
+    pipelineAnalytics: {
+      getPipelineStats: vi.fn().mockResolvedValue({}),
+      getPipelineFunnel: vi.fn().mockResolvedValue({}),
+      getChannelDistribution: vi.fn().mockResolvedValue([]),
+      getOutcomeDistribution: vi.fn().mockResolvedValue([]),
+      getFollowUpStats: vi.fn().mockResolvedValue({}),
+    } as unknown as Parameters<typeof createRoutes>[0]['pipelineAnalytics'],
     settings: makeSettingsService() as unknown as Parameters<typeof createRoutes>[0]['settings'],
     export: makeExportService() as unknown as Parameters<typeof createRoutes>[0]['export'],
   };
@@ -94,6 +109,39 @@ async function buildApp(
   const app: Express = express();
   app.use(express.json());
   app.use('/api', createRoutes(services, { authenticateRequest, logger: mockLogger }));
+  return { app, services };
+}
+
+async function buildAppWithOptions(opts: {
+  authenticateRequest?: (req: express.Request) => Promise<{ adminUserId: string; displayName: string; role?: string } | null>;
+  enableAgentScoping?: boolean;
+}) {
+  const { createRoutes } = await import('../../routes/index.js');
+
+  const services = {
+    pipelines: makePipelineService() as unknown as Parameters<typeof createRoutes>[0]['pipelines'],
+    callLogs: makeCallLogService() as unknown as Parameters<typeof createRoutes>[0]['callLogs'],
+    lifecycle: makeLifecycleService() as unknown as Parameters<typeof createRoutes>[0]['lifecycle'],
+    timeline: makeTimelineService() as unknown as Parameters<typeof createRoutes>[0]['timeline'],
+    analytics: makeAnalyticsService() as unknown as Parameters<typeof createRoutes>[0]['analytics'],
+    pipelineAnalytics: {
+      getPipelineStats: vi.fn().mockResolvedValue({}),
+      getPipelineFunnel: vi.fn().mockResolvedValue({}),
+      getChannelDistribution: vi.fn().mockResolvedValue([]),
+      getOutcomeDistribution: vi.fn().mockResolvedValue([]),
+      getFollowUpStats: vi.fn().mockResolvedValue({}),
+    } as unknown as Parameters<typeof createRoutes>[0]['pipelineAnalytics'],
+    settings: makeSettingsService() as unknown as Parameters<typeof createRoutes>[0]['settings'],
+    export: makeExportService() as unknown as Parameters<typeof createRoutes>[0]['export'],
+  };
+
+  const app: Express = express();
+  app.use(express.json());
+  app.use('/api', createRoutes(services, {
+    authenticateRequest: opts.authenticateRequest as ((req: express.Request) => Promise<{ adminUserId: string; displayName: string } | null>) | undefined,
+    logger: mockLogger,
+    enableAgentScoping: opts.enableAgentScoping,
+  }));
   return { app, services };
 }
 
@@ -228,8 +276,8 @@ describe('createRoutes()', () => {
       const { app, services } = await buildApp();
       const result = await request(app, 'GET', '/api/calls/follow-ups');
       expect(result.status).toBe(200);
-      // Should call getFollowUpsDue, not get
-      expect(services.callLogs.getFollowUpsDue).toHaveBeenCalledTimes(1);
+      // Should call getFollowUpsDue on lifecycle service, not get on callLogs
+      expect(services.lifecycle.getFollowUpsDue).toHaveBeenCalledTimes(1);
       expect(services.callLogs.get).not.toHaveBeenCalled();
     });
 
@@ -248,7 +296,7 @@ describe('createRoutes()', () => {
         agentId: 'a-1',
       });
       expect(result.status).toBe(200);
-      expect(services.callLogs.bulkChangeStage).toHaveBeenCalledTimes(1);
+      expect(services.lifecycle.bulkChangeStage).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -267,6 +315,120 @@ describe('createRoutes()', () => {
       const result = await request(app, 'GET', '/api/analytics/agent-leaderboard');
       expect(result.status).toBe(200);
       expect(services.analytics.getAgentLeaderboard).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('DELETE /calls/:id — soft delete', () => {
+    it('calls lifecycle.softDelete and returns result', async () => {
+      const { app, services } = await buildAppWithOptions({});
+      const result = await request(app, 'DELETE', '/api/calls/cl-123');
+      expect(result.status).toBe(200);
+      expect(services.lifecycle.softDelete).toHaveBeenCalledWith('cl-123', undefined, undefined);
+    });
+
+    it('returns 404 on AlxCallLogError (not found)', async () => {
+      const { CallLogNotFoundError } = await import('../../errors/index.js');
+      const { app, services } = await buildAppWithOptions({});
+      (services.lifecycle.softDelete as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        new CallLogNotFoundError('cl-404'),
+      );
+      const result = await request(app, 'DELETE', '/api/calls/cl-404');
+      expect(result.status).toBe(404);
+    });
+
+    it('passes agentId and agentName from req.user to softDelete', async () => {
+      const { app, services } = await buildAppWithOptions({
+        authenticateRequest: async () => ({ adminUserId: 'agent-42', displayName: 'Agent Smith', role: 'agent' }),
+      });
+      const result = await request(app, 'DELETE', '/api/calls/cl-123');
+      expect(result.status).toBe(200);
+      expect(services.lifecycle.softDelete).toHaveBeenCalledWith('cl-123', 'agent-42', 'Agent Smith');
+    });
+  });
+
+  describe('GET /calls — new query params', () => {
+    it('passes channel filter to callLogs.list', async () => {
+      const { app, services } = await buildAppWithOptions({});
+      const result = await request(app, 'GET', '/api/calls?channel=whatsapp');
+      expect(result.status).toBe(200);
+      expect(services.callLogs.list).toHaveBeenCalledWith(
+        expect.objectContaining({ channel: 'whatsapp' }),
+      );
+    });
+
+    it('passes outcome filter to callLogs.list', async () => {
+      const { app, services } = await buildAppWithOptions({});
+      const result = await request(app, 'GET', '/api/calls?outcome=interested');
+      expect(result.status).toBe(200);
+      expect(services.callLogs.list).toHaveBeenCalledWith(
+        expect.objectContaining({ outcome: 'interested' }),
+      );
+    });
+
+    it('passes isFollowUp=true filter to callLogs.list', async () => {
+      const { app, services } = await buildAppWithOptions({});
+      const result = await request(app, 'GET', '/api/calls?isFollowUp=true');
+      expect(result.status).toBe(200);
+      expect(services.callLogs.list).toHaveBeenCalledWith(
+        expect.objectContaining({ isFollowUp: true }),
+      );
+    });
+
+    it('excludes deleted by default (no includeDeleted param)', async () => {
+      const { app, services } = await buildAppWithOptions({});
+      const result = await request(app, 'GET', '/api/calls');
+      expect(result.status).toBe(200);
+      // includeDeleted should NOT be set to true — the service defaults exclude deleted
+      expect(services.callLogs.list).toHaveBeenCalledWith(
+        expect.not.objectContaining({ includeDeleted: true }),
+      );
+    });
+
+    it('passes includeDeleted=true when query param is set', async () => {
+      const { app, services } = await buildAppWithOptions({});
+      const result = await request(app, 'GET', '/api/calls?includeDeleted=true');
+      expect(result.status).toBe(200);
+      expect(services.callLogs.list).toHaveBeenCalledWith(
+        expect.objectContaining({ includeDeleted: true }),
+      );
+    });
+  });
+
+  describe('agent scoping', () => {
+    it('non-owner GET /calls has agentId injected from user', async () => {
+      const { app, services } = await buildAppWithOptions({
+        authenticateRequest: async () => ({ adminUserId: 'agent-7', displayName: 'Bob', role: 'agent' }),
+        enableAgentScoping: true,
+      });
+      const result = await request(app, 'GET', '/api/calls');
+      expect(result.status).toBe(200);
+      expect(services.callLogs.list).toHaveBeenCalledWith(
+        expect.objectContaining({ agentId: 'agent-7' }),
+      );
+    });
+
+    it('owner GET /calls does NOT have agentId injected', async () => {
+      const { app, services } = await buildAppWithOptions({
+        authenticateRequest: async () => ({ adminUserId: 'owner-1', displayName: 'Owner', role: 'owner' }),
+        enableAgentScoping: true,
+      });
+      const result = await request(app, 'GET', '/api/calls');
+      expect(result.status).toBe(200);
+      expect(services.callLogs.list).toHaveBeenCalledWith(
+        expect.not.objectContaining({ agentId: expect.any(String) }),
+      );
+    });
+
+    it('when enableAgentScoping is disabled, no agentId is injected for non-owner', async () => {
+      const { app, services } = await buildAppWithOptions({
+        authenticateRequest: async () => ({ adminUserId: 'agent-7', displayName: 'Bob', role: 'agent' }),
+        enableAgentScoping: false,
+      });
+      const result = await request(app, 'GET', '/api/calls');
+      expect(result.status).toBe(200);
+      expect(services.callLogs.list).toHaveBeenCalledWith(
+        expect.not.objectContaining({ agentId: expect.any(String) }),
+      );
     });
   });
 });

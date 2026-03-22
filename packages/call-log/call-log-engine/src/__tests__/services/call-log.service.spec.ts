@@ -20,6 +20,7 @@ const mockLogger = {
 const defaultOptions: ResolvedOptions = {
   maxTimelineEntries: 200,
   followUpCheckIntervalMs: 60_000,
+  enableAgentScoping: true,
 };
 
 const mockHooks = {
@@ -71,6 +72,10 @@ function makeCallLogDoc(overrides: Record<string, unknown> = {}) {
     callDate: new Date('2026-01-01T10:00:00Z'),
     agentId: 'agent-1',
     priority: CallPriority.Medium,
+    channel: 'phone',
+    outcome: 'pending',
+    isFollowUp: false,
+    isDeleted: false,
     tags: [],
     timeline: [] as ITimelineEntry[],
     stageHistory: [],
@@ -122,6 +127,8 @@ describe('CallLogService', () => {
         pipelineId: 'pipe-1',
         contactRef: { externalId: 'ext-1', displayName: 'Alice' },
         direction: CallDirection.Inbound,
+        channel: 'phone',
+        outcome: 'pending',
         callDate: new Date(),
         agentId: 'agent-1',
       });
@@ -145,6 +152,8 @@ describe('CallLogService', () => {
         pipelineId: 'pipe-1',
         contactRef: { externalId: 'ext-1', displayName: 'Alice' },
         direction: CallDirection.Inbound,
+        channel: 'phone',
+        outcome: 'pending',
         callDate: new Date(),
         agentId: 'agent-1',
       });
@@ -169,6 +178,8 @@ describe('CallLogService', () => {
         pipelineId: 'pipe-1',
         contactRef: { externalId: 'ext-1', displayName: 'Alice' },
         direction: CallDirection.Inbound,
+        channel: 'phone',
+        outcome: 'pending',
         callDate: new Date(),
         agentId: 'agent-1',
       });
@@ -191,10 +202,92 @@ describe('CallLogService', () => {
           pipelineId: 'no-pipe',
           contactRef: { externalId: 'ext-1', displayName: 'Alice' },
           direction: CallDirection.Inbound,
+          channel: 'phone',
+          outcome: 'pending',
           callDate: new Date(),
           agentId: 'agent-1',
         }),
       ).rejects.toThrow(PipelineNotFoundError);
+    });
+
+    it('sets channel and outcome on created document', async () => {
+      const pipeline = makePipeline();
+      const CallLog = makeCallLogModel();
+      const Pipeline = makePipelineModel(pipeline);
+      let createdData: Record<string, unknown> = {};
+      CallLog.create.mockImplementation((data: Record<string, unknown>) => {
+        createdData = data;
+        return Promise.resolve({ ...data });
+      });
+      const service = new CallLogService(
+        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
+      );
+
+      await service.create({
+        pipelineId: 'pipe-1',
+        contactRef: { externalId: 'ext-1', displayName: 'Alice' },
+        direction: CallDirection.Inbound,
+        channel: 'whatsapp',
+        outcome: 'resolved',
+        agentId: 'agent-1',
+      });
+
+      expect(createdData.channel).toBe('whatsapp');
+      expect(createdData.outcome).toBe('resolved');
+    });
+
+    it('adds follow-up timeline entry when isFollowUp=true', async () => {
+      const pipeline = makePipeline();
+      const CallLog = makeCallLogModel();
+      const Pipeline = makePipelineModel(pipeline);
+      let createdData: Record<string, unknown> = {};
+      CallLog.create.mockImplementation((data: Record<string, unknown>) => {
+        createdData = data;
+        return Promise.resolve({ ...data });
+      });
+      const service = new CallLogService(
+        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
+      );
+
+      await service.create({
+        pipelineId: 'pipe-1',
+        contactRef: { externalId: 'ext-1', displayName: 'Alice' },
+        direction: CallDirection.Inbound,
+        channel: 'phone',
+        outcome: 'pending',
+        agentId: 'agent-1',
+        isFollowUp: true,
+      });
+
+      const timeline = createdData.timeline as ITimelineEntry[];
+      expect(timeline).toHaveLength(2);
+      expect(timeline[1].type).toBe(TimelineEntryType.System);
+      expect(timeline[1].content).toContain('follow-up');
+    });
+
+    it('sets isFollowUp=false by default', async () => {
+      const pipeline = makePipeline();
+      const CallLog = makeCallLogModel();
+      const Pipeline = makePipelineModel(pipeline);
+      let createdData: Record<string, unknown> = {};
+      CallLog.create.mockImplementation((data: Record<string, unknown>) => {
+        createdData = data;
+        return Promise.resolve({ ...data });
+      });
+      const service = new CallLogService(
+        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
+      );
+
+      await service.create({
+        pipelineId: 'pipe-1',
+        contactRef: { externalId: 'ext-1', displayName: 'Alice' },
+        direction: CallDirection.Inbound,
+        channel: 'phone',
+        outcome: 'pending',
+        agentId: 'agent-1',
+      });
+
+      expect(createdData.isFollowUp).toBe(false);
     });
   });
 
@@ -263,111 +356,10 @@ describe('CallLogService', () => {
         { new: true },
       );
     });
-  });
 
-  // ── changeStage ────────────────────────────────────────────────────────────
-
-  describe('changeStage()', () => {
-    it('updates currentStageId, adds stageHistory and timeline entry', async () => {
-      const callLogDoc = makeCallLogDoc({ stageHistory: [] });
-      const updatedDoc = makeCallLogDoc({ currentStageId: 'stage-2', isClosed: true });
-      const CallLog = makeCallLogModel(callLogDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(updatedDoc);
-      const Pipeline = makePipelineModel(makePipeline());
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      const result = await service.changeStage('call-1', 'stage-2', 'agent-1');
-
-      expect(CallLog.findOneAndUpdate).toHaveBeenCalledWith(
-        { callLogId: 'call-1', currentStageId: 'stage-1' },
-        expect.objectContaining({
-          $push: expect.objectContaining({
-            stageHistory: expect.any(Object),
-            timeline: expect.objectContaining({ type: TimelineEntryType.StageChange }),
-          }),
-        }),
-        { new: true },
-      );
-      expect(result.currentStageId).toBe('stage-2');
-    });
-
-    it('sets isClosed when moving to terminal stage', async () => {
+    it('can update channel, outcome, and isFollowUp', async () => {
       const callLogDoc = makeCallLogDoc();
-      const updatedDoc = makeCallLogDoc({ currentStageId: 'stage-2', isClosed: true, closedAt: new Date() });
-      const CallLog = makeCallLogModel(callLogDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(updatedDoc);
-      const Pipeline = makePipelineModel(makePipeline());
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      const result = await service.changeStage('call-1', 'stage-2', 'agent-1');
-
-      expect(result.isClosed).toBe(true);
-    });
-
-    it('fires onCallClosed when moving to terminal stage', async () => {
-      const callLogDoc = makeCallLogDoc();
-      const updatedDoc = makeCallLogDoc({ isClosed: true });
-      const CallLog = makeCallLogModel(callLogDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(updatedDoc);
-      const Pipeline = makePipelineModel(makePipeline());
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await service.changeStage('call-1', 'stage-2', 'agent-1');
-
-      expect(mockHooks.onCallClosed).toHaveBeenCalledTimes(1);
-    });
-
-    it('fires onStageChanged hook', async () => {
-      const callLogDoc = makeCallLogDoc();
-      const updatedDoc = makeCallLogDoc({ currentStageId: 'stage-2' });
-      const CallLog = makeCallLogModel(callLogDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(updatedDoc);
-      const Pipeline = makePipelineModel(makePipeline());
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await service.changeStage('call-1', 'stage-2', 'agent-1');
-
-      expect(mockHooks.onStageChanged).toHaveBeenCalledTimes(1);
-    });
-
-    it('throws error if concurrent modification detected (null result)', async () => {
-      const callLogDoc = makeCallLogDoc();
-      const CallLog = makeCallLogModel(callLogDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(null);
-      const Pipeline = makePipelineModel(makePipeline());
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await expect(service.changeStage('call-1', 'stage-2', 'agent-1')).rejects.toThrow(CallLogClosedError);
-    });
-
-    it('throws CallLogClosedError if call log is already closed', async () => {
-      const closedDoc = makeCallLogDoc({ isClosed: true });
-      const CallLog = makeCallLogModel(closedDoc);
-      const Pipeline = makePipelineModel(makePipeline());
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await expect(service.changeStage('call-1', 'stage-2', 'agent-1')).rejects.toThrow(CallLogClosedError);
-    });
-  });
-
-  // ── assign ─────────────────────────────────────────────────────────────────
-
-  describe('assign()', () => {
-    it('changes agent and adds Assignment timeline entry', async () => {
-      const callLogDoc = makeCallLogDoc({ agentId: 'old-agent' });
-      const updatedDoc = makeCallLogDoc({ agentId: 'new-agent' });
+      const updatedDoc = makeCallLogDoc({ channel: 'email', outcome: 'resolved', isFollowUp: true });
       const CallLog = makeCallLogModel(callLogDoc);
       CallLog.findOneAndUpdate.mockResolvedValue(updatedDoc);
       const Pipeline = makePipelineModel();
@@ -375,47 +367,19 @@ describe('CallLogService', () => {
         CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
       );
 
-      const result = await service.assign('call-1', 'new-agent', 'admin-1');
+      await service.update('call-1', { channel: 'email', outcome: 'resolved', isFollowUp: true });
 
-      expect(result.agentId).toBe('new-agent');
       expect(CallLog.findOneAndUpdate).toHaveBeenCalledWith(
         { callLogId: 'call-1' },
         expect.objectContaining({
-          $push: expect.objectContaining({
-            timeline: expect.objectContaining({
-              $each: expect.arrayContaining([
-                expect.objectContaining({ type: TimelineEntryType.Assignment }),
-              ]),
-            }),
+          $set: expect.objectContaining({
+            channel: 'email',
+            outcome: 'resolved',
+            isFollowUp: true,
           }),
         }),
         { new: true },
       );
-    });
-
-    it('fires onCallAssigned hook', async () => {
-      const callLogDoc = makeCallLogDoc({ agentId: 'old-agent' });
-      const updatedDoc = makeCallLogDoc({ agentId: 'new-agent' });
-      const CallLog = makeCallLogModel(callLogDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(updatedDoc);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await service.assign('call-1', 'new-agent', 'admin-1');
-
-      expect(mockHooks.onCallAssigned).toHaveBeenCalledTimes(1);
-    });
-
-    it('throws CallLogNotFoundError if call log not found', async () => {
-      const CallLog = makeCallLogModel(null);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await expect(service.assign('no-call', 'agent-2', 'admin-1')).rejects.toThrow(CallLogNotFoundError);
     });
   });
 
@@ -483,6 +447,68 @@ describe('CallLogService', () => {
         expect.objectContaining({ tags: { $in: ['vip', 'urgent'] } }),
       );
     });
+
+    it('filters by channel, outcome, and isFollowUp', async () => {
+      const CallLog = makeCallLogModel();
+      const sortMock = { skip: vi.fn().mockReturnThis() };
+      const skipMock = { limit: vi.fn().mockResolvedValue([]) };
+      sortMock.skip.mockReturnValue(skipMock);
+      CallLog.find.mockReturnValue({ sort: vi.fn().mockReturnValue(sortMock) });
+      CallLog.countDocuments.mockResolvedValue(0);
+      const Pipeline = makePipelineModel();
+      const service = new CallLogService(
+        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
+      );
+
+      await service.list({ channel: 'whatsapp', outcome: 'resolved', isFollowUp: true });
+
+      expect(CallLog.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'whatsapp',
+          outcome: 'resolved',
+          isFollowUp: true,
+        }),
+      );
+    });
+
+    it('excludes deleted by default', async () => {
+      const CallLog = makeCallLogModel();
+      const sortMock = { skip: vi.fn().mockReturnThis() };
+      const skipMock = { limit: vi.fn().mockResolvedValue([]) };
+      sortMock.skip.mockReturnValue(skipMock);
+      CallLog.find.mockReturnValue({ sort: vi.fn().mockReturnValue(sortMock) });
+      CallLog.countDocuments.mockResolvedValue(0);
+      const Pipeline = makePipelineModel();
+      const service = new CallLogService(
+        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
+      );
+
+      await service.list({});
+
+      expect(CallLog.find).toHaveBeenCalledWith(
+        expect.objectContaining({ isDeleted: { $ne: true } }),
+      );
+    });
+
+    it('includes deleted when includeDeleted=true', async () => {
+      const CallLog = makeCallLogModel();
+      const sortMock = { skip: vi.fn().mockReturnThis() };
+      const skipMock = { limit: vi.fn().mockResolvedValue([]) };
+      sortMock.skip.mockReturnValue(skipMock);
+      CallLog.find.mockReturnValue({ sort: vi.fn().mockReturnValue(sortMock) });
+      CallLog.countDocuments.mockResolvedValue(0);
+      const Pipeline = makePipelineModel();
+      const service = new CallLogService(
+        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
+      );
+
+      await service.list({ includeDeleted: true });
+
+      // isDeleted filter should NOT be present
+      expect(CallLog.find).toHaveBeenCalledWith(
+        expect.not.objectContaining({ isDeleted: expect.anything() }),
+      );
+    });
   });
 
   // ── get ────────────────────────────────────────────────────────────────────
@@ -509,203 +535,19 @@ describe('CallLogService', () => {
 
       await expect(service.get('no-call')).rejects.toThrow(CallLogNotFoundError);
     });
-  });
 
-  // ── getFollowUpsDue ────────────────────────────────────────────────────────
-
-  describe('getFollowUpsDue()', () => {
-    it('queries for overdue follow-ups that are not closed and not notified', async () => {
-      const CallLog = makeCallLogModel();
-      const sortMock = { sort: vi.fn().mockResolvedValue([]) };
-      CallLog.find.mockReturnValue(sortMock);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await service.getFollowUpsDue();
-
-      expect(CallLog.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          isClosed: false,
-          followUpNotifiedAt: null,
-        }),
-      );
-    });
-
-    it('filters by agentId when provided', async () => {
-      const CallLog = makeCallLogModel();
-      CallLog.find.mockReturnValue({ sort: vi.fn().mockResolvedValue([]) });
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await service.getFollowUpsDue('agent-1');
-
-      expect(CallLog.find).toHaveBeenCalledWith(
-        expect.objectContaining({ agentId: 'agent-1' }),
-      );
-    });
-  });
-
-  // ── bulkChangeStage ────────────────────────────────────────────────────────
-
-  describe('bulkChangeStage()', () => {
-    it('returns summary with succeeded and failed', async () => {
-      const callLogDoc = makeCallLogDoc();
-      const updatedDoc = makeCallLogDoc({ currentStageId: 'stage-2' });
-      const CallLog = makeCallLogModel(callLogDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(updatedDoc);
-      const Pipeline = makePipelineModel(makePipeline());
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      const result = await service.bulkChangeStage(['call-1'], 'stage-2', 'agent-1');
-
-      expect(result.total).toBe(1);
-      expect(result.succeeded).toContain('call-1');
-      expect(result.failed).toHaveLength(0);
-    });
-
-    it('records failed entries when changeStage throws', async () => {
-      const callLogDoc = makeCallLogDoc({ isClosed: true });
-      const CallLog = makeCallLogModel(callLogDoc);
-      const Pipeline = makePipelineModel(makePipeline());
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      const result = await service.bulkChangeStage(['call-1'], 'stage-2', 'agent-1');
-
-      expect(result.total).toBe(1);
-      expect(result.succeeded).toHaveLength(0);
-      expect(result.failed).toHaveLength(1);
-      expect(result.failed[0].callLogId).toBe('call-1');
-    });
-  });
-
-  // ── reopen ─────────────────────────────────────────────────────────────────
-
-  describe('reopen()', () => {
-    it('reopens a closed call log and returns an open call log', async () => {
-      const closedDoc = makeCallLogDoc({ isClosed: true, closedAt: new Date() });
-      const reopenedDoc = makeCallLogDoc({ isClosed: false, closedAt: undefined });
-      const CallLog = makeCallLogModel(closedDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(reopenedDoc);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      const result = await service.reopen('call-1', 'agent-1');
-
-      expect(result.isClosed).toBe(false);
-      expect(mockHooks.onCallCreated).not.toHaveBeenCalled();
-    });
-
-    it('throws CallLogClosedError if the call is NOT closed (can only reopen closed calls)', async () => {
-      const openDoc = makeCallLogDoc({ isClosed: false });
-      const CallLog = makeCallLogModel(openDoc);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await expect(service.reopen('call-1', 'agent-1')).rejects.toThrow(CallLogClosedError);
-    });
-
-    it('throws CallLogNotFoundError if not found', async () => {
+    it('excludes deleted calls', async () => {
       const CallLog = makeCallLogModel(null);
       const Pipeline = makePipelineModel();
       const service = new CallLogService(
         CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
       );
 
-      await expect(service.reopen('no-call', 'agent-1')).rejects.toThrow(CallLogNotFoundError);
-    });
+      await expect(service.get('call-1')).rejects.toThrow(CallLogNotFoundError);
 
-    it('adds a System timeline entry with CallReopened content', async () => {
-      const closedDoc = makeCallLogDoc({ isClosed: true });
-      const reopenedDoc = makeCallLogDoc({ isClosed: false });
-      const CallLog = makeCallLogModel(closedDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(reopenedDoc);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
+      expect(CallLog.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ isDeleted: { $ne: true } }),
       );
-
-      await service.reopen('call-1', 'agent-1');
-
-      expect(CallLog.findOneAndUpdate).toHaveBeenCalledWith(
-        { callLogId: 'call-1' },
-        expect.objectContaining({
-          $push: expect.objectContaining({
-            timeline: expect.objectContaining({
-              $each: expect.arrayContaining([
-                expect.objectContaining({ type: TimelineEntryType.System }),
-              ]),
-            }),
-          }),
-        }),
-        { new: true },
-      );
-    });
-  });
-
-  // ── close ──────────────────────────────────────────────────────────────────
-
-  describe('close()', () => {
-    it('manually closes an open call log', async () => {
-      const callLogDoc = makeCallLogDoc();
-      const closedDoc = makeCallLogDoc({ isClosed: true, closedAt: new Date() });
-      const CallLog = makeCallLogModel(callLogDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(closedDoc);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      const result = await service.close('call-1', 'agent-1');
-
-      expect(result.isClosed).toBe(true);
-    });
-
-    it('fires onCallClosed hook', async () => {
-      const callLogDoc = makeCallLogDoc();
-      const closedDoc = makeCallLogDoc({ isClosed: true });
-      const CallLog = makeCallLogModel(callLogDoc);
-      CallLog.findOneAndUpdate.mockResolvedValue(closedDoc);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await service.close('call-1', 'agent-1');
-
-      expect(mockHooks.onCallClosed).toHaveBeenCalledTimes(1);
-    });
-
-    it('throws CallLogClosedError if already closed', async () => {
-      const closedDoc = makeCallLogDoc({ isClosed: true });
-      const CallLog = makeCallLogModel(closedDoc);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await expect(service.close('call-1', 'agent-1')).rejects.toThrow(CallLogClosedError);
-    });
-
-    it('throws CallLogNotFoundError if not found', async () => {
-      const CallLog = makeCallLogModel(null);
-      const Pipeline = makePipelineModel();
-      const service = new CallLogService(
-        CallLog as any, Pipeline as any, mockTimeline as any, mockLogger, mockHooks, defaultOptions,
-      );
-
-      await expect(service.close('no-call', 'agent-1')).rejects.toThrow(CallLogNotFoundError);
     });
   });
 });

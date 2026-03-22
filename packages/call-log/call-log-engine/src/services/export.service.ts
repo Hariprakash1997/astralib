@@ -2,7 +2,7 @@ import type { Model } from 'mongoose';
 import type { LogAdapter } from '@astralibx/core';
 import type { ExportFormat, ExportFilter, DateRange } from '@astralibx/call-log-types';
 import type { ICallLogDocument } from '../schemas/call-log.schema.js';
-import type { AnalyticsService } from './analytics.service.js';
+import type { PipelineAnalyticsService } from './pipeline-analytics.service.js';
 import { CallLogNotFoundError } from '../errors/index.js';
 
 // ── CSV columns ───────────────────────────────────────────────────────────────
@@ -14,7 +14,7 @@ const CSV_HEADER = 'callLogId,contactName,contactPhone,contactEmail,direction,pi
 export class ExportService {
   constructor(
     private CallLog: Model<ICallLogDocument>,
-    private analytics: AnalyticsService,
+    private pipelineAnalytics: PipelineAnalyticsService,
     private logger: LogAdapter,
   ) {}
 
@@ -70,7 +70,7 @@ export class ExportService {
   }
 
   async exportPipelineReport(pipelineId: string, dateRange: DateRange, format: ExportFormat): Promise<string> {
-    const report = await this.analytics.getPipelineStats(pipelineId, dateRange);
+    const report = await this.pipelineAnalytics.getPipelineStats(pipelineId, dateRange);
 
     if (format === 'csv') {
       const header = 'pipelineId,pipelineName,totalCalls,stageId,stageName,count,avgTimeMs,conversionRate,bottleneckStage';

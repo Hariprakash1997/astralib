@@ -101,12 +101,12 @@ export class AlxCallAnalyticsDashboard extends LitElement {
         </div>
         <div class="stat-card">
           <div class="stat-label">Follow-Up Compliance</div>
-          <div class="stat-value">${this.pct(o.followUpComplianceRate)}</div>
+          <div class="stat-value">${o.followUpComplianceRate.toFixed(1)}%</div>
         </div>
         <div class="stat-card stat-card-highlight">
           <div class="stat-label">Follow-up Calls</div>
           <div class="stat-value">${(o.followUpCalls ?? 0).toLocaleString()}</div>
-          <div class="stat-sub">${this.pct(o.followUpRatio ?? 0)} of total</div>
+          <div class="stat-sub">${(o.followUpRatio ?? 0).toFixed(1)}% of total</div>
         </div>
       </div>
     `;
