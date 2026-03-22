@@ -20,7 +20,9 @@ import { SettingsService } from './services/settings.service.js';
 import { PipelineService } from './services/pipeline.service.js';
 import { TimelineService } from './services/timeline.service.js';
 import { CallLogService } from './services/call-log.service.js';
+import { CallLogLifecycleService } from './services/call-log-lifecycle.service.js';
 import { AnalyticsService } from './services/analytics.service.js';
+import { PipelineAnalyticsService } from './services/pipeline-analytics.service.js';
 import { ExportService } from './services/export.service.js';
 import { createRoutes } from './routes/index.js';
 import { FollowUpWorker } from './workers/follow-up.worker.js';
@@ -75,8 +77,10 @@ const CallLogEngineConfigSchema = z.object({
 export interface CallLogEngine {
   pipelines: PipelineService;
   callLogs: CallLogService;
+  lifecycle: CallLogLifecycleService;
   timeline: TimelineService;
   analytics: AnalyticsService;
+  pipelineAnalytics: PipelineAnalyticsService;
   settings: SettingsService;
   export: ExportService;
   routes: Router;
@@ -133,7 +137,23 @@ export function createCallLogEngine(config: CallLogEngineConfig): CallLogEngine 
     resolvedOptions,
   );
 
+  const callLogLifecycleService = new CallLogLifecycleService(
+    CallLog,
+    Pipeline,
+    timelineService,
+    logger,
+    config.hooks ?? {},
+    resolvedOptions,
+  );
+
   const analyticsService = new AnalyticsService(CallLog, Pipeline, logger, config.agents?.resolveAgent);
+
+  const pipelineAnalyticsService = new PipelineAnalyticsService(
+    CallLog,
+    Pipeline,
+    logger,
+    config.agents?.resolveAgent,
+  );
 
   const exportService = new ExportService(CallLog, analyticsService, logger);
 
@@ -142,8 +162,10 @@ export function createCallLogEngine(config: CallLogEngineConfig): CallLogEngine 
     {
       pipelines: pipelineService,
       callLogs: callLogService,
+      lifecycle: callLogLifecycleService,
       timeline: timelineService,
       analytics: analyticsService,
+      pipelineAnalytics: pipelineAnalyticsService,
       settings: settingsService,
       export: exportService,
     },
@@ -182,8 +204,10 @@ export function createCallLogEngine(config: CallLogEngineConfig): CallLogEngine 
   return {
     pipelines: pipelineService,
     callLogs: callLogService,
+    lifecycle: callLogLifecycleService,
     timeline: timelineService,
     analytics: analyticsService,
+    pipelineAnalytics: pipelineAnalyticsService,
     settings: settingsService,
     export: exportService,
     routes,
@@ -204,7 +228,9 @@ export { SettingsService } from './services/settings.service.js';
 export { PipelineService } from './services/pipeline.service.js';
 export { TimelineService } from './services/timeline.service.js';
 export { CallLogService } from './services/call-log.service.js';
+export { CallLogLifecycleService } from './services/call-log-lifecycle.service.js';
 export { AnalyticsService } from './services/analytics.service.js';
+export { PipelineAnalyticsService } from './services/pipeline-analytics.service.js';
 export { ExportService } from './services/export.service.js';
 export { FollowUpWorker } from './workers/follow-up.worker.js';
 export { createRoutes } from './routes/index.js';

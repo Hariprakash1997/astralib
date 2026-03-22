@@ -274,13 +274,15 @@ describe('AnalyticsService', () => {
   // ── getOverallReport ───────────────────────────────────────────────────────
 
   describe('getOverallReport()', () => {
-    it('returns OverallCallReport with correct shape', async () => {
+    it('returns OverallCallReport with correct shape including distributions', async () => {
       const summaryAgg = [{ _id: null, totalCalls: 100, closedCalls: 70, avgTimeToCloseMs: 86400000 }];
       const tagAgg = [{ _id: 'vip', count: 20 }];
       const categoryAgg = [{ _id: 'sales', count: 50 }];
       const peakAgg = [{ _id: 10, count: 15 }];
       const followUpAgg = [{ _id: null, total: 100, withFollowUp: 40, completed: 30 }];
-      const CallLog = makeCallLogModel([summaryAgg, tagAgg, categoryAgg, peakAgg, followUpAgg]);
+      const channelAgg = [{ _id: 'phone', count: 60 }, { _id: 'email', count: 40 }];
+      const outcomeAgg = [{ _id: 'closed-won', count: 70 }];
+      const CallLog = makeCallLogModel([summaryAgg, tagAgg, categoryAgg, peakAgg, followUpAgg, channelAgg, outcomeAgg]);
       const Pipeline = makePipelineModel();
       const service = new AnalyticsService(CallLog as any, Pipeline as any, mockLogger);
 
@@ -293,10 +295,16 @@ describe('AnalyticsService', () => {
       expect(result.tagDistribution).toHaveLength(1);
       expect(result.categoryDistribution).toHaveLength(1);
       expect(result.peakCallHours).toHaveLength(1);
+      expect(result.channelDistribution).toHaveLength(2);
+      expect(result.channelDistribution[0]).toEqual({ channel: 'phone', count: 60 });
+      expect(result.outcomeDistribution).toHaveLength(1);
+      expect(result.outcomeDistribution[0]).toEqual({ outcome: 'closed-won', count: 70 });
+      expect(result.followUpCalls).toBe(40);
+      expect(result.followUpRatio).toBe(40);
     });
 
     it('handles empty aggregate results with zero values', async () => {
-      const CallLog = makeCallLogModel([[], [], [], [], []]);
+      const CallLog = makeCallLogModel([[], [], [], [], [], [], []]);
       const Pipeline = makePipelineModel();
       const service = new AnalyticsService(CallLog as any, Pipeline as any, mockLogger);
 
@@ -307,6 +315,22 @@ describe('AnalyticsService', () => {
       expect(result.avgTimeToCloseMs).toBe(0);
       expect(result.followUpComplianceRate).toBe(0);
       expect(result.tagDistribution).toHaveLength(0);
+      expect(result.channelDistribution).toHaveLength(0);
+      expect(result.outcomeDistribution).toHaveLength(0);
+      expect(result.followUpCalls).toBe(0);
+      expect(result.followUpRatio).toBe(0);
+    });
+
+    it('excludes deleted calls from match stage', async () => {
+      const summaryAgg = [{ _id: null, totalCalls: 5, closedCalls: 3, avgTimeToCloseMs: 0 }];
+      const CallLog = makeCallLogModel([summaryAgg, [], [], [], [], [], []]);
+      const Pipeline = makePipelineModel();
+      const service = new AnalyticsService(CallLog as any, Pipeline as any, mockLogger);
+
+      await service.getOverallReport(dateRange);
+
+      const firstAggCall = CallLog.aggregate.mock.calls[0][0];
+      expect(firstAggCall[0].$match).toMatchObject({ isDeleted: { $ne: true } });
     });
   });
 });

@@ -9,6 +9,8 @@ import type {
   DateRange,
   AgentInfo,
   DashboardStats,
+  ChannelDistribution,
+  OutcomeDistribution,
 } from '@astralibx/call-log-types';
 import type { ICallLogDocument } from '../schemas/call-log.schema.js';
 import type { IPipelineDocument } from '../schemas/pipeline.schema.js';
@@ -80,6 +82,7 @@ export class AnalyticsService {
     const now = new Date();
     const matchStage: Record<string, unknown> = {
       agentId,
+      isDeleted: { $ne: true },
       ...this.buildDateMatch(dateRange),
     };
 
@@ -182,7 +185,10 @@ export class AnalyticsService {
 
   async getAgentLeaderboard(dateRange: DateRange): Promise<AgentCallStats[]> {
     const now = new Date();
-    const matchStage: Record<string, unknown> = this.buildDateMatch(dateRange);
+    const matchStage: Record<string, unknown> = {
+      isDeleted: { $ne: true },
+      ...this.buildDateMatch(dateRange),
+    };
 
     const pipeline = [
       { $match: matchStage },
@@ -356,7 +362,10 @@ export class AnalyticsService {
 
   async getTeamStats(teamId?: string, dateRange: DateRange = {}): Promise<TeamStats> {
     const now = new Date();
-    const matchStage: Record<string, unknown> = this.buildDateMatch(dateRange);
+    const matchStage: Record<string, unknown> = {
+      isDeleted: { $ne: true },
+      ...this.buildDateMatch(dateRange),
+    };
 
     // Aggregate agent stats without filtering by team (team resolution requires external agent collection)
     const pipeline = [
@@ -423,7 +432,10 @@ export class AnalyticsService {
   }
 
   async getDailyReport(dateRange: DateRange): Promise<DailyReport[]> {
-    const matchStage: Record<string, unknown> = this.buildDateMatch(dateRange);
+    const matchStage: Record<string, unknown> = {
+      isDeleted: { $ne: true },
+      ...this.buildDateMatch(dateRange),
+    };
 
     const [dailyAgg, directionAgg, pipelineAgg, agentAgg] = await Promise.all([
       this.CallLog.aggregate<{ _id: string; count: number }>([
@@ -511,13 +523,14 @@ export class AnalyticsService {
     const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const [openCalls, closedToday, overdueFollowUps, callsToday] = await Promise.all([
-      this.CallLog.countDocuments({ isClosed: false }),
-      this.CallLog.countDocuments({ closedAt: { $gte: midnight } }),
+      this.CallLog.countDocuments({ isClosed: false, isDeleted: { $ne: true } }),
+      this.CallLog.countDocuments({ closedAt: { $gte: midnight }, isDeleted: { $ne: true } }),
       this.CallLog.countDocuments({
         nextFollowUpDate: { $lt: now },
         isClosed: false,
+        isDeleted: { $ne: true },
       }),
-      this.CallLog.countDocuments({ callDate: { $gte: midnight } }),
+      this.CallLog.countDocuments({ callDate: { $gte: midnight }, isDeleted: { $ne: true } }),
     ]);
 
     return {
@@ -534,7 +547,7 @@ export class AnalyticsService {
     const from = new Date(now.getTime() - weeks * 7 * 24 * 60 * 60 * 1000);
 
     const results = await this.CallLog.aggregate<WeeklySummary>([
-      { $match: { callDate: { $gte: from, $lte: now } } },
+      { $match: { callDate: { $gte: from, $lte: now }, isDeleted: { $ne: true } } },
       {
         $group: {
           _id: {
@@ -563,9 +576,12 @@ export class AnalyticsService {
   }
 
   async getOverallReport(dateRange: DateRange): Promise<OverallCallReport> {
-    const matchStage: Record<string, unknown> = this.buildDateMatch(dateRange);
+    const matchStage: Record<string, unknown> = {
+      isDeleted: { $ne: true },
+      ...this.buildDateMatch(dateRange),
+    };
 
-    const [summaryAgg, tagAgg, categoryAgg, peakHoursAgg, followUpAgg] = await Promise.all([
+    const [summaryAgg, tagAgg, categoryAgg, peakHoursAgg, followUpAgg, channelAgg, outcomeAgg] = await Promise.all([
       this.CallLog.aggregate<{
         _id: null;
         totalCalls: number;
@@ -634,6 +650,16 @@ export class AnalyticsService {
           },
         },
       ]),
+      this.CallLog.aggregate<AggIdCount>([
+        { $match: matchStage },
+        { $group: { _id: '$channel', count: { $sum: 1 } } },
+        { $sort: { count: -1 as const } },
+      ]),
+      this.CallLog.aggregate<AggIdCount>([
+        { $match: matchStage },
+        { $group: { _id: '$outcome', count: { $sum: 1 } } },
+        { $sort: { count: -1 as const } },
+      ]),
     ]);
 
     const summary = summaryAgg[0] ?? { totalCalls: 0, closedCalls: 0, avgTimeToCloseMs: 0 };
@@ -643,6 +669,20 @@ export class AnalyticsService {
       ? Math.round((followUp.completed / followUp.withFollowUp) * 10000) / 100
       : 0;
 
+    const followUpCalls = followUp.withFollowUp;
+    const followUpRatio =
+      followUp.total > 0 ? Math.round((followUp.withFollowUp / followUp.total) * 10000) / 100 : 0;
+
+    const channelDistribution: ChannelDistribution[] = channelAgg.map((r) => ({
+      channel: r._id != null ? String(r._id) : 'unknown',
+      count: r.count,
+    }));
+
+    const outcomeDistribution: OutcomeDistribution[] = outcomeAgg.map((r) => ({
+      outcome: r._id != null ? String(r._id) : 'unknown',
+      count: r.count,
+    }));
+
     return {
       totalCalls: summary.totalCalls,
       closedCalls: summary.closedCalls,
@@ -651,6 +691,10 @@ export class AnalyticsService {
       tagDistribution: tagAgg.map((r) => ({ tag: String(r._id), count: r.count })),
       categoryDistribution: categoryAgg.map((r) => ({ category: String(r._id), count: r.count })),
       peakCallHours: peakHoursAgg.map((r) => ({ hour: Number(r._id), count: r.count })),
+      channelDistribution,
+      outcomeDistribution,
+      followUpCalls,
+      followUpRatio,
     };
   }
 }

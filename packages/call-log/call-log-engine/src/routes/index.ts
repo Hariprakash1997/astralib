@@ -5,8 +5,10 @@ import type { LogAdapter } from '@astralibx/core';
 import type { AuthResult } from '@astralibx/call-log-types';
 import type { PipelineService } from '../services/pipeline.service.js';
 import type { CallLogService } from '../services/call-log.service.js';
+import type { CallLogLifecycleService } from '../services/call-log-lifecycle.service.js';
 import type { TimelineService } from '../services/timeline.service.js';
 import type { AnalyticsService } from '../services/analytics.service.js';
+import type { PipelineAnalyticsService } from '../services/pipeline-analytics.service.js';
 import type { SettingsService } from '../services/settings.service.js';
 import type { ExportService } from '../services/export.service.js';
 import { createPipelineRoutes } from './pipeline.routes.js';
@@ -18,8 +20,10 @@ import { createSettingsRoutes } from './settings.routes.js';
 export interface RouteServices {
   pipelines: PipelineService;
   callLogs: CallLogService;
+  lifecycle: CallLogLifecycleService;
   timeline: TimelineService;
   analytics: AnalyticsService;
+  pipelineAnalytics: PipelineAnalyticsService;
   settings: SettingsService;
   export: ExportService;
 }
@@ -55,9 +59,9 @@ export function createRoutes(services: RouteServices, options: RouteOptions): Ro
   const protectedRouter = Router();
 
   protectedRouter.use('/pipelines', createPipelineRoutes(services.pipelines, logger));
-  protectedRouter.use('/calls', createCallLogRoutes({ callLogs: services.callLogs, timeline: services.timeline }, logger));
+  protectedRouter.use('/calls', createCallLogRoutes({ callLogs: services.callLogs, lifecycle: services.lifecycle, timeline: services.timeline }, logger));
   protectedRouter.use('/contacts', createContactRoutes({ callLogs: services.callLogs, timeline: services.timeline }, logger));
-  protectedRouter.use('/analytics', createAnalyticsRoutes(services.analytics, logger));
+  protectedRouter.use('/analytics', createAnalyticsRoutes(services.analytics, services.pipelineAnalytics, logger));
   protectedRouter.use('/', createSettingsRoutes(services.settings, services.export, logger));
 
   if (authMiddleware) {

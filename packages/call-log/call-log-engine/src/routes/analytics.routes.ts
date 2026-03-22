@@ -3,10 +3,12 @@ import type { Request, Response } from 'express';
 import { sendSuccess, sendError } from '@astralibx/core';
 import type { LogAdapter } from '@astralibx/core';
 import type { AnalyticsService } from '../services/analytics.service.js';
+import type { PipelineAnalyticsService } from '../services/pipeline-analytics.service.js';
 import { AlxCallLogError } from '../errors/index.js';
 
 export function createAnalyticsRoutes(
   analytics: AnalyticsService,
+  pipelineAnalytics: PipelineAnalyticsService,
   logger: LogAdapter,
 ): Router {
   const router = Router();
@@ -60,11 +62,11 @@ export function createAnalyticsRoutes(
     }
   });
 
-  // GET /pipeline/:id — pipeline stats
+  // GET /pipeline/:id — pipeline stats (delegated to PipelineAnalyticsService)
   router.get('/pipeline/:id', async (req: Request, res: Response) => {
     try {
       const dateRange = parseDateRange(req.query as Record<string, string | undefined>);
-      const result = await analytics.getPipelineStats(req.params['id']!, dateRange);
+      const result = await pipelineAnalytics.getPipelineStats(req.params['id']!, dateRange);
       sendSuccess(res, result);
     } catch (error: unknown) {
       if (error instanceof AlxCallLogError) {
@@ -77,11 +79,11 @@ export function createAnalyticsRoutes(
     }
   });
 
-  // GET /pipeline/:id/funnel — funnel
+  // GET /pipeline/:id/funnel — funnel (delegated to PipelineAnalyticsService)
   router.get('/pipeline/:id/funnel', async (req: Request, res: Response) => {
     try {
       const dateRange = parseDateRange(req.query as Record<string, string | undefined>);
-      const result = await analytics.getPipelineFunnel(req.params['id']!, dateRange);
+      const result = await pipelineAnalytics.getPipelineFunnel(req.params['id']!, dateRange);
       sendSuccess(res, result);
     } catch (error: unknown) {
       if (error instanceof AlxCallLogError) {
@@ -90,6 +92,45 @@ export function createAnalyticsRoutes(
       }
       const message = error instanceof Error ? error.message : 'Unknown error';
       logger.error('Failed to get pipeline funnel', { id: req.params['id'], error: message });
+      sendError(res, message, 500);
+    }
+  });
+
+  // GET /channel-distribution — channel distribution
+  router.get('/channel-distribution', async (req: Request, res: Response) => {
+    try {
+      const dateRange = parseDateRange(req.query as Record<string, string | undefined>);
+      const result = await pipelineAnalytics.getChannelDistribution(dateRange);
+      sendSuccess(res, result);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to get channel distribution', { error: message });
+      sendError(res, message, 500);
+    }
+  });
+
+  // GET /outcome-distribution — outcome distribution
+  router.get('/outcome-distribution', async (req: Request, res: Response) => {
+    try {
+      const dateRange = parseDateRange(req.query as Record<string, string | undefined>);
+      const result = await pipelineAnalytics.getOutcomeDistribution(dateRange);
+      sendSuccess(res, result);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to get outcome distribution', { error: message });
+      sendError(res, message, 500);
+    }
+  });
+
+  // GET /follow-up-stats — follow-up ratio stats
+  router.get('/follow-up-stats', async (req: Request, res: Response) => {
+    try {
+      const dateRange = parseDateRange(req.query as Record<string, string | undefined>);
+      const result = await pipelineAnalytics.getFollowUpStats(dateRange);
+      sendSuccess(res, result);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('Failed to get follow-up stats', { error: message });
       sendError(res, message, 500);
     }
   });

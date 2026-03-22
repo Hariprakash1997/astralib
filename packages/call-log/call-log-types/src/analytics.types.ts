@@ -53,6 +53,22 @@ export interface DailyReport {
   byAgent: { agentId: string; agentName: string; count: number }[];
 }
 
+export interface ChannelDistribution {
+  channel: string;
+  count: number;
+}
+
+export interface OutcomeDistribution {
+  outcome: string;
+  count: number;
+}
+
+export interface FollowUpStats {
+  followUpCalls: number;
+  totalCalls: number;
+  followUpRatio: number;
+}
+
 export interface OverallCallReport {
   totalCalls: number;
   closedCalls: number;
@@ -61,6 +77,10 @@ export interface OverallCallReport {
   tagDistribution: { tag: string; count: number }[];
   categoryDistribution: { category: string; count: number }[];
   peakCallHours: { hour: number; count: number }[];
+  channelDistribution: ChannelDistribution[];
+  outcomeDistribution: OutcomeDistribution[];
+  followUpCalls: number;
+  followUpRatio: number;
 }
 
 export interface WeeklyTrend {
