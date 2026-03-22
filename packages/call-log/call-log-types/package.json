@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/call-log-types",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Shared TypeScript type definitions, enums, and contracts for the call-log module",
   "repository": {
     "type": "git",
