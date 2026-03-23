@@ -1,5 +1,11 @@
 # @astralibx/call-log-engine
 
+## 0.3.1
+
+### Patch Changes
+
+- 904c5f2: Fixes: staff resolveStaff now returns name and email, generateToken is public - docs: seeding examples, settings merge behavior, AiResponseOutput type shape
+
 ## 0.3.0
 
 ### Minor Changes

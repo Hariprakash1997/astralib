@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/chat-engine",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Real-time chat engine with Socket.IO gateway, session lifecycle, message routing, agent management, Redis caching, and FAQ/guided questions management",
   "repository": {
     "type": "git",
