@@ -1,5 +1,11 @@
 # @astralibx/staff-engine
 
+## 0.2.2
+
+### Patch Changes
+
+- 904c5f2: Fixes: staff resolveStaff now returns name and email, generateToken is public - docs: seeding examples, settings merge behavior, AiResponseOutput type shape
+
 ## 0.2.1
 
 ### Patch Changes
