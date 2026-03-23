@@ -26,7 +26,7 @@ No `MIGRATION.md` or changelog section listing:
 
 ---
 
-## Integration concerns (9/10 resolved) (found during chat/call-log/staff migration 2026-03-23)
+## Integration concerns (10/11 resolved) (found during chat/call-log/staff migration 2026-03-23)
 
 ### LIB-1. ~~staff-engine `resolveStaff()` doesn't return name or email~~ RESOLVED
 
@@ -153,3 +153,15 @@ Without clear types, the consuming project guesses and may miss optional fields 
 **Problem:** Same as concern #3 but for the new packages (staff-engine, call-log-engine, chat-engine). When you bump versions, there's no migration guide. Schema field names like `label` vs `name`, required fields like `order`, and response shape changes are only discoverable via runtime errors.
 
 **Suggested fix:** Every breaking change should have a MIGRATION.md entry with before/after examples.
+
+---
+
+### LIB-11. ~~chat-ui and staff-ui do not ship TypeScript declarations~~ RESOLVED
+
+**RESOLVED** — Added `vite-plugin-dts` to both `chat-ui` and `staff-ui`. Both now generate `.d.ts` files in dist.
+
+**Package:** `@astralibx/chat-ui`, `@astralibx/staff-ui`
+
+**Problem:** `import { AlxChatConfig } from '@astralibx/chat-ui'` throws TS7016 — no declaration file. Same issue as Concern #1 which was fixed for email-ui and rule-engine-ui.
+
+**Fix:** Added `vite-plugin-dts` with `rollupTypes: true` to vite.config.ts, matching the pattern used by email-ui.
