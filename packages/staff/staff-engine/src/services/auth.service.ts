@@ -54,7 +54,7 @@ export class AuthService {
     return this.tenantId ? { tenantId: this.tenantId } : {};
   }
 
-  private generateToken(staffId: string, role: string): string {
+  generateToken(staffId: string, role: string): string {
     const expiresIn = role === STAFF_ROLE.Owner ? this.ownerTokenExpiry : this.staffTokenExpiry;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return jwt.sign({ staffId, role }, this.jwtSecret, { expiresIn } as any);

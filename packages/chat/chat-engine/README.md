@@ -127,6 +127,23 @@ const engine = createChatEngine({
 ### AI Engine
 
 - **Two-layer AI mode** -- Global AI mode (`manual`, `ai`, `agent-wise`) with per-agent overrides. Resolution: agent-level `modeOverride`/`aiEnabled` takes precedence over global mode when `allowPerAgentMode` is enabled. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/chat/chat-engine/docs/adapters.md)
+
+> **`generateAiResponse` return type** -- The adapter must return `AiResponseOutput` from `@astralibx/chat-types`:
+>
+> ```ts
+> import type { AiResponseOutput } from '@astralibx/chat-types';
+>
+> // AiResponseOutput shape:
+> {
+>   messages: string[];              // array for multi-bubble, single item for one message
+>   conversationSummary?: string;    // stored on session, passed to next AI call
+>   shouldEscalate?: boolean;        // true = auto-escalate to human agent
+>   escalationReason?: string;       // reason shown in system message
+>   extracted?: Record<string, unknown>;  // extracted contact data
+>   memoryHints?: MemoryHint[];      // memory management hints
+>   metadata?: Record<string, unknown>;
+> }
+> ```
 - **AI message debouncing** -- When a visitor sends rapid messages, the engine accumulates them and sends a single AI response after a configurable delay (`aiDebounceMs`, default 15s). Prevents AI flooding.
 - **Multi-bubble AI responses** -- AI adapter can return an array of messages. Engine delivers them sequentially with configurable inter-bubble delays, typing indicators, and realistic timing simulation.
 - **Realistic typing simulation** -- Full delivery lifecycle: delivery delay (300-1000ms) → read delay (scales with message length) → pre-typing pause (500-1500ms) → typing indicator (based on message length) → message sent. All delays configurable via `aiSimulation` config.

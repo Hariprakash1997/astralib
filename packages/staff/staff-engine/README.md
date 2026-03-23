@@ -70,6 +70,20 @@ app.listen(3000);
 ### Permissions
 
 - **Runtime-configurable groups via API** -- `POST /permission-groups` creates a named group with permission entries. Groups have `groupId`, `label`, `sortOrder`, and an array of entries (key, label, type). No redeploy required to define new permissions.
+
+> **Note:** Permission groups use `label` for display text and `groupId` for the unique identifier -- not `name`.
+
+```ts
+await engine.permissions.createGroup({
+  groupId: 'chat-management',    // unique identifier, kebab-case
+  label: 'Chat Management',      // display text shown in UI
+  permissions: [
+    { key: 'chat:view', label: 'View chats', type: 'view' },
+    { key: 'chat:edit', label: 'Edit chats', type: 'edit' },
+  ],
+  sortOrder: 1,
+});
+```
 - **Edit-to-view cascade** -- when granting a permission ending in `.edit`, the corresponding `.view` key is automatically required. The engine validates this on `PUT /:id/permissions`.
 - **Permission cache (Redis or in-memory)** -- each staff member's resolved permission list is cached after the first lookup. TTL is `permissionCacheTtlMs` (default 5 min). Cache is invalidated immediately on `updatePermissions` or `updateStatus`.
 - **Owner bypasses all checks** -- `requirePermission` middleware skips the permission check entirely when `req.user.role === 'owner'`.
@@ -121,6 +135,27 @@ The factory function returns a single `StaffEngine` object:
 | `engine.permissions` | Direct access to `PermissionService` |
 | `engine.models` | Mongoose models (`Staff`, `PermissionGroup`) |
 | `engine.destroy()` | Flush permission cache and clean up resources |
+
+## Seeding Data
+
+Schema factory functions are exported so you can seed data or run scripts without creating a full engine instance:
+
+```ts
+import { createStaffModel, createPermissionGroupModel } from '@astralibx/staff-engine';
+
+const Staff = createStaffModel(connection);
+const PermissionGroup = createPermissionGroupModel(connection);
+
+await PermissionGroup.create({
+  groupId: 'admin',
+  label: 'Admin',
+  permissions: [
+    { key: 'chat:view', label: 'View chats', type: 'view' },
+    { key: 'chat:edit', label: 'Edit chats', type: 'edit' },
+  ],
+  sortOrder: 1,
+});
+```
 
 ## Redis Key Prefix (Required for Multi-Project Deployments)
 

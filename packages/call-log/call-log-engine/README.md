@@ -123,7 +123,7 @@ const engine = createCallLogEngine({
 - **Follow-up worker** -- Background worker polls for due follow-ups and fires `onFollowUpDue` hook. Starts automatically, stops via `engine.destroy()`. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/call-log/call-log-engine/docs/hooks.md)
 - **Analytics** -- Dashboard stats, agent stats, leaderboard, pipeline stats/funnel, team stats, daily/weekly/overall reports, channel/outcome distributions, follow-up ratio. Deleted calls excluded from all analytics. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/call-log/call-log-engine/docs/api-routes.md)
 - **Export** -- Bulk call export, single call export, pipeline report export in JSON or CSV. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/call-log/call-log-engine/docs/api-routes.md)
-- **Settings** -- Runtime-mutable tags, categories, priority levels, follow-up defaults, available channels, available outcomes. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/call-log/call-log-engine/docs/api-routes.md)
+- **Settings** -- Runtime-mutable tags, categories, priority levels, follow-up defaults, available channels, available outcomes. Settings updates use partial merge (`$set`) -- only fields you provide are updated. Calling `settings.update({ availableChannels: [...] })` will NOT overwrite other settings like `availableOutcomes` or `defaultFollowUpDays`. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/call-log/call-log-engine/docs/api-routes.md)
 - **Bulk operations** -- Bulk stage change for multiple call logs at once. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/call-log/call-log-engine/docs/api-routes.md)
 - **Contact adapters** -- Pluggable contact lookup and creation. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/call-log/call-log-engine/docs/adapters.md)
 - **Agent sharing** -- Reuse chat-engine's agent collection. [Details](https://github.com/Hariprakash1997/astralib/blob/main/packages/call-log/call-log-engine/docs/agent-sharing.md)
@@ -160,6 +160,19 @@ The library exposes an Express router from a single factory call:
 | `engine.destroy()` | Stops follow-up worker, cleans up resources | Call on shutdown |
 
 All services are also available programmatically via the returned `engine` object: `pipelines`, `callLogs`, `lifecycle`, `timeline`, `analytics`, `pipelineAnalytics`, `settings`, `export`, `models`.
+
+## Seeding Data
+
+Schema factory functions are exported so you can seed data or run scripts without creating a full engine instance:
+
+```ts
+import { createPipelineModel, createCallLogSettingsModel } from '@astralibx/call-log-engine';
+
+const Pipeline = createPipelineModel(connection);
+const Settings = createCallLogSettingsModel(connection);
+
+await Pipeline.create({ ... });
+```
 
 ## Getting Started Guide
 

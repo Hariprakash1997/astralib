@@ -10,6 +10,8 @@ import { ERROR_CODE, ERROR_MESSAGE } from '../constants/index.js';
 
 export interface StaffUser {
   staffId: string;
+  name: string;
+  email: string;
   role: string;
   permissions: string[];
 }
@@ -42,12 +44,12 @@ export function createAuthMiddleware(
       // Check staff status
       const filter: Record<string, unknown> = { _id: payload.staffId };
       if (tenantId) filter.tenantId = tenantId;
-      const staff = await StaffModel.findOne(filter).select('status role').lean();
+      const staff = await StaffModel.findOne(filter).select('name email status role').lean() as IStaffDocument | null;
       if (!staff) return null;
       if (staff.status !== STAFF_STATUS.Active) return null;
 
       const permissions = await permissionCache.get(payload.staffId);
-      return { staffId: payload.staffId, role: staff.role, permissions };
+      return { staffId: payload.staffId, name: staff.name, email: staff.email, role: staff.role, permissions };
     } catch {
       return null;
     }

@@ -90,7 +90,7 @@ describe('createAuthMiddleware', () => {
 
   describe('verifyToken', () => {
     it('valid token → attaches user to req and calls next', async () => {
-      const staffModel = makeStaffModel({ status: 'active', role: 'staff' });
+      const staffModel = makeStaffModel({ status: 'active', role: 'staff', name: 'Alice', email: 'alice@test.com' });
       const permCache = makePermissionCache(['chat:view']);
       const { verifyToken } = createAuthMiddleware(JWT_SECRET, permCache, staffModel, noopLogger);
 
@@ -104,6 +104,8 @@ describe('createAuthMiddleware', () => {
       expect(next).toHaveBeenCalledOnce();
       expect((req as AuthenticatedRequest).user).toEqual({
         staffId: 'staff1',
+        name: 'Alice',
+        email: 'alice@test.com',
         role: 'staff',
         permissions: ['chat:view'],
       });
@@ -201,7 +203,7 @@ describe('createAuthMiddleware', () => {
 
   describe('resolveStaff', () => {
     it('valid token → returns StaffUser object', async () => {
-      const staffModel = makeStaffModel({ status: 'active', role: 'owner' });
+      const staffModel = makeStaffModel({ status: 'active', role: 'owner', name: 'Boss', email: 'boss@test.com' });
       const permCache = makePermissionCache(['reports:view']);
       const { resolveStaff } = createAuthMiddleware(JWT_SECRET, permCache, staffModel, noopLogger);
 
@@ -211,6 +213,8 @@ describe('createAuthMiddleware', () => {
 
       expect(user).toEqual({
         staffId: 'owner1',
+        name: 'Boss',
+        email: 'boss@test.com',
         role: 'owner',
         permissions: ['reports:view'],
       });
