@@ -1,5 +1,11 @@
 # @astralibx/staff-ui
 
+## 0.2.2
+
+### Patch Changes
+
+- df73741: Fixes: chat-ui and staff-ui now ship TypeScript declarations via vite-plugin-dts
+
 ## 0.2.1
 
 ### Patch Changes
