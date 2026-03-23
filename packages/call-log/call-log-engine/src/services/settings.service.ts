@@ -55,6 +55,8 @@ export class SettingsService {
   async update(data: Partial<{
     availableTags: string[];
     availableCategories: string[];
+    availableChannels: string[];
+    availableOutcomes: string[];
     priorityLevels: IPriorityConfig[];
     defaultFollowUpDays: number;
     followUpReminderEnabled: boolean;

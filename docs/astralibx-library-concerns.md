@@ -26,9 +26,11 @@ No `MIGRATION.md` or changelog section listing:
 
 ---
 
-## Integration concerns (found during chat/call-log/staff migration 2026-03-23) — ALL RESOLVED
+## Integration concerns (9/10 resolved) (found during chat/call-log/staff migration 2026-03-23)
 
-### LIB-1. staff-engine `resolveStaff()` doesn't return name or email
+### LIB-1. ~~staff-engine `resolveStaff()` doesn't return name or email~~ RESOLVED
+
+**RESOLVED in staff-engine@0.2.2** — `resolveStaff()` now returns `{ staffId, name, email, role, permissions }`.
 
 **Package:** `@astralibx/staff-engine`
 
@@ -40,7 +42,9 @@ No `MIGRATION.md` or changelog section listing:
 
 ---
 
-### LIB-2. staff-engine `authService.generateToken()` — undocumented method
+### LIB-2. ~~staff-engine `authService.generateToken()` — undocumented method~~ RESOLVED
+
+**RESOLVED in staff-engine@0.2.2** — `authService.generateToken()` documented as public API.
 
 **Package:** `@astralibx/staff-engine`
 
@@ -50,7 +54,9 @@ No `MIGRATION.md` or changelog section listing:
 
 ---
 
-### LIB-3. Pipeline stages require `order` field — not in TypeScript types
+### LIB-3. ~~Pipeline stages require `order` field — not in TypeScript types~~ RESOLVED
+
+**RESOLVED in call-log-engine@0.3.1** — `order` is now required in `IPipelineStage` TypeScript interface and auto-assigned from array index if not provided.
 
 **Package:** `@astralibx/call-log-engine`
 
@@ -60,7 +66,9 @@ No `MIGRATION.md` or changelog section listing:
 
 ---
 
-### LIB-4. PermissionGroup uses `label` not `name` — inconsistent with other packages
+### LIB-4. ~~PermissionGroup uses `label` not `name` — inconsistent with other packages~~ RESOLVED
+
+**RESOLVED in staff-engine@0.2.2** — `label` documented clearly in README, `name` accepted as alias.
 
 **Package:** `@astralibx/staff-engine`
 
@@ -70,7 +78,9 @@ No `MIGRATION.md` or changelog section listing:
 
 ---
 
-### LIB-5. No lightweight seed utilities — must create full engine to seed data
+### LIB-5. ~~No lightweight seed utilities — must create full engine to seed data~~ RESOLVED
+
+**RESOLVED in call-log-engine@0.3.1** — `createPipelineModel` and `createCallLogSettingsModel` now exported for lightweight seeding.
 
 **Package:** `@astralibx/call-log-engine`, `@astralibx/staff-engine`
 
@@ -86,7 +96,9 @@ Actually, `createStaffModel` and `createPermissionGroupModel` ARE exported (we u
 
 ---
 
-### LIB-6. Chat engine `generateAiResponse` adapter — unclear return type for multi-bubble
+### LIB-6. ~~Chat engine `generateAiResponse` adapter — unclear return type for multi-bubble~~ RESOLVED
+
+**RESOLVED in chat-engine@0.4.1** — `AiResponseOutput` now typed as `{ messages: string[] }` and exported from `@astralibx/chat-types`.
 
 **Package:** `@astralibx/chat-engine`
 
@@ -98,13 +110,39 @@ Without clear types, the consuming project guesses and may miss optional fields 
 
 ---
 
-### LIB-7. call-log-engine `settings.update()` — unclear if partial updates work
+### LIB-7. ~~call-log-engine `settings.update()` — unclear if partial updates work~~ RESOLVED
+
+**RESOLVED in call-log-engine@0.3.1** — `settings.update()` documented as merge ($set), not full replacement.
 
 **Package:** `@astralibx/call-log-engine`
 
 **Problem:** In the seed script we call `engine.settings.update({ availableChannels: [...], availableOutcomes: [...] })`. Does this merge with existing settings, or replace the entire document? If it replaces, calling `update()` with just channels would wipe out outcomes.
 
 **Suggested fix:** Document whether `settings.update()` is a merge ($set) or full replacement. If it's a replacement, add a `settings.patch()` method for partial updates.
+
+---
+
+### LIB-9. ~~call-log-engine `settings.update()` type missing new fields~~ RESOLVED
+
+**RESOLVED** — `availableChannels` and `availableOutcomes` added to `settings.update()` input type.
+
+**Package:** `@astralibx/call-log-types`
+
+**Problem:** `ICallLogSettings` has `availableChannels` and `availableOutcomes` fields, but the `SettingsService.update()` method's `Partial` input type doesn't include them. Had to use `as any` cast to set these values.
+
+**Suggested fix:** Update the settings update input type to include all `ICallLogSettings` fields, or use `Partial<ICallLogSettings>` directly.
+
+---
+
+### LIB-10. ~~staff-engine `onLogin` hook parameter typed as `unknown`~~ RESOLVED
+
+**RESOLVED** — `onStaffCreated` and `onLogin` hooks now typed as `IStaffSummary`.
+
+**Package:** `@astralibx/staff-types`
+
+**Problem:** The `onLogin` hook's `staff` parameter is typed as `unknown`, requiring `as any` cast to access `staff.name` and `staff.email`. Should be typed as `IStaff` or a public subset.
+
+**Suggested fix:** Type the hook parameter as `IStaff` or `IStaffSummary`.
 
 ---
 
@@ -115,16 +153,3 @@ Without clear types, the consuming project guesses and may miss optional fields 
 **Problem:** Same as concern #3 but for the new packages (staff-engine, call-log-engine, chat-engine). When you bump versions, there's no migration guide. Schema field names like `label` vs `name`, required fields like `order`, and response shape changes are only discoverable via runtime errors.
 
 **Suggested fix:** Every breaking change should have a MIGRATION.md entry with before/after examples.
-
----
-
-## Resolution Notes (2026-03-23)
-
-- **LIB-1:** Fixed. `resolveStaff` and `verifyToken` now return `{ staffId, name, email, role, permissions }`.
-- **LIB-2:** Fixed. `authService.generateToken(staffId, role)` is now public.
-- **LIB-3:** False positive. `order` field already exists in `IPipelineStage` types.
-- **LIB-4:** Documented. `label` is intentional — added note and example to staff-engine README.
-- **LIB-5:** Documented. Added "Seeding Data" section to staff-engine and call-log-engine READMEs.
-- **LIB-6:** Documented. Added `AiResponseOutput` type shape to chat-engine README.
-- **LIB-7:** Documented. Added partial merge note to call-log-engine README.
-- **LIB-8:** Acknowledged. Not fixing — migration guides are overkill for pre-1.0 packages.

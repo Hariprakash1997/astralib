@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Fixes: staff resolveStaff now returns name and email, generateToken is public - docs: seeding examples, settings merge behavior, AiResponseOutput type shape"
+set "COMMIT_MSG=Fixes: settings.update type accepts availableChannels and availableOutcomes - staff hook params typed as IStaffSummary"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -55,7 +55,7 @@ REM  CHAT - packages/chat/*
 REM  chat-types, chat-engine, chat-ai, chat-widget, chat-ui
 REM  Leave empty if no chat changes: set "CHAT_PACKAGES="
 REM ============================================================
-set "CHAT_PACKAGES=chat-engine:patch"
+set "CHAT_PACKAGES="
 
 REM ============================================================
 REM  CALL LOG - packages/call-log/*
@@ -69,7 +69,7 @@ REM  STAFF - packages/staff/*
 REM  staff-types, staff-engine, staff-ui
 REM  Leave empty if no staff changes: set "STAFF_PACKAGES="
 REM ============================================================
-set "STAFF_PACKAGES=staff-engine:patch"
+set "STAFF_PACKAGES=staff-types:patch"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

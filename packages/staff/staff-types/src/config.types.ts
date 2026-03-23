@@ -1,4 +1,5 @@
 import type { StaffAdapters } from './adapter.types.js';
+import type { IStaffSummary } from './staff.types.js';
 
 export interface LogAdapter {
   info: (message: string, meta?: Record<string, unknown>) => void;
@@ -14,8 +15,8 @@ export interface StaffMetric {
 }
 
 export interface StaffHooks {
-  onStaffCreated?: (staff: unknown) => void | Promise<void>;
-  onLogin?: (staff: unknown, ip?: string) => void | Promise<void>;
+  onStaffCreated?: (staff: IStaffSummary) => void | Promise<void>;
+  onLogin?: (staff: IStaffSummary, ip?: string) => void | Promise<void>;
   onLoginFailed?: (email: string, ip?: string) => void | Promise<void>;
   onPermissionsChanged?: (staffId: string, oldPerms: string[], newPerms: string[]) => void | Promise<void>;
   onStatusChanged?: (staffId: string, oldStatus: string, newStatus: string) => void | Promise<void>;
