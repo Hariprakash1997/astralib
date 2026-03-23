@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/call-log-engine",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Call log engine with pipelines, timeline-based notes, contact adapters, analytics, and shared agent support",
   "repository": {
     "type": "git",

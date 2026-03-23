@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/chat-widget",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Embeddable visitor-facing chat widget built with Lit Web Components",
   "repository": {
     "type": "git",

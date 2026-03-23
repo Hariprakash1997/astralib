@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/staff-engine",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Staff management engine with JWT authentication, runtime-configurable permissions, and CRUD operations",
   "repository": {
     "type": "git",
