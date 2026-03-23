@@ -1,6 +1,6 @@
 {
   "name": "@astralibx/staff-types",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Shared TypeScript type definitions, enums, and contracts for the staff module",
   "repository": {
     "type": "git",

@@ -1,5 +1,11 @@
 # @astralibx/call-log-engine
 
+## 0.3.2
+
+### Patch Changes
+
+- 8756e66: Fixes: settings.update type accepts availableChannels and availableOutcomes - staff hook params typed as IStaffSummary
+
 ## 0.3.1
 
 ### Patch Changes
