@@ -65,9 +65,9 @@ export class AlxStaffList extends LitElement {
       if (this.filterStatus) filters.status = this.filterStatus as IStaffListFilters['status'];
       if (this.filterRole) filters.role = this.filterRole as IStaffListFilters['role'];
       const result = await StaffApiClient.listStaff(filters);
-      this.staff = result.data;
-      this.total = result.pagination.total;
-      this.totalPages = result.pagination.totalPages;
+      this.staff = result.staff;
+      this.total = result.total;
+      this.totalPages = result.totalPages;
     } catch (e) {
       this.error = e instanceof Error ? e.message : 'Failed to load staff';
     } finally {

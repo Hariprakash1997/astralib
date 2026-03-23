@@ -63,12 +63,20 @@ export class ChatSocketManager {
   private socketUrl: string;
   private namespace: string;
   private config: SocketManagerConfig;
+  private _connecting = false;
+  private _typingTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _lastTypingSent = 0;
+  private static TYPING_THROTTLE_MS = 2000;
 
   constructor(socketUrl: string, callbacks: SocketManagerCallbacks, namespace = '/chat', config: SocketManagerConfig = {}) {
     this.socketUrl = socketUrl;
     this.callbacks = callbacks;
     this.namespace = namespace;
     this.config = config;
+  }
+
+  get isConnecting(): boolean {
+    return this._connecting;
   }
 
   async connect(context: VisitorContext, existingSessionId?: string | null): Promise<void> {
@@ -81,6 +89,7 @@ export class ChatSocketManager {
       this.socket = null;
     }
 
+    this._connecting = true;
     this.callbacks.onConnectionChange('connecting');
 
     // Dynamic import — socket.io-client is a peer dep
@@ -99,16 +108,29 @@ export class ChatSocketManager {
 
     // Send connect payload once socket is connected
     this.socket.on('connect', () => {
+      this._connecting = false;
       this.callbacks.onConnectionChange('connected');
       this.socket!.emit(VisitorEvent.Connect, {
         context,
         existingSessionId: existingSessionId ?? undefined,
       });
     });
+
+    this.socket.on('connect_error', () => {
+      this._connecting = false;
+    });
   }
 
   disconnect(): void {
     if (!this.socket) return;
+
+    this._connecting = false;
+
+    // Clean up typing debounce timer
+    if (this._typingTimeout) {
+      clearTimeout(this._typingTimeout);
+      this._typingTimeout = null;
+    }
 
     // Reject all pending messages
     for (const [, pending] of this.pendingMessages) {
@@ -151,7 +173,29 @@ export class ChatSocketManager {
   }
 
   sendTyping(isTyping: boolean): void {
-    this.socket?.emit(VisitorEvent.Typing, { isTyping });
+    if (!this.socket?.connected) return;
+
+    if (isTyping) {
+      const now = Date.now();
+      if (now - this._lastTypingSent < ChatSocketManager.TYPING_THROTTLE_MS) return;
+      this._lastTypingSent = now;
+    }
+
+    this.socket.emit(VisitorEvent.Typing, { isTyping });
+
+    // Auto-stop typing after 3s if no new typing event
+    if (isTyping) {
+      if (this._typingTimeout) clearTimeout(this._typingTimeout);
+      this._typingTimeout = setTimeout(() => {
+        this.socket?.emit(VisitorEvent.Typing, { isTyping: false });
+        this._typingTimeout = null;
+      }, 3000);
+    } else {
+      if (this._typingTimeout) {
+        clearTimeout(this._typingTimeout);
+        this._typingTimeout = null;
+      }
+    }
   }
 
   sendRead(messageId: string): void {

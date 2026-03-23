@@ -4,7 +4,6 @@ import type {
   IStaffCreateInput,
   IStaffUpdateInput,
   IStaffListFilters,
-  IPaginatedResult,
   IPermissionGroup,
   IPermissionGroupCreateInput,
   IPermissionGroupUpdateInput,
@@ -30,6 +29,14 @@ export interface SetupResult {
 export interface LoginResult {
   staff: IStaffSummary;
   token: string;
+}
+
+export interface StaffListResult {
+  staff: IStaffSummary[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 async function request<T>(
@@ -83,7 +90,7 @@ export class StaffApiClient {
 
   // ── Staff CRUD ────────────────────────────────────────────────────────
 
-  static async listStaff(filters?: IStaffListFilters): Promise<IPaginatedResult<IStaffSummary>> {
+  static async listStaff(filters?: IStaffListFilters): Promise<StaffListResult> {
     const params = filters
       ? '?' + new URLSearchParams(
           Object.fromEntries(
@@ -93,7 +100,7 @@ export class StaffApiClient {
           ),
         ).toString()
       : '';
-    return request<IPaginatedResult<IStaffSummary>>('GET', `/${params}`);
+    return request<StaffListResult>('GET', `/${params}`);
   }
 
   static async createStaff(data: IStaffCreateInput): Promise<IStaffSummary> {

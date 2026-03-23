@@ -272,25 +272,25 @@ describe('createRoutes()', () => {
   });
 
   describe('call-log routes — static vs parameterized ordering', () => {
-    it('GET /calls/follow-ups is NOT captured by /:id', async () => {
+    it('GET /follow-ups is NOT captured by /:id', async () => {
       const { app, services } = await buildApp();
-      const result = await request(app, 'GET', '/api/calls/follow-ups');
+      const result = await request(app, 'GET', '/api/follow-ups');
       expect(result.status).toBe(200);
       // Should call getFollowUpsDue on lifecycle service, not get on callLogs
       expect(services.lifecycle.getFollowUpsDue).toHaveBeenCalledTimes(1);
       expect(services.callLogs.get).not.toHaveBeenCalled();
     });
 
-    it('GET /calls/:id is reached for a UUID-like id', async () => {
+    it('GET /:id is reached for a UUID-like id', async () => {
       const { app, services } = await buildApp();
-      const result = await request(app, 'GET', '/api/calls/cl-123');
+      const result = await request(app, 'GET', '/api/cl-123');
       expect(result.status).toBe(200);
       expect(services.callLogs.get).toHaveBeenCalledWith('cl-123');
     });
 
-    it('PUT /calls/-/bulk/stage is NOT captured by /:id', async () => {
+    it('PUT /-/bulk/stage is NOT captured by /:id', async () => {
       const { app, services } = await buildApp();
-      const result = await request(app, 'PUT', '/api/calls/-/bulk/stage', {
+      const result = await request(app, 'PUT', '/api/-/bulk/stage', {
         callLogIds: ['cl-1'],
         newStageId: 's-2',
         agentId: 'a-1',
@@ -318,10 +318,10 @@ describe('createRoutes()', () => {
     });
   });
 
-  describe('DELETE /calls/:id — soft delete', () => {
+  describe('DELETE /:id — soft delete', () => {
     it('calls lifecycle.softDelete and returns result', async () => {
       const { app, services } = await buildAppWithOptions({});
-      const result = await request(app, 'DELETE', '/api/calls/cl-123');
+      const result = await request(app, 'DELETE', '/api/cl-123');
       expect(result.status).toBe(200);
       expect(services.lifecycle.softDelete).toHaveBeenCalledWith('cl-123', undefined, undefined);
     });
@@ -332,7 +332,7 @@ describe('createRoutes()', () => {
       (services.lifecycle.softDelete as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
         new CallLogNotFoundError('cl-404'),
       );
-      const result = await request(app, 'DELETE', '/api/calls/cl-404');
+      const result = await request(app, 'DELETE', '/api/cl-404');
       expect(result.status).toBe(404);
     });
 
@@ -340,16 +340,16 @@ describe('createRoutes()', () => {
       const { app, services } = await buildAppWithOptions({
         authenticateRequest: async () => ({ adminUserId: 'agent-42', displayName: 'Agent Smith', role: 'agent' }),
       });
-      const result = await request(app, 'DELETE', '/api/calls/cl-123');
+      const result = await request(app, 'DELETE', '/api/cl-123');
       expect(result.status).toBe(200);
       expect(services.lifecycle.softDelete).toHaveBeenCalledWith('cl-123', 'agent-42', 'Agent Smith');
     });
   });
 
-  describe('GET /calls — new query params', () => {
+  describe('GET / — new query params', () => {
     it('passes channel filter to callLogs.list', async () => {
       const { app, services } = await buildAppWithOptions({});
-      const result = await request(app, 'GET', '/api/calls?channel=whatsapp');
+      const result = await request(app, 'GET', '/api?channel=whatsapp');
       expect(result.status).toBe(200);
       expect(services.callLogs.list).toHaveBeenCalledWith(
         expect.objectContaining({ channel: 'whatsapp' }),
@@ -358,7 +358,7 @@ describe('createRoutes()', () => {
 
     it('passes outcome filter to callLogs.list', async () => {
       const { app, services } = await buildAppWithOptions({});
-      const result = await request(app, 'GET', '/api/calls?outcome=interested');
+      const result = await request(app, 'GET', '/api?outcome=interested');
       expect(result.status).toBe(200);
       expect(services.callLogs.list).toHaveBeenCalledWith(
         expect.objectContaining({ outcome: 'interested' }),
@@ -367,7 +367,7 @@ describe('createRoutes()', () => {
 
     it('passes isFollowUp=true filter to callLogs.list', async () => {
       const { app, services } = await buildAppWithOptions({});
-      const result = await request(app, 'GET', '/api/calls?isFollowUp=true');
+      const result = await request(app, 'GET', '/api?isFollowUp=true');
       expect(result.status).toBe(200);
       expect(services.callLogs.list).toHaveBeenCalledWith(
         expect.objectContaining({ isFollowUp: true }),
@@ -376,7 +376,7 @@ describe('createRoutes()', () => {
 
     it('excludes deleted by default (no includeDeleted param)', async () => {
       const { app, services } = await buildAppWithOptions({});
-      const result = await request(app, 'GET', '/api/calls');
+      const result = await request(app, 'GET', '/api');
       expect(result.status).toBe(200);
       // includeDeleted should NOT be set to true — the service defaults exclude deleted
       expect(services.callLogs.list).toHaveBeenCalledWith(
@@ -386,7 +386,7 @@ describe('createRoutes()', () => {
 
     it('passes includeDeleted=true when query param is set', async () => {
       const { app, services } = await buildAppWithOptions({});
-      const result = await request(app, 'GET', '/api/calls?includeDeleted=true');
+      const result = await request(app, 'GET', '/api?includeDeleted=true');
       expect(result.status).toBe(200);
       expect(services.callLogs.list).toHaveBeenCalledWith(
         expect.objectContaining({ includeDeleted: true }),
@@ -395,24 +395,24 @@ describe('createRoutes()', () => {
   });
 
   describe('agent scoping', () => {
-    it('non-owner GET /calls has agentId injected from user', async () => {
+    it('non-owner GET / has agentId injected from user', async () => {
       const { app, services } = await buildAppWithOptions({
         authenticateRequest: async () => ({ adminUserId: 'agent-7', displayName: 'Bob', role: 'agent' }),
         enableAgentScoping: true,
       });
-      const result = await request(app, 'GET', '/api/calls');
+      const result = await request(app, 'GET', '/api');
       expect(result.status).toBe(200);
       expect(services.callLogs.list).toHaveBeenCalledWith(
         expect.objectContaining({ agentId: 'agent-7' }),
       );
     });
 
-    it('owner GET /calls does NOT have agentId injected', async () => {
+    it('owner GET / does NOT have agentId injected', async () => {
       const { app, services } = await buildAppWithOptions({
         authenticateRequest: async () => ({ adminUserId: 'owner-1', displayName: 'Owner', role: 'owner' }),
         enableAgentScoping: true,
       });
-      const result = await request(app, 'GET', '/api/calls');
+      const result = await request(app, 'GET', '/api');
       expect(result.status).toBe(200);
       expect(services.callLogs.list).toHaveBeenCalledWith(
         expect.not.objectContaining({ agentId: expect.any(String) }),
@@ -424,7 +424,7 @@ describe('createRoutes()', () => {
         authenticateRequest: async () => ({ adminUserId: 'agent-7', displayName: 'Bob', role: 'agent' }),
         enableAgentScoping: false,
       });
-      const result = await request(app, 'GET', '/api/calls');
+      const result = await request(app, 'GET', '/api');
       expect(result.status).toBe(200);
       expect(services.callLogs.list).toHaveBeenCalledWith(
         expect.not.objectContaining({ agentId: expect.any(String) }),

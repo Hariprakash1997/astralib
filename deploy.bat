@@ -18,7 +18,7 @@ REM  - See DEPLOYMENT.md for full guide
 REM ============================================================
 
 REM What changed? Plain English for consumers. Goes into CHANGELOG.md.
-set "COMMIT_MSG=Fixes: chat-ui and staff-ui now ship TypeScript declarations via vite-plugin-dts"
+set "COMMIT_MSG=Fixes: widget fixed position with CSS vars, socket race guard, read receipts, typing throttle, staff list flat response, call-log routes at root"
 
 REM Default bump type when no :type suffix is given
 set "DEFAULT_BUMP=patch"
@@ -55,21 +55,21 @@ REM  CHAT - packages/chat/*
 REM  chat-types, chat-engine, chat-ai, chat-widget, chat-ui
 REM  Leave empty if no chat changes: set "CHAT_PACKAGES="
 REM ============================================================
-set "CHAT_PACKAGES=chat-ui:patch"
+set "CHAT_PACKAGES=chat-widget:patch"
 
 REM ============================================================
 REM  CALL LOG - packages/call-log/*
 REM  call-log-types, call-log-engine, call-log-ui
 REM  Leave empty if no call-log changes: set "CALL_LOG_PACKAGES="
 REM ============================================================
-set "CALL_LOG_PACKAGES="
+set "CALL_LOG_PACKAGES=call-log-engine:patch"
 
 REM ============================================================
 REM  STAFF - packages/staff/*
 REM  staff-types, staff-engine, staff-ui
 REM  Leave empty if no staff changes: set "STAFF_PACKAGES="
 REM ============================================================
-set "STAFF_PACKAGES=staff-ui:patch"
+set "STAFF_PACKAGES=staff-engine:patch,staff-ui:patch"
 
 REM ============================================================
 REM  DO NOT EDIT BELOW THIS LINE

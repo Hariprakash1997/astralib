@@ -32,7 +32,7 @@ function makeReq(overrides: Partial<Request> = {}): Request {
 function makeStaffService(overrides: Partial<Record<string, unknown>> = {}) {
   const staffDoc = { _id: 'staff-1', name: 'Alice', role: 'staff' };
   return {
-    list: vi.fn().mockResolvedValue({ items: [staffDoc], total: 1, page: 1, limit: 20 }),
+    list: vi.fn().mockResolvedValue({ staff: [staffDoc], total: 1, page: 1, limit: 20, totalPages: 1 }),
     create: vi.fn().mockResolvedValue(staffDoc),
     update: vi.fn().mockResolvedValue(staffDoc),
     updatePermissions: vi.fn().mockResolvedValue(staffDoc),

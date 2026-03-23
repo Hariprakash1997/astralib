@@ -68,7 +68,7 @@ No `MIGRATION.md` or changelog section listing:
 
 ### LIB-4. ~~PermissionGroup uses `label` not `name` — inconsistent with other packages~~ RESOLVED
 
-**RESOLVED in staff-engine@0.2.2** — `label` documented clearly in README, `name` accepted as alias.
+**RESOLVED in staff-engine@0.2.2** — `label` is intentional, documented clearly in README with code example showing groupId vs label distinction.
 
 **Package:** `@astralibx/staff-engine`
 

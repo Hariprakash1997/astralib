@@ -124,7 +124,7 @@ export class AlxStaffPermissionEditor extends LitElement {
         StaffApiClient.listStaff(),
         StaffApiClient.listPermissionGroups(),
       ]);
-      const found = staffResult.data.find(s => String(s._id) === this.staffId);
+      const found = staffResult.staff.find(s => String(s._id) === this.staffId);
       if (!found) throw new Error('Staff not found');
       this.staff = found;
       this.selected = new Set(found.permissions);

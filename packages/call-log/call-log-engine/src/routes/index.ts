@@ -60,10 +60,10 @@ export function createRoutes(services: RouteServices, options: RouteOptions): Ro
   const protectedRouter = Router();
 
   protectedRouter.use('/pipelines', createPipelineRoutes(services.pipelines, logger));
-  protectedRouter.use('/calls', createCallLogRoutes({ callLogs: services.callLogs, lifecycle: services.lifecycle, timeline: services.timeline }, logger, enableAgentScoping));
   protectedRouter.use('/contacts', createContactRoutes({ callLogs: services.callLogs, timeline: services.timeline }, logger));
   protectedRouter.use('/analytics', createAnalyticsRoutes(services.analytics, services.pipelineAnalytics, logger, enableAgentScoping));
   protectedRouter.use('/', createSettingsRoutes(services.settings, services.export, logger));
+  protectedRouter.use('/', createCallLogRoutes({ callLogs: services.callLogs, lifecycle: services.lifecycle, timeline: services.timeline }, logger, enableAgentScoping));
 
   if (authMiddleware) {
     router.use(authMiddleware, protectedRouter);

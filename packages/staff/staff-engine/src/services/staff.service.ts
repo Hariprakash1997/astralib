@@ -1,7 +1,7 @@
 import type { Model } from 'mongoose';
 import type {
   LogAdapter, StaffHooks, StaffAdapters, IStaffCreateInput,
-  IStaffUpdateInput, IStaffListFilters, IPaginatedResult,
+  IStaffUpdateInput, IStaffListFilters,
 } from '@astralibx/staff-types';
 import { STAFF_ROLE, STAFF_STATUS } from '@astralibx/staff-types';
 import type { IStaffDocument } from '../schemas/staff.schema.js';
@@ -77,7 +77,7 @@ export class StaffService {
     return staff.toObject();
   }
 
-  async list(filters: IStaffListFilters = {}): Promise<IPaginatedResult<IStaffDocument>> {
+  async list(filters: IStaffListFilters = {}): Promise<{ staff: IStaffDocument[]; total: number; page: number; limit: number; totalPages: number }> {
     const page = Math.max(1, filters.page ?? 1);
     const limit = Math.min(filters.limit ?? DEFAULTS.ListPageSize, DEFAULTS.MaxListPageSize);
 
@@ -95,8 +95,11 @@ export class StaffService {
     ]);
 
     return {
-      data: data as unknown as IStaffDocument[],
-      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      staff: data as unknown as IStaffDocument[],
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     };
   }
 

@@ -89,8 +89,14 @@ export class AlxChatWidget extends LitElement {
     css`
       :host {
         display: block;
-        position: relative;
-        z-index: 9998;
+        position: fixed;
+        z-index: var(--alx-widget-z-index, 9999);
+        bottom: var(--alx-widget-offset-y, 20px);
+        right: var(--alx-widget-offset-x, 20px);
+      }
+      :host([position="bottom-left"]) {
+        right: auto;
+        left: var(--alx-widget-offset-x, 20px);
       }
       :host([dir="rtl"]) {
         direction: rtl;
@@ -131,7 +137,7 @@ export class AlxChatWidget extends LitElement {
   @property({ attribute: 'socket-url' }) socketUrl = '';
   @property() channel = '';
   @property({ reflect: true }) theme: 'light' | 'dark' | 'auto' = 'dark';
-  @property() position: 'bottom-right' | 'bottom-left' = 'bottom-right';
+  @property({ reflect: true }) position: 'bottom-right' | 'bottom-left' = 'bottom-right';
   @property({ attribute: 'primary-color' }) primaryColor = '';
   @property() dir: 'ltr' | 'rtl' | 'auto' = 'auto';
   @property() locale = '';
@@ -189,6 +195,7 @@ export class AlxChatWidget extends LitElement {
   private notificationManager: ChatNotificationManager | null = null;
   private flowManager = new FlowManager();
   private _timers: ReturnType<typeof setTimeout>[] = [];
+  private _lastReadMessageId: string | null = null;
 
   // -- Temp ID counter --
   private tempIdCounter = 0;
@@ -326,6 +333,13 @@ export class AlxChatWidget extends LitElement {
     }
     if (changedProps.has('dir') || changedProps.has('locale')) {
       this.setAttribute('dir', this._resolveDir());
+    }
+    if (changedProps.has('socketUrl')) {
+      const oldValue = changedProps.get('socketUrl') as string;
+      // If socketUrl changed from empty/undefined to a value, initiate connection
+      if (!oldValue && this.socketUrl) {
+        this.initSocket();
+      }
     }
   }
 
@@ -710,6 +724,15 @@ export class AlxChatWidget extends LitElement {
       // Send analytics
       this.socketManager?.trackWidgetOpened();
 
+      // Mark last unread agent message as read (skip if already sent)
+      if (this.features.readReceipts && this.messages.length > 0) {
+        const lastAgentMsg = [...this.messages].reverse().find(m => m.senderType !== ChatSenderType.Visitor);
+        if (lastAgentMsg && lastAgentMsg.messageId !== this._lastReadMessageId) {
+          this._lastReadMessageId = lastAgentMsg.messageId;
+          this.socketManager?.sendRead(lastAgentMsg.messageId);
+        }
+      }
+
       // If flow is enabled and not complete, show flow
       if (this.flowManager.isFlowEnabled() && !this.flowManager.isFlowComplete()) {
         this.currentView = 'flow';
@@ -862,6 +885,8 @@ export class AlxChatWidget extends LitElement {
 
     // Disconnect and reset
     this.socketManager?.disconnect();
+    this.socketManager = null;
+    this._lastReadMessageId = null;
     this.storageManager?.clearSession();
     this.sessionId = null;
     this.messages = [];
@@ -984,6 +1009,7 @@ export class AlxChatWidget extends LitElement {
   private initSocket(preferences?: Record<string, unknown>) {
     if (!this.socketUrl) return;
     if (!this.storageManager) return;
+    if (this.socketManager?.isConnected || this.socketManager?.isConnecting) return;
 
     const visitorId = this.storageManager.getVisitorId();
     const existingSessionId = this.storageManager.getSessionId();
@@ -1065,6 +1091,12 @@ export class AlxChatWidget extends LitElement {
         message.content,
       );
       this.fireEvent('chat:message-received', { message });
+
+      // Send read receipt if widget is open and in chat view (skip duplicates)
+      if (this.features.readReceipts && this.isOpen && this.currentView === 'chat' && !document.hidden && message.messageId !== this._lastReadMessageId) {
+        this._lastReadMessageId = message.messageId;
+        this.socketManager?.sendRead(message.messageId);
+      }
     }
   };
 

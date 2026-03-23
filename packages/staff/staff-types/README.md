@@ -47,7 +47,7 @@ PERMISSION_TYPE.Action // 'action'
 | `IStaffCreateInput` | `staff.types` | Input for creating a staff member: name, email, password (plain), role, status, permissions, externalUserId, metadata |
 | `IStaffUpdateInput` | `staff.types` | Input for updating a staff member: name, email, metadata |
 | `IStaffListFilters` | `staff.types` | List query filters: status, role, page, limit |
-| `IPaginatedResult<T>` | `staff.types` | Paginated response wrapper: data[], pagination (page, limit, total, totalPages) |
+| `IPaginatedResult<T>` | `staff.types` | Generic pagination wrapper (utility type). Staff list endpoint returns flat `{ staff[], total, page, limit, totalPages }` instead. |
 | `IPermissionEntry` | `permission.types` | Single permission entry: key, label, type |
 | `IPermissionGroup` | `permission.types` | Permission group document: groupId, label, permissions[], sortOrder, tenantId |
 | `IPermissionGroupCreateInput` | `permission.types` | Input for creating a permission group |

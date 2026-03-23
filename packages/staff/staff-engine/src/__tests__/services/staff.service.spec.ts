@@ -177,11 +177,11 @@ describe('StaffService.list', () => {
 
     const result = await service.list({ page: 1, limit: 10 });
 
-    expect(result.data).toHaveLength(1);
-    expect(result.pagination.total).toBe(1);
-    expect(result.pagination.page).toBe(1);
-    expect(result.pagination.limit).toBe(10);
-    expect(result.pagination.totalPages).toBe(1);
+    expect(result.staff).toHaveLength(1);
+    expect(result.total).toBe(1);
+    expect(result.page).toBe(1);
+    expect(result.limit).toBe(10);
+    expect(result.totalPages).toBe(1);
   });
 });
 
