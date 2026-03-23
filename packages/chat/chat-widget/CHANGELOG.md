@@ -1,5 +1,11 @@
 # @astralibx/chat-widget
 
+## 0.3.1
+
+### Patch Changes
+
+- 14215f8: Fixes: widget fixed position with CSS vars, socket race guard, read receipts, typing throttle, staff list flat response, call-log routes at root
+
 ## 0.3.0
 
 ### Minor Changes
